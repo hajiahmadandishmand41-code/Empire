@@ -1,6 +1,10 @@
 /**
  * Signed, HTTP-only session cookie.
- * Payload: base64url(JSON({ uid, exp })) + '.' + base64url(HMAC-SHA256)
+ * Payload: base64url(JSON({ uid, iat, exp })) + '.' + base64url(HMAC-SHA256)
+ *
+ * `iat` is checked against the user's updatedAt timestamp. Any account
+ * mutation (including logout, role changes, password changes and admin
+ * deactivation) therefore invalidates previously issued session tokens.
  */
 import { cookies } from 'next/headers';
 import { createHmac, timingSafeEqual } from 'node:crypto';
@@ -10,6 +14,7 @@ const MAX_AGE_SECONDS = 60 * 60 * 24 * 30; // 30 days
 
 interface SessionPayload {
   uid: string;
+  iat: number;
   exp: number;
 }
 
@@ -19,7 +24,6 @@ function getSecret(): string {
     process.env.NEXTAUTH_SECRET ||
     process.env.SESSION_SECRET;
   if (!s || s.length < 32) {
-    // Non-fatal in dev, but log so ops rotate in prod.
     if (process.env.NODE_ENV === 'production') {
       throw new Error('AUTH_SECRET must be set (min 32 chars) in production.');
     }
@@ -40,26 +44,30 @@ function sign(payloadB64: string): string {
   return createHmac('sha256', getSecret()).update(payloadB64).digest('base64url');
 }
 
-export function encodeSession(uid: string): string {
-  const exp = Math.floor(Date.now() / 1000) + MAX_AGE_SECONDS;
-  const payload: SessionPayload = { uid, exp };
+export function encodeSession(uid: string, nowMs = Date.now()): string {
+  const iat = Math.floor(nowMs / 1000);
+  const exp = iat + MAX_AGE_SECONDS;
+  const payload: SessionPayload = { uid, iat, exp };
   const p = b64url(JSON.stringify(payload));
   const sig = sign(p);
   return `${p}.${sig}`;
 }
 
 export function decodeSession(token: string): SessionPayload | null {
-  const [p, sig] = token.split('.');
+  const parts = token.split('.');
+  if (parts.length !== 2) return null;
+  const [p, sig] = parts;
   if (!p || !sig) return null;
   const expected = sign(p);
   const a = Buffer.from(sig);
   const b = Buffer.from(expected);
   if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
   try {
-    const payload = JSON.parse(fromB64url(p).toString('utf8')) as SessionPayload;
-    if (!payload?.uid || !payload?.exp) return null;
+    const payload = JSON.parse(fromB64url(p).toString('utf8')) as Partial<SessionPayload>;
+    if (!payload?.uid || !Number.isInteger(payload.iat) || !Number.isInteger(payload.exp)) return null;
     if (payload.exp * 1000 < Date.now()) return null;
-    return payload;
+    if (payload.iat <= 0 || payload.exp <= payload.iat) return null;
+    return payload as SessionPayload;
   } catch {
     return null;
   }
@@ -78,9 +86,6 @@ export async function setSessionCookie(uid: string): Promise<void> {
 
 export async function clearSessionCookie(): Promise<void> {
   const store = await cookies();
-  // `maxAge: 0` clears the cookie. We keep `secure` consistent with the
-  // setter so the browser actually deletes it (browsers silently ignore
-  // an unset cookie whose attributes don't match the original).
   store.set(SESSION_COOKIE, '', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -90,25 +95,24 @@ export async function clearSessionCookie(): Promise<void> {
   });
 }
 
-export async function readSessionUserId(): Promise<string | null> {
+export async function readSessionPayload(): Promise<SessionPayload | null> {
   const store = await cookies();
   const token = store.get(SESSION_COOKIE)?.value;
   if (!token) return null;
-  return decodeSession(token)?.uid ?? null;
+  return decodeSession(token);
 }
 
-/**
- * Phase 12 — Lightweight session shape expected by some auth helpers
- * (notably `./guards` for the email/phone verification endpoints). It just
- * exposes the userId; the role / verification status are loaded
- * separately via `getCurrentUser`.
- */
+export async function readSessionUserId(): Promise<string | null> {
+  return (await readSessionPayload())?.uid ?? null;
+}
+
 export interface SessionPayloadShape {
   userId: string;
+  issuedAt: number;
 }
 
 export async function getSessionPayload(): Promise<SessionPayloadShape | null> {
-  const uid = await readSessionUserId();
-  if (!uid) return null;
-  return { userId: uid };
+  const payload = await readSessionPayload();
+  if (!payload) return null;
+  return { userId: payload.uid, issuedAt: payload.iat };
 }
