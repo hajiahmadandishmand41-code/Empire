@@ -1,0 +1,28 @@
+<svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Rounded square background -->
+  <rect width="180" height="180" rx="40" fill="url(#bgGrad)"/>
+  <!-- Subtle inner shadow -->
+  <rect x="1" y="1" width="178" height="178" rx="39" fill="none" stroke="url(#strokeGrad)" stroke-width="2"/>
+  <!-- Crown ornament (top) -->
+  <path d="M55 55 L65 40 L78 55 L90 38 L102 55 L115 40 L125 55 Z" fill="white" opacity="0.92"/>
+  <rect x="54" y="55" width="72" height="6" rx="3" fill="white" opacity="0.85"/>
+  <!-- Bold "E" lettermark -->
+  <text x="90" y="132" font-family="'Arial Black', 'Arial', 'Helvetica Neue', sans-serif" font-size="86" font-weight="900" fill="white" text-anchor="middle" letter-spacing="-3" opacity="0.97">E</text>
+  <!-- Shine overlay -->
+  <rect x="0" y="0" width="180" height="70" rx="40" fill="url(#shineGrad)"/>
+  <defs>
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="180" y2="180" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FF2D6B"/>
+      <stop offset="55%" stop-color="#DC1649"/>
+      <stop offset="100%" stop-color="#AA1040"/>
+    </linearGradient>
+    <linearGradient id="strokeGrad" x1="0" y1="0" x2="180" y2="180" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="white" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="white" stop-opacity="0.05"/>
+    </linearGradient>
+    <linearGradient id="shineGrad" x1="0" y1="0" x2="0" y2="70" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="white" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="white" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+</svg>

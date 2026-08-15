@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#4f1d95" />
+    <title>آفلاین · Empire Shop</title>
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/icons/icon-192.png" />
+    <style>
+      :root { color-scheme: light dark; }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; padding: 0; height: 100%; }
+      body {
+        font-family: system-ui, -apple-system, "Vazirmatn", "Segoe UI", Roboto, sans-serif;
+        background: linear-gradient(160deg, #1a0b3d 0%, #4f1d95 100%);
+        color: #fff;
+        display: grid; place-items: center; text-align: center;
+        padding: 2rem;
+      }
+      .card {
+        max-width: 28rem;
+        background: rgba(255,255,255,0.06);
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 1.25rem;
+        padding: 2rem 1.5rem;
+        backdrop-filter: blur(10px);
+      }
+      .emoji { font-size: 3rem; }
+      h1 { font-size: 1.5rem; margin: .75rem 0 .25rem; }
+      p { opacity: .85; line-height: 1.7; margin: .5rem 0 1.25rem; }
+      button {
+        background: #ffd700; color: #1a0b3d; border: 0;
+        padding: .75rem 1.25rem; border-radius: .75rem; font-weight: 700;
+        cursor: pointer; font-size: 1rem;
+      }
+      a { color: #ffd700; }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <div class="emoji">📶</div>
+      <h1>ارتباط اینترنت برقرار نیست</h1>
+      <p>
+        شما اکنون آفلاین هستید. برخی صفحات ذخیره‌شده همچنان در دسترس‌اند.
+        لطفاً اتصال خود را بررسی کنید و دوباره تلاش نمایید.
+      </p>
+      <button onclick="location.reload()">تلاش دوباره</button>
+      <p style="margin-top:1rem"><a href="/">بازگشت به خانه</a></p>
+    </main>
+  </body>
+</html>

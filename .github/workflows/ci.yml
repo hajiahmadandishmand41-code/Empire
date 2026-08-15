@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Prisma requires a syntactically valid URL for `validate`/`generate`.
+  # No database is contacted during CI.
+  DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+  NEXT_TELEMETRY_DISABLED: '1'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U ci -d ci"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npx prisma validate
+      - run: npm run db:deploy
+      - run: npm run test
+      - run: npm audit --omit=dev --audit-level=high
+      # CI has no reachable database: `npm run build` would otherwise call
+      # `prisma migrate deploy` against the placeholder DATABASE_URL and fail.
+      - run: npm run build
+        env:
+          SKIP_DB_MIGRATE: '1'

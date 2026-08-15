@@ -1,0 +1,692 @@
+{
+  "common": {
+    "appName": "EmpireShop",
+    "tagline": "Afghanistan's largest online store",
+    "loading": "Loading…",
+    "error": "Something went wrong",
+    "retry": "Try again",
+    "search": "Search",
+    "searchPlaceholder": "Search products, categories and brands…",
+    "language": "Language",
+    "theme": "Appearance",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System",
+    "skipToContent": "Skip to main content",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "close": "Close",
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "prevProducts": "Previous products",
+    "nextProducts": "Next products"
+  },
+  "nav": {
+    "home": "Home",
+    "categories": "Categories",
+    "deals": "Deals",
+    "cart": "Cart",
+    "account": "Account",
+    "orders": "Orders",
+    "wishlist": "Wishlist",
+    "about": "About",
+    "contact": "Contact",
+    "shop": "Shop"
+  },
+  "actions": {
+    "continue": "Continue",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "edit": "Edit",
+    "delete": "Delete",
+    "submit": "Submit",
+    "close": "Close",
+    "add": "Add",
+    "remove": "Remove",
+    "viewMore": "View more",
+    "viewLess": "View less",
+    "seeAll": "See all"
+  },
+  "footer": {
+    "copyright": "© {year} EmpireShop. All rights reserved.",
+    "madeWith": "Made with ❤️ in Kabul",
+    "links": {
+      "about": "About",
+      "contact": "Contact",
+      "terms": "Terms of service",
+      "privacy": "Privacy",
+      "support": "Support"
+    }
+  },
+  "direction": {
+    "rtl": "Right to left",
+    "ltr": "Left to right"
+  },
+  "locales": {
+    "fa": "Dari",
+    "ps": "Pashto",
+    "en": "English"
+  },
+  "home": {
+    "brand": {
+      "name": "Empire Shop",
+      "subline": "Afghanistan Online Store"
+    },
+    "header": {
+      "tagline": "Authentic Afghanistan, delivered to the world",
+      "searchPlaceholder": "Search products, brands and categories…"
+    },
+    "hero": {
+      "eyebrow": "Afghanistan's Largest Online Store",
+      "title": "Shop Easy, Fast & Secure",
+      "subtitle": "Empire Shop brings you the best clothing, digital, home appliances, beauty, sports and more — with authentic guarantee and fast delivery across Afghanistan.",
+      "primaryCta": "Browse Products",
+      "secondaryCta": "About Us",
+      "scrollHint": "Explore"
+    },
+    "trust": {
+      "sectionTitle": "Why Empire Shop?",
+      "sectionSubtitle": "Three simple promises that make your online shopping experience stand out.",
+      "items": {
+        "shipping": {
+          "title": "Fast Shipping",
+          "description": "Fast delivery across Afghanistan with standard packaging."
+        },
+        "quality": {
+          "title": "Authenticity Guarantee",
+          "description": "All products come with an authenticity guarantee."
+        },
+        "featured": {
+          "title": "Curated Products",
+          "description": "Top global brands at competitive prices."
+        }
+      },
+      "extra": {
+        "support": {
+          "title": "24/7 Support",
+          "description": "Always here to help"
+        },
+        "returns": {
+          "title": "Easy Returns",
+          "description": "Up to 7 days, no questions"
+        },
+        "payment": {
+          "title": "Secure Payment",
+          "description": "Trusted payment gateway"
+        }
+      }
+    },
+    "footer": {
+      "brandLine": "A bridge between Afghan heritage and the world",
+      "rights": "All rights reserved."
+    },
+    "categories": {
+      "sectionTitle": "Shop by Category",
+      "sectionSubtitle": "Clothing, digital, home, beauty, sports and more — all in one place",
+      "viewAll": "View all categories",
+      "items": {
+        "clothing": {
+          "title": "Clothing",
+          "description": "Men, women and kids clothing from top brands"
+        },
+        "digital": {
+          "title": "Digital",
+          "description": "Smartphones, tablets, laptops and accessories"
+        },
+        "homeAppliances": {
+          "title": "Home Appliances",
+          "description": "Fridges, washing machines, vacuum cleaners and more"
+        },
+        "beauty": {
+          "title": "Beauty & Care",
+          "description": "Skincare, makeup, perfumes and creams"
+        },
+        "sports": {
+          "title": "Sports",
+          "description": "Sports equipment, shoes and activewear"
+        },
+        "footwear": {
+          "title": "Footwear",
+          "description": "Shoes, sneakers and sandals from global brands"
+        },
+        "baby": {
+          "title": "Baby & Kids",
+          "description": "Diapers, toys, baby clothes and more"
+        },
+        "books": {
+          "title": "Books & Stationery",
+          "description": "Books, notebooks and office supplies"
+        },
+        "electronics": {
+          "title": "Electronics",
+          "description": "Headphones, speakers, chargers and gadgets"
+        },
+        "watches": {
+          "title": "Watches & Accessories",
+          "description": "Wrist watches, smart bands and accessories"
+        }
+      }
+    },
+    "featured": {
+      "sectionTitle": "Featured products",
+      "sectionSubtitle": "Hand-picked favourites — a taste of Afghan heritage, ready to ship worldwide.",
+      "viewAll": "See all products",
+      "currency": "USD",
+      "from": "from",
+      "inStock": "In stock",
+      "addToCart": "Add to cart",
+      "badgeNew": "New",
+      "badgeBest": "Best seller",
+      "badgeLast": "Last pieces",
+      "addToWishlist": "Add to wishlist"
+    },
+    "story": {
+      "eyebrow": "Afghanistan story",
+      "title": "A land of millennia-old art and culture",
+      "paragraphs": [
+        "Afghanistan is a land with more than three thousand years of civilizational history. From the peaks of the Hindu Kush to the northern plains, the art and culture of this land flows through every thread of daily life.",
+        "Every Afghan carpet, every strand of saffron, and every piece of handicraft tells the story of artisans whose skills have been passed down through generations.",
+        "Empire Shop is proudly the bridge between these artisans and the world. We believe that authenticity and quality are the universal language shared by all cultures."
+      ],
+      "highlights": [
+        {
+          "label": "Years of heritage",
+          "value": "3,000+"
+        },
+        {
+          "label": "Artisans",
+          "value": "500+"
+        },
+        {
+          "label": "Countries served",
+          "value": "40+"
+        },
+        {
+          "label": "Customer satisfaction",
+          "value": "98%"
+        }
+      ],
+      "visualLabel": "Living heritage",
+      "body": "Empire Shop is the bridge between Afghan artisans and homes across the globe. Saffron, carpets, dried fruits and authentic crafts — carrying the quality and integrity our name deserves."
+    },
+    "why": {
+      "sectionTitle": "Why choose Empire Shop?",
+      "sectionSubtitle": "Four commitments that make your shopping experience distinguished and trustworthy.",
+      "items": {
+        "authentic": {
+          "title": "Authentic quality",
+          "description": "Every product is delivered with a certificate of authenticity, verified by cultural heritage experts."
+        },
+        "global": {
+          "title": "Worldwide shipping",
+          "description": "International-standard packaging and reliable delivery to more than 40 countries worldwide."
+        },
+        "artisans": {
+          "title": "Supporting artisans",
+          "description": "A meaningful share of every purchase goes directly to the hands of Afghan artisans."
+        },
+        "packaging": {
+          "title": "Standard packaging",
+          "description": "Luxury and durable packaging that preserves the authenticity and quality of your product until it arrives."
+        }
+      }
+    },
+    "cta": {
+      "eyebrow": "Start your journey",
+      "title": "Ready to discover Afghan heritage?",
+      "subtitle": "Join thousands of satisfied customers across the globe and bring the finest of Afghanistan home.",
+      "primaryCta": "Browse all products",
+      "secondaryCta": "Learn more about us",
+      "stats": [
+        {
+          "value": "40+",
+          "label": "Countries"
+        },
+        {
+          "value": "500+",
+          "label": "Products"
+        },
+        {
+          "value": "24/7",
+          "label": "Support"
+        }
+      ]
+    },
+    "services": {
+      "title": "Store Services",
+      "delivery": {
+        "title": "Fast Delivery",
+        "description": "Nationwide delivery in record time"
+      },
+      "payment": {
+        "title": "Secure Payment",
+        "description": "Trusted and encrypted payment gateway"
+      },
+      "guarantee": {
+        "title": "Product Warranty",
+        "description": "Authenticity guarantee and 7-day returns"
+      },
+      "support": {
+        "title": "24/7 Support",
+        "description": "Always here to help you"
+      }
+    },
+    "trustSection": {
+      "purchase": {
+        "label": "100% Secure Purchase",
+        "sub": "Authenticity guarantee for all products"
+      },
+      "shipping": {
+        "label": "Fast Shipping",
+        "sub": "Across Afghanistan"
+      },
+      "returns": {
+        "label": "7-Day Returns",
+        "sub": "No questions, no hassle"
+      },
+      "payment": {
+        "label": "Secure Payment",
+        "sub": "Encrypted payment gateway"
+      },
+      "support": {
+        "label": "24/7 Support",
+        "sub": "Always here for you"
+      },
+      "sellers": {
+        "label": "Verified Sellers",
+        "sub": "Quality guaranteed from the best"
+      }
+    },
+    "popularCategories": {
+      "title": "Popular Categories"
+    },
+    "sections": {
+      "bestSellers": {
+        "title": "Best Sellers",
+        "subtitle": "Top selling products this month"
+      },
+      "newProducts": {
+        "title": "New Arrivals",
+        "subtitle": "The latest additions to our catalog"
+      },
+      "featured": {
+        "title": "Featured Products",
+        "subtitle": "Editor picks from our catalog"
+      },
+      "mostViewed": {
+        "title": "Most Viewed",
+        "subtitle": "Products customers love the most"
+      },
+      "popular": {
+        "title": "Most Popular",
+        "subtitle": "Trending across Afghanistan"
+      },
+      "specialOffers": {
+        "title": "Special Offers",
+        "subtitle": "Limited time deals — do not miss out"
+      },
+      "traditional": {
+        "title": "Traditional Afghan Products",
+        "subtitle": "Handcrafted heritage from Afghanistan"
+      },
+      "afghan": {
+        "title": "Local Afghan Products",
+        "subtitle": "The finest natural and traditional products of Afghanistan"
+      }
+    }
+  },
+  "shop": {
+    "metaTitle": "Shop — Empire Shop",
+    "metaDescription": "Browse authentic Afghan products: saffron, carpets, dry fruits, gemstones, and handcrafts. Free worldwide shipping.",
+    "eyebrow": "Curated Afghan catalog",
+    "title": "Shop authentic Afghan heritage",
+    "subtitle": "Twelve hand-picked products — saffron, carpets, handicrafts and more. Use the search bar or category filters to find exactly what you love.",
+    "searchPlaceholder": "Search by name, region or category…",
+    "clearSearch": "Clear search",
+    "filterByCategory": "Filter by category",
+    "clearFilters": "Clear filters",
+    "resultsCount": "{count, plural, =0 {No products} one {# product} other {# products}}",
+    "categories": {
+      "all": "All"
+    },
+    "card": {
+      "viewProduct": "View product",
+      "addToCart": "Add to cart",
+      "badgeNew": "New",
+      "badgeBest": "Best seller",
+      "badgeLast": "Last pieces",
+      "badgeSale": "Sale",
+      "badgeTraditional": "Traditional",
+      "wishlistLabel": "Add to wishlist",
+      "whatsappLabel": "Contact via WhatsApp"
+    },
+    "empty": {
+      "title": "No products match your search",
+      "description": "Try a different keyword or clear the filters to see the full catalog.",
+      "action": "Clear filters"
+    },
+    "noResults": "No products match",
+    "noResultsHint": "Try a different keyword or clear the filters",
+    "filters": {
+      "title": "Filters",
+      "productCount": "{count} products found",
+      "filterButton": "Filter"
+    },
+    "breadcrumb": {
+      "home": "Home",
+      "shop": "Shop",
+      "label": "Page path"
+    }
+  },
+  "product": {
+    "breadcrumb": {
+      "label": "Breadcrumb"
+    },
+    "madeIn": "Made in",
+    "shippingIncluded": "Free worldwide shipping",
+    "notFound": {
+      "title": "Product not found — Empire Shop",
+      "description": "The product you are looking for is no longer available."
+    },
+    "features": {
+      "title": "What you get"
+    },
+    "actions": {
+      "addToCart": "Add to cart",
+      "addToWishlist": "Add to wishlist",
+      "removeFromWishlist": "Remove from wishlist",
+      "addedToCart": "Added to cart",
+      "addedToWishlist": "Added to wishlist",
+      "removedFromWishlist": "Removed from wishlist",
+      "whatsapp": "Order via WhatsApp",
+      "whatsappMessage": "Hello! I am interested in:"
+    },
+    "related": {
+      "eyebrow": "You may also like",
+      "title": "Similar products from the catalog"
+    },
+    "contactWhatsapp": "Contact seller via WhatsApp",
+    "discountSuffix": "% off",
+    "reviews": "reviews",
+    "inStock": "In stock",
+    "outOfStock": "Out of stock",
+    "imageNotAvailable": "No product image available",
+    "imageLabel": "Image {index} of {name}",
+    "ratingLabel": "Rating {rating} out of 5",
+    "trustBadges": {
+      "authentic": "Authenticity guarantee",
+      "shipping": "Fast shipping",
+      "returns": "Easy returns"
+    }
+  },
+  "cart": {
+    "title": "Cart",
+    "subtitle": "Review the treasures you’ve gathered before you continue shopping.",
+    "metaDescription": "Your Empire Shop cart — review items before continuing to checkout.",
+    "summary": "Order summary",
+    "subtotal": "Subtotal",
+    "shipping": "Shipping",
+    "shippingHint": "Calculated later",
+    "total": "Total",
+    "unit": "each",
+    "remove": "Remove",
+    "increase": "Increase quantity",
+    "decrease": "Decrease quantity",
+    "continueShopping": "Continue shopping",
+    "itemCount": "{count, plural, =0 {No items} one {# item} other {# items}}",
+    "empty": {
+      "title": "Your cart is empty",
+      "subtitle": "Discover authentic Afghan crafts, saffron, gemstones and more — and add your favourites here.",
+      "description": "Discover authentic Afghan crafts, saffron, gemstones and more — and add your favourites here."
+    },
+    "goToCheckout": "Proceed to checkout",
+    "trustPayment": "Secure payment",
+    "trustAuthentic": "Authenticity guarantee",
+    "viewShop": "View shop"
+  },
+  "whatsapp": {
+    "label": "Chat on WhatsApp",
+    "cta": "Chat on WhatsApp",
+    "defaultMessage": "Hello Empire Shop, I have a question."
+  },
+  "validation": {
+    "fullName": {
+      "required": "Please enter your full name.",
+      "tooShort": "Full name is too short.",
+      "tooLong": "Full name is too long."
+    },
+    "phone": {
+      "required": "Please enter your phone number.",
+      "invalid": "Enter a valid Afghan phone number (07XXXXXXXX)."
+    },
+    "province": {
+      "required": "Please select a province.",
+      "invalid": "Select a valid Afghan province."
+    },
+    "district": {
+      "required": "Please enter the district.",
+      "tooShort": "District name is too short.",
+      "tooLong": "District name is too long."
+    },
+    "address": {
+      "required": "Please enter your address.",
+      "tooShort": "Address is too short.",
+      "tooLong": "Address is too long."
+    }
+  },
+  "checkout": {
+    "eyebrow": "Checkout",
+    "title": "Complete your order",
+    "subtitle": "Enter your shipping details — we deliver across Afghanistan.",
+    "metaTitle": "Checkout",
+    "metaDescription": "Complete your Empire Shop order — enter shipping details, review your cart and place your order.",
+    "submit": "Place order",
+    "submitting": "Placing order…",
+    "legalHint": "By placing this order you agree to our terms of service.",
+    "emptyCart": {
+      "title": "Your cart is empty",
+      "description": "Add products to your cart before checking out.",
+      "action": "Browse shop"
+    },
+    "form": {
+      "sectionTitle": "Customer details",
+      "sectionSubtitle": "We use this information to deliver your order.",
+      "fullName": "Full name",
+      "fullNamePlaceholder": "e.g. Ahmad Karimi",
+      "phone": "Phone number",
+      "phonePlaceholder": "07XXXXXXXX",
+      "email": "Email (optional)",
+      "emailPlaceholder": "you@example.com",
+      "province": "Province",
+      "provincePlaceholder": "Select a province",
+      "district": "District",
+      "districtPlaceholder": "e.g. District 4",
+      "addressLine": "Exact address",
+      "addressLinePlaceholder": "Street, alley, house number",
+      "notes": "Order notes (optional)",
+      "notesPlaceholder": "Any special instructions for delivery?",
+      "city": "City / District",
+      "cityPlaceholder": "e.g. Karte 3, Shahr-e Naw…"
+    },
+    "summary": {
+      "title": "Order summary",
+      "subtotal": "Subtotal",
+      "shipping": "Shipping",
+      "total": "Total",
+      "qty": "Qty {count}"
+    },
+    "payment": {
+      "sectionTitle": "Payment method",
+      "sectionSubtitle": "Choose how you'd like to pay for this order.",
+      "cod": {
+        "title": "Cash on delivery",
+        "description": "Pay in cash when your order arrives."
+      },
+      "online": {
+        "title": "Online payment",
+        "description": "Pay online securely via ATOMA Pay.",
+        "comingSoon": "Coming soon"
+      }
+    },
+    "toast": {
+      "invalid": {
+        "title": "Please check the form",
+        "description": "Some required fields need your attention."
+      },
+      "success": {
+        "title": "Order placed",
+        "description": "Reference: {reference}"
+      }
+    }
+  },
+  "orderSuccess": {
+    "metaTitle": "Order confirmed",
+    "metaDescription": "Your Empire Shop order has been received.",
+    "title": "Your order has been placed",
+    "subtitle": "Thank you! We'll contact you shortly to confirm delivery details.",
+    "reference": "Order reference",
+    "total": "Total",
+    "paymentMethod": "Payment method",
+    "paymentMethods": {
+      "cod": "Cash on delivery",
+      "bank_transfer": "Bank transfer",
+      "whatsapp": "WhatsApp",
+      "atoma_pay": "ATOMA Pay (online)"
+    },
+    "backHome": "Back to home",
+    "continueShopping": "Continue shopping"
+  },
+  "payment": {
+    "metaTitle": "Payment",
+    "metaDescription": "Complete your payment",
+    "reference": "Order reference",
+    "status": {
+      "pending": {
+        "title": "Processing payment…",
+        "description": "Please wait while we confirm your payment with the gateway."
+      },
+      "paid": {
+        "title": "Payment successful",
+        "description": "Your order has been confirmed. Thank you!"
+      },
+      "failed": {
+        "title": "Payment failed",
+        "description": "We could not complete your payment. You can try again."
+      },
+      "cancelled": {
+        "title": "Payment cancelled",
+        "description": "The payment was cancelled. You can retry when ready."
+      },
+      "refunded": {
+        "title": "Payment refunded",
+        "description": "This payment has been refunded."
+      }
+    },
+    "actions": {
+      "viewOrder": "View my order",
+      "retry": "Try again",
+      "backToShop": "Back to shop"
+    }
+  },
+  "mobileMenu": {
+    "menu": "Menu",
+    "home": "Home",
+    "shop": "Shop",
+    "allProducts": "All Products",
+    "categories": "Categories",
+    "search": "Search",
+    "cart": "Cart",
+    "login": "Login",
+    "register": "Sign up",
+    "loginRegister": "Login / Sign up",
+    "profile": "Profile",
+    "myOrders": "My Orders",
+    "wishlist": "Wishlist",
+    "language": "Language",
+    "adminPanel": "Admin Panel",
+    "sellerPanel": "Seller Panel",
+    "becomeSeller": "Become a Seller",
+    "logout": "Log out",
+    "account": "Account",
+    "yourAccount": "Your Account",
+    "guest": "Guest",
+    "close": "Close"
+  },
+  "siteHeader": {
+    "shippingBanner": "Free delivery on orders over 5,000 AFN (؋)",
+    "aboutUs": "About us",
+    "contact": "Contact",
+    "faqLink": "Help",
+    "brandName": "Empire Shop",
+    "brandSubline": "Online Store",
+    "searchLabel": "Search products",
+    "searchPlaceholder": "Search products, brands and categories…",
+    "searchButton": "Search",
+    "notificationsLabel": "Notifications",
+    "dailyDeals": "Daily deals",
+    "becomeSeller": "Become a seller",
+    "categories": "Categories",
+    "brandSublineFull": "Afghanistan Online Store"
+  },
+  "categoryNav": {
+    "ariaLabel": "Main categories",
+    "mobile": "Mobile & Tablet",
+    "computer": "Laptop & Computer",
+    "audio": "Audio & Video",
+    "wearable": "Wearables",
+    "camera": "Camera",
+    "home": "Home & Kitchen",
+    "fashion": "Fashion & Clothing",
+    "sport": "Sports",
+    "books": "Books & Stationery",
+    "auto": "Automotive",
+    "accessories": "Accessories",
+    "traditional": "Traditional",
+    "beauty": "Beauty",
+    "baby": "Baby",
+    "all": "All Products"
+  },
+  "auth": {
+    "errors": {
+      "INVALID_CREDENTIALS": "Email/phone or password is incorrect",
+      "USER_EXISTS": "This email or phone is already registered",
+      "TOO_MANY_REQUESTS": "Too many attempts, please wait a few minutes",
+      "VALIDATION_ERROR": "The information provided is not valid",
+      "INTERNAL_ERROR": "Server error — please try again",
+      "connectionError": "Cannot connect to server",
+      "unknown": "An error occurred, please try again"
+    },
+    "backToLogin": "Back to login",
+    "forgotPassword": {
+      "title": "Forgot password",
+      "subtitle": "Enter your email to receive a reset link",
+      "submit": "Send reset link",
+      "sent": {
+        "title": "Email sent",
+        "subtitle": "Reset link sent to your email",
+        "spamNote": "If you did not receive the email, check your spam folder."
+      }
+    }
+  },
+  "searchPage": {
+    "title": "Search",
+    "placeholder": "Search products, categories and stores…",
+    "results": "Results for",
+    "noResults": "No results found",
+    "noResultsHint": "Try a different keyword or browse the shop",
+    "viewShop": "View all products",
+    "loading": "Searching…",
+    "allResults": "Search all products",
+    "recent": "Recent searches",
+    "clearRecent": "Clear",
+    "categories": "Categories",
+    "products": "Products",
+    "stores": "Stores",
+    "endOfResults": "All results shown"
+  }
+}

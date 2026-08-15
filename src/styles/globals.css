@@ -1,0 +1,415 @@
+/* ---- Self-hosted fonts (Vazirmatn + Inter) ---- */
+@font-face {
+  font-family: 'Vazirmatn';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/Vazirmatn-Regular.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Vazirmatn';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/Vazirmatn-Medium.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Vazirmatn';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/Vazirmatn-SemiBold.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Vazirmatn';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/Vazirmatn-Bold.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/Inter-Regular.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/Inter-Medium.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/Inter-SemiBold.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/Inter-Bold.woff2') format('woff2');
+}
+
+/* ---- Tailwind base ---- */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ======================================================
+   DESIGN TOKENS — Empire Shop Premium
+   Light mode  → :root       (warm cream palette)
+   Dark mode   → html.dark
+   ====================================================== */
+@layer base {
+
+  /* ── Light mode — crisp white + deep rose ── */
+  :root {
+    /* Surfaces */
+    --background:         0 0% 98%;
+    --foreground:         222 47% 9%;
+
+    /* Cards & popovers */
+    --card:               0 0% 100%;
+    --card-foreground:    222 47% 9%;
+    --popover:            0 0% 100%;
+    --popover-foreground: 222 47% 9%;
+
+    /* Primary — Deep Rose brand */
+    --primary:            346 91% 43%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary */
+    --secondary:          0 0% 96%;
+    --secondary-foreground: 222 30% 20%;
+
+    /* Muted */
+    --muted:              0 0% 95%;
+    --muted-foreground:   220 14% 46%;
+
+    /* Accent */
+    --accent:             346 80% 96%;
+    --accent-foreground:  346 60% 32%;
+
+    /* Destructive */
+    --destructive:        0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Border / Input */
+    --border:             220 13% 91%;
+    --input:              220 13% 91%;
+    --ring:               346 91% 43%;
+
+    /* Radius */
+    --radius: 0.625rem;
+
+    /* Header height */
+    --header-height: 112px;
+  }
+
+  /* ── Dark mode ── */
+  html.dark {
+    /* Surfaces */
+    --background:         222 47% 5%;
+    --foreground:         210 40% 98%;
+
+    /* Cards & popovers */
+    --card:               222 47% 8%;
+    --card-foreground:    210 40% 98%;
+    --popover:            222 47% 7%;
+    --popover-foreground: 210 40% 98%;
+
+    /* Primary */
+    --primary:            346 90% 52%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary */
+    --secondary:          217 33% 14%;
+    --secondary-foreground: 210 40% 90%;
+
+    /* Muted */
+    --muted:              217 33% 13%;
+    --muted-foreground:   215 20% 55%;
+
+    /* Accent */
+    --accent:             346 60% 14%;
+    --accent-foreground:  346 80% 70%;
+
+    /* Destructive */
+    --destructive:        0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Border / Input */
+    --border:             217 33% 16%;
+    --input:              217 33% 16%;
+    --ring:               346 90% 52%;
+  }
+
+  /* ── Base resets ── */
+  * {
+    @apply border-border;
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: 'rlig' 1, 'calt' 1;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* RTL-aware focus ring */
+  :focus-visible {
+    @apply outline-none ring-2 ring-primary ring-offset-2 ring-offset-background;
+  }
+
+  /* ── Skip link ── */
+  .skip-link {
+    @apply absolute -top-full start-4 z-[9999] rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground;
+    transition: top 0.1s;
+  }
+  .skip-link:focus {
+    @apply top-4;
+  }
+}
+
+/* ======================================================
+   CUSTOM UTILITIES
+   ====================================================== */
+@layer utilities {
+
+  /* ── Hide scrollbar (keep scroll) ── */
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+  /* ── Styled scrollbar for panels ── */
+  .panel-scrollbar::-webkit-scrollbar { width: 4px; }
+  .panel-scrollbar::-webkit-scrollbar-track { background: transparent; }
+  .panel-scrollbar::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 999px;
+  }
+  .panel-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.5);
+  }
+
+  /* ── Text clamp ── */
+  .line-clamp-1 { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; }
+  .line-clamp-2 { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .line-clamp-3 { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+
+  /* ── Text balance ── */
+  .text-balance { text-wrap: balance; }
+
+  /* ── Gradient text ── */
+  .gradient-text {
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(346 80% 65%));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* ── Glass surface ── */
+  .glass {
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+  html.dark .glass {
+    background: rgba(15, 20, 40, 0.8);
+  }
+
+  /* ── Gradient border ── */
+  .gradient-border {
+    position: relative;
+    border-radius: var(--radius);
+  }
+  .gradient-border::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: calc(var(--radius) + 1px);
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(346 80% 65%));
+    z-index: -1;
+  }
+
+  /* ── Skeleton shimmer ── */
+  .skeleton {
+    @apply animate-pulse bg-muted rounded;
+  }
+
+  /* ── Card luxury effect ── */
+  .card-luxury {
+    transition: box-shadow 0.25s ease, transform 0.25s ease, border-color 0.25s ease;
+  }
+
+  /* ── Announcement bar — dark by design (brand invariant) ── */
+  .announcement-bar {
+    @apply bg-gradient-to-r from-gray-900 via-gray-950 to-gray-900 border-b border-white/5;
+  }
+  html.dark .announcement-bar {
+    @apply from-black via-gray-950 to-black;
+  }
+
+  /* ── Site header shadow ── */
+  .site-header {
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  }
+  html.dark .site-header {
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2);
+  }
+
+  /* ── Empire brand gradient ── */
+  .empire-gradient {
+    background: linear-gradient(135deg, #E01850 0%, #BE1A56 50%, #961445 100%);
+  }
+
+  /* ── Navy colors ── */
+  .text-navy-800 { color: #1e2a5a; }
+  html.dark .text-navy-800 { color: #e0e4f0; }
+
+  /* ── RTL scrolling fix ── */
+  [dir="rtl"] .ltr\:hidden { display: none; }
+  [dir="ltr"] .rtl\:hidden { display: none; }
+}
+
+/* ======================================================
+   COMPONENTS
+   ====================================================== */
+@layer components {
+
+  /* ── Premium button ── */
+  .btn-empire {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-rose-500 to-rose-600 px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-rose-500/20 transition-all duration-200;
+  }
+  .btn-empire:hover {
+    @apply from-rose-600 to-rose-700 shadow-rose-500/30 -translate-y-0.5;
+  }
+  .btn-empire:active {
+    @apply scale-95 translate-y-0;
+  }
+
+  /* ── Section heading ── */
+  .section-heading {
+    @apply text-xl font-extrabold text-foreground sm:text-2xl;
+  }
+
+  /* ── Product grid ── */
+  .product-grid {
+    @apply grid gap-3 sm:gap-4;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  }
+  @screen sm {
+    .product-grid {
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    }
+  }
+  @screen md {
+    .product-grid {
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    }
+  }
+
+  /* ── Input empire style ── */
+  .input-empire {
+    @apply w-full rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all;
+  }
+
+  /* ── Admin card ── */
+  .admin-card {
+    @apply rounded-xl border border-border bg-card p-5 shadow-sm;
+  }
+
+  /* ── Seller badge ── */
+  .seller-badge {
+    @apply inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400;
+  }
+
+  /* ── Status badge colors ── */
+  .status-pending    { @apply bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300; }
+  .status-confirmed  { @apply bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300; }
+  .status-processing { @apply bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300; }
+  .status-shipped    { @apply bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300; }
+  .status-delivered  { @apply bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300; }
+  .status-cancelled  { @apply bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300; }
+}
+
+/* ======================================================
+   PWA / MOBILE UTILITIES
+   ====================================================== */
+
+/* Safe area for notched devices */
+.pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
+.mb-safe { margin-bottom: env(safe-area-inset-bottom, 0px); }
+
+/* Bottom nav height variable */
+:root {
+  --bottom-nav-height: 64px;
+}
+@media (min-width: 768px) {
+  :root { --bottom-nav-height: 0px; }
+}
+
+/* ======================================================
+   PRINT UTILITIES
+   ====================================================== */
+@media print {
+  .no-print { display: none !important; }
+  body { background: white; color: black; }
+}
+
+/* ======================================================
+   ANIMATIONS
+   ====================================================== */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes slide-in-left {
+  from { opacity: 0; transform: translateX(-16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.animate-fade-in      { animation: fade-in 0.3s ease forwards; }
+.animate-slide-in-r   { animation: slide-in-right 0.3s ease forwards; }
+.animate-slide-in-l   { animation: slide-in-left 0.3s ease forwards; }
+.animate-scale-in     { animation: scale-in 0.2s ease forwards; }
+
+/* Stage 5 — prefers-reduced-motion: disable decorative animations */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .animate-fade-in,
+  .animate-slide-in-r,
+  .animate-slide-in-l,
+  .animate-scale-in {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "name": "Empire Shop — فروشگاه آنلاین افغانستان",
+  "short_name": "EmpireShop",
+  "description": "بزرگ‌ترین فروشگاه آنلاین افغانستان — خرید آسان، سریع و مطمئن",
+  "start_url": "/fa/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#DC1649",
+  "theme_color": "#DC1649",
+  "lang": "fa-AF",
+  "dir": "rtl",
+  "categories": ["shopping", "business", "lifestyle"],
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icons/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" }
+  ],
+  "screenshots": [
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "form_factor": "narrow" }
+  ],
+  "shortcuts": [
+    { "name": "فروشگاه", "short_name": "فروشگاه", "url": "/fa/shop", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "علاقه‌مندی‌ها", "short_name": "علاقه‌مندی", "url": "/fa/wishlist", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "سبد خرید", "short_name": "سبد", "url": "/fa/cart", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "حساب من", "short_name": "حساب", "url": "/fa/profile", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "محصولات سنتی", "short_name": "سنتی", "url": "/fa/traditional", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] }
+  ],
+  "prefer_related_applications": false,
+  "related_applications": []
+}
