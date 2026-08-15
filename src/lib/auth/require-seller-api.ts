@@ -11,6 +11,10 @@ export type SellerGuardResult =
   | { ok: true; user: CurrentUser }
   | { ok: false; response: NextResponse };
 
+export function isApprovedActiveSeller(user: Pick<CurrentUser, 'role' | 'sellerStatus' | 'isActive'>): boolean {
+  return user.role === 'seller' && user.sellerStatus === 'approved' && user.isActive !== false;
+}
+
 export async function requireSellerApi(): Promise<SellerGuardResult> {
   const user = await getCurrentUser();
   if (!user) {
@@ -20,7 +24,7 @@ export async function requireSellerApi(): Promise<SellerGuardResult> {
     };
   }
   if (user.role === 'admin') return { ok: true, user };
-  if (user.role !== 'seller' || user.sellerStatus !== 'approved' || user.isActive === false) {
+  if (!isApprovedActiveSeller(user)) {
     return {
       ok: false,
       response: jsonError('forbidden', 'Approved seller access required', { status: 403 }),
