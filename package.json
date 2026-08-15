@@ -22,9 +22,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio"
   },
-  "prisma": {
-    "seed": "tsx prisma/seed.ts"
-  },
+  "prisma": { "seed": "tsx prisma/seed.ts" },
   "dependencies": {
     "@prisma/client": "^5.22.0",
     "@radix-ui/react-accordion": "^1.1.2",
@@ -60,14 +58,13 @@
     "cmdk": "1.1.1",
     "date-fns": "^3.6.0",
     "embla-carousel-react": "^8.6.0",
-    "lucide-react": "^0.453.0",
+    "lucide-react": "^0.475.0",
     "next": "16.3.0",
     "next-intl": "^4.13.5",
     "next-themes": "^0.4.4",
     "nodemailer": "^9.0.4",
     "react": "19.2.8",
     "react-day-picker": "^9.7.0",
-    "react-dom": "19.2.8",
     "react-hook-form": "^7.55.0",
     "react-resizable-panels": "^2.1.7",
     "recharts": "^2.15.2",
@@ -100,14 +97,6 @@
     "typescript": "5.9.3",
     "vitest": "^4.1.10"
   },
-  "engines": {
-    "node": ">=24.0.0 <25.0.0",
-    "npm": ">=10.0.0"
-  },
-  "overrides": {
-    "braces": ">=3.0.3",
-    "brace-expansion": "1.1.18",
-    "micromatch": ">=4.0.8",
-    "semver": ">=7.5.4"
-  }
+  "engines": { "node": ">=24.0.0 <25.0.0", "npm": ">=10.0.0" },
+  "overrides": { "braces": ">=3.0.3", "brace-expansion": "1.1.18", "micromatch": ">=4.0.8", "semver": ">=7.5.4" }
 }
