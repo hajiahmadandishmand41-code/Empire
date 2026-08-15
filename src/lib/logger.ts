@@ -19,8 +19,10 @@ const LEVELS: Record<LogLevel, number> = {
 };
 
 function currentLevel(): number {
-  const env = (process.env.LOG_LEVEL ?? '').toLowerCase() as LogLevel;
-  if (env in LEVELS) return LEVELS[env];
+  const env = (process.env.LOG_LEVEL ?? '').toLowerCase();
+  if (env === 'debug' || env === 'info' || env === 'warn' || env === 'error') {
+    return LEVELS[env];
+  }
   return process.env.NODE_ENV === 'production' ? LEVELS.info : LEVELS.debug;
 }
 
@@ -34,7 +36,7 @@ export interface LogFields {
   durationMs?: number;
 }
 
-function emit(level: LogLevel, message: string, fields: LogFields = {}, err?: unknown) {
+function emit(level: LogLevel, message: string, fields: LogFields = {}, err?: unknown): void {
   if (LEVELS[level] < currentLevel()) return;
 
   const record: Record<string, unknown> = {
@@ -55,7 +57,6 @@ function emit(level: LogLevel, message: string, fields: LogFields = {}, err?: un
   }
 
   const line = safeStringify(record);
-  -- logger is the single sanctioned console sink
   const sink = level === 'error' || level === 'warn' ? console.error : console.log;
   sink(line);
 }
