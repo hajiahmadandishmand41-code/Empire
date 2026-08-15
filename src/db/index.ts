@@ -5,31 +5,13 @@
  * retained only for legacy imports that have not yet been migrated.
  */
 
-export interface LegacyTable {
-  readonly _tableName: string;
-}
-
+export interface LegacyTable { readonly _tableName: string; }
 type LegacyRows = readonly LegacyTable[];
 
-interface LegacySelect {
-  from(table: LegacyTable): {
-    where(condition?: unknown): Promise<LegacyRows>;
-  };
-}
-
-interface LegacyInsert {
-  values(values: unknown): Promise<LegacyRows>;
-}
-
-interface LegacyUpdate {
-  set(values: unknown): {
-    where(condition?: unknown): Promise<LegacyRows>;
-  };
-}
-
-interface LegacyDelete {
-  where(condition?: unknown): Promise<LegacyRows>;
-}
+interface LegacySelect { from(table: LegacyTable): { where(condition?: unknown): Promise<LegacyRows> }; }
+interface LegacyInsert { values(values: unknown): { returning(): Promise<LegacyRows> }; }
+interface LegacyUpdate { set(values: unknown): { where(condition?: unknown): Promise<LegacyRows> }; }
+interface LegacyDelete { where(condition?: unknown): Promise<LegacyRows>; }
 
 export interface LegacyDb {
   select(): LegacySelect;
@@ -41,10 +23,8 @@ export interface LegacyDb {
 const emptyRows: LegacyRows = [];
 
 export const db: LegacyDb = {
-  select: () => ({
-    from: () => ({ where: async () => emptyRows }),
-  }),
-  insert: () => ({ values: async () => emptyRows }),
+  select: () => ({ from: () => ({ where: async () => emptyRows }) }),
+  insert: () => ({ values: () => ({ returning: async () => emptyRows }) }),
   update: () => ({ set: () => ({ where: async () => emptyRows }) }),
   delete: () => ({ where: async () => emptyRows }),
 };
