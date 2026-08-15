@@ -64,9 +64,9 @@ const SEEDS: SeedSpec[] = [
 
 declare global {
   // Persist across HMR in dev. Production runs are single-shot per process.
-  // eslint-disable-next-line no-var
+  
   var __empireMockUserStore: Map<string, MockUserRecord> | undefined;
-  // eslint-disable-next-line no-var
+  
   var __empireMockUserStoreReady: Promise<void> | undefined;
 }
 

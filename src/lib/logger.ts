@@ -55,7 +55,7 @@ function emit(level: LogLevel, message: string, fields: LogFields = {}, err?: un
   }
 
   const line = safeStringify(record);
-  // eslint-disable-next-line no-console -- logger is the single sanctioned console sink
+  -- logger is the single sanctioned console sink
   const sink = level === 'error' || level === 'warn' ? console.error : console.log;
   sink(line);
 }

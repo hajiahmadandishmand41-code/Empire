@@ -344,7 +344,7 @@ function SearchPageInner() {
       setMeta(null);
     }
     // filterKey is a stable string derived from sort/category/priceRange
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    
   }, [debouncedQuery, filterKey]);
 
   /* ── Load next page when page increments ── */
@@ -354,7 +354,7 @@ function SearchPageInner() {
       prevPage.current = page;
       fetchProducts(debouncedQuery, page, false, sort, category, priceRange);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    
   }, [page]);
 
   /* ── IntersectionObserver for infinite scroll ── */
@@ -381,7 +381,7 @@ function SearchPageInner() {
     observer.observe(el);
     return () => observer.disconnect();
   // Re-create observer only when products list changes (after a new page loads)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  
   }, [products.length]);
 
   /* ── Sync query with URL param (header search navigation) ── */
@@ -391,7 +391,7 @@ function SearchPageInner() {
       setQuery(urlQ);
       setDebouncedQuery(urlQ); // No debounce delay for URL-driven navigation
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    
   }, [searchParams]);
 
   const activeFilters = [sort !== 'newest', !!category, !!priceRange].filter(Boolean).length;

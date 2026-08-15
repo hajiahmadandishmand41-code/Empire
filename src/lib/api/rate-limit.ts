@@ -178,7 +178,7 @@ function logRedisUnavailable(key: string, limit: number, windowMs: number) {
       limit,
       windowMs,
     });
-    // eslint-disable-next-line no-console -- limiter is a sanctioned console sink for this signal
+    -- limiter is a sanctioned console sink for this signal
     console.error(line);
   } catch {
     /* ignore logging failures */

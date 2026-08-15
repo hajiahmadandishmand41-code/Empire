@@ -143,7 +143,7 @@ export function ShopPageClient({ locale, currency = 'AFN' }: ShopPageClientProps
 
     return () => controller.abort();
   // page is intentionally separate from the reset effect above
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  
   }, [debouncedSearch, category, filters, initialBadge, page]);
 
   const categoryOptions = React.useMemo<ShopCategoryOption[]>(
