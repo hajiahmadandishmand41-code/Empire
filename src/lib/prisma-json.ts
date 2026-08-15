@@ -3,24 +3,36 @@ import { Prisma } from '@prisma/client';
 /**
  * Convert unknown runtime data into a value accepted by Prisma JSON fields.
  * Invalid/non-JSON values are rejected instead of being silently coerced.
+ *
+ * Prisma exposes `Prisma.JsonNull` for a top-level JSON null. Nested JSON
+ * values are normalized through JSON serialization so ordinary nested `null`
+ * values remain JSON nulls rather than becoming Prisma sentinel objects.
  */
-export function toPrismaJson(value: unknown): Prisma.InputJsonValue | typeof Prisma.JsonNull {
+export function toPrismaJson(
+  value: unknown,
+): Prisma.InputJsonValue | typeof Prisma.JsonNull {
   if (value === null || value === undefined) return Prisma.JsonNull;
-  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
-    if (typeof value === 'number' && !Number.isFinite(value)) {
+
+  assertJsonCompatible(value);
+  return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
+}
+
+function assertJsonCompatible(value: unknown): void {
+  if (value === null) return;
+  if (typeof value === 'string' || typeof value === 'boolean') return;
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) {
       throw new TypeError('Non-finite numbers are not valid JSON');
     }
-    return value;
+    return;
   }
-  if (Array.isArray(value)) return value.map(toPrismaJson) as Prisma.InputJsonArray;
+  if (Array.isArray(value)) {
+    for (const item of value) assertJsonCompatible(item);
+    return;
+  }
   if (typeof value === 'object') {
-    const result: Record<string, Prisma.InputJsonValue> = {};
-    for (const [key, child] of Object.entries(value)) {
-      const normalized = toPrismaJson(child);
-      if (normalized !== Prisma.JsonNull) result[key] = normalized;
-      else result[key] = Prisma.JsonNull;
-    }
-    return result;
+    for (const child of Object.values(value)) assertJsonCompatible(child);
+    return;
   }
   throw new TypeError(`Unsupported JSON value of type ${typeof value}`);
 }
