@@ -10,8 +10,9 @@ updates:
       production-patches:
         dependency-type: production
         update-types: ["patch", "minor"]
-      dev-dependencies:
+      dev-patches-and-minors:
         dependency-type: development
+        update-types: ["patch", "minor"]
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
