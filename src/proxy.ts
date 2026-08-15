@@ -1,5 +1,5 @@
 import createIntlMiddleware from 'next-intl/middleware';
-import { NextResponse, type NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { routing } from '@/i18n/routing';
 import { securityHeaders } from '@/lib/security/headers';
 import { rateLimitAsync, clientKey } from '@/lib/api/rate-limit';

@@ -201,7 +201,7 @@ export function WishlistPageView({ locale = 'fa' }: { locale?: string }) {
     });
     setProducts(map);
     setLoading(false);
-  }, [slugs, refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [slugs, refreshKey]); 
 
   useEffect(() => {
     loadProducts();

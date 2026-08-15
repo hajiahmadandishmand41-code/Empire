@@ -33,7 +33,7 @@ export default async function StorePage({
             <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center">
               <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white/15 ring-1 ring-white/30">
                 {seller.logoUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
+                  
                   <img src={seller.logoUrl} alt={seller.shopName ?? 'فروشگاه'} className="h-full w-full object-cover" />
                 ) : (
                   <Store className="h-9 w-9 text-white" aria-hidden />

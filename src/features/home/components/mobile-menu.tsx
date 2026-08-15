@@ -45,13 +45,13 @@ export function MobileMenu({ locale = 'fa', onClose }: { locale?: string; onClos
       document.body.style.overflow = prev;
       document.removeEventListener('keydown', handleEscape);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    
   }, []);
 
   // Close on route change
   useEffect(() => {
     close();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    
   }, [pathname, searchParams]);
 
   const primary: Item[] = [

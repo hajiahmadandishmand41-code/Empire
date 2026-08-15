@@ -1,18 +1,15 @@
 /**
- * @deprecated — Legacy Drizzle schema stub.
+ * @deprecated Legacy Drizzle schema compatibility stub.
  *
- * This project now uses Prisma exclusively (prisma/schema.prisma).
- * These exports are kept ONLY to prevent import errors in legacy files.
- * DO NOT use in new code.
- *
- * Removal: safe to delete once no file imports from '@/db/schema'.
- *
- * @module drizzle-schema-stub
+ * Prisma is the application's database layer. These typed table markers are
+ * retained only for legacy imports and must not be used for new queries.
  */
 
-// Stub table objects that old routes imported
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const makeTable = (name: string): any => ({ _tableName: name });
+import type { LegacyTable } from './index';
+
+function makeTable(name: string): LegacyTable {
+  return { _tableName: name };
+}
 
 export const sellers = makeTable('sellers');
 export const storeProfiles = makeTable('store_profiles');

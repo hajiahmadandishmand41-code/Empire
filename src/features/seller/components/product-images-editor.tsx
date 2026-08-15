@@ -190,7 +190,7 @@ export function ProductImagesEditor({ productId, initial, initialPrimaryIndex = 
                 : 'border-border hover:border-rose-300'
             }`}
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
+            
             <img
               src={src}
               alt={`تصویر ${idx + 1}`}
