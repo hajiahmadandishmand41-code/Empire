@@ -7,12 +7,15 @@
 
 export interface LegacyTable {
   readonly _tableName: string;
+}
+
+export interface LegacyRow {
   readonly id: string;
   readonly name: string;
   readonly price: number;
 }
 
-type LegacyRows = readonly LegacyTable[];
+type LegacyRows = readonly LegacyRow[];
 
 interface LegacySelect {
   from(table: LegacyTable): { where(condition?: unknown): Promise<LegacyRows> };
