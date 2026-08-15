@@ -60,6 +60,14 @@ export async function proxy(req: NextRequest) {
   const requestHeaders = new Headers(req.headers);
   requestHeaders.set('x-nonce', nonce);
 
+  // Next.js reads the CSP nonce from the incoming request while rendering the
+  // App Router. Sending CSP only on the response is too late: the browser gets
+  // a strict nonce-based policy, but Next cannot attach that nonce to its
+  // framework/Flight scripts. That leaves the SSR splash mounted forever when
+  // the browser correctly blocks those scripts under CSP.
+  const csp = securityHeaders({ nonce })['Content-Security-Policy'];
+  requestHeaders.set('Content-Security-Policy', csp);
+
   if (pathname.startsWith('/api/')) {
     if (
       ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method) &&
@@ -80,7 +88,7 @@ export async function proxy(req: NextRequest) {
     });
     if (!rl.ok) {
       const res = NextResponse.json(
-        { ok: false, error: { code: 'rate_limited', message: 'Too many requests' } },
+        { ok: false, error: { code: 'rate_limited', message: 'Too many requests' },
         { status: 429 },
       );
       res.headers.set('Retry-After', Math.max(1, Math.ceil((rl.resetAt - Date.now()) / 1000)).toString());
