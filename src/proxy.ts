@@ -88,7 +88,7 @@ export async function proxy(req: NextRequest) {
     });
     if (!rl.ok) {
       const res = NextResponse.json(
-        { ok: false, error: { code: 'rate_limited', message: 'Too many requests' },
+        { ok: false, error: { code: 'rate_limited', message: 'Too many requests' } },
         { status: 429 },
       );
       res.headers.set('Retry-After', Math.max(1, Math.ceil((rl.resetAt - Date.now()) / 1000)).toString());
