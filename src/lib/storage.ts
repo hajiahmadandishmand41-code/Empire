@@ -36,7 +36,7 @@ export async function deletePersistent(url: string) {
     const marker = '/upload/';
     const i = u.pathname.indexOf(marker);
     if (i < 0) return;
-    let rest = u.pathname.slice(i + marker.length).replace(/^v\d+\//, '');
+    const rest = u.pathname.slice(i + marker.length).replace(/^v\d+\//, '');
     const publicId = rest.replace(/\.[^.\/]+$/, '');
     const resourceType = u.pathname.includes('/video/upload/') ? 'video' : 'image';
     const timestamp = Math.floor(Date.now()/1000).toString();
