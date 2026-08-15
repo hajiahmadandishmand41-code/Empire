@@ -17,17 +17,13 @@ interface Props {
 
 export default async function AdminOrderDetailPage({ params }: Props) {
   const { locale, id } = await params;
-
   const detail = await loadOrder(id);
   if (!detail) notFound();
 
   return (
     <div className="space-y-4">
       <header className="flex flex-wrap items-center gap-3">
-        <Link
-          href={`/${locale}/admin/orders`}
-          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-        >
+        <Link href={`/${locale}/admin/orders`} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
           <ArrowRight className="h-4 w-4 rtl:rotate-180" />
           بازگشت به لیست
         </Link>
@@ -54,7 +50,6 @@ export default async function AdminOrderDetailPage({ params }: Props) {
               </li>
             ))}
           </ul>
-
           <div className="mt-4 space-y-1 border-t border-border pt-4 text-sm">
             <Row label="جمع اقلام" value={formatMoney(detail.subtotal, detail.currency)} />
             <Row label="حمل و نقل" value={formatMoney(detail.shipping, detail.currency)} />
@@ -66,29 +61,18 @@ export default async function AdminOrderDetailPage({ params }: Props) {
           <Card className="p-5">
             <h3 className="mb-3 text-sm font-semibold text-muted-foreground">وضعیت</h3>
             <OrderStatusSelect orderId={detail.id} current={detail.status} />
-            <p className="mt-3 text-xs text-muted-foreground">
-              ثبت: {formatDateTime(detail.createdAt)}
-            </p>
+            <p className="mt-3 text-xs text-muted-foreground">ثبت: {formatDateTime(detail.createdAt)}</p>
             <p className="text-xs text-muted-foreground">روش پرداخت: {detail.paymentMethod}</p>
           </Card>
-
           <Card className="p-5">
             <h3 className="mb-3 text-sm font-semibold text-muted-foreground">مشتری</h3>
             <div className="space-y-1 text-sm">
               <div className="font-medium text-foreground">{detail.address.fullName}</div>
               <div>{detail.address.phone}</div>
-              <div className="text-muted-foreground">
-                {detail.address.province} — {detail.address.district}
-              </div>
+              <div className="text-muted-foreground">{detail.address.province} — {detail.address.district}</div>
               <div className="text-muted-foreground">{detail.address.addressLine}</div>
-              {detail.address.postalCode && (
-                <div className="text-muted-foreground">کدپستی: {detail.address.postalCode}</div>
-              )}
-              {detail.address.notes && (
-                <p className="rounded-md bg-muted p-2 text-xs text-muted-foreground">
-                  {detail.address.notes}
-                </p>
-              )}
+              {detail.address.postalCode && <div className="text-muted-foreground">کدپستی: {detail.address.postalCode}</div>}
+              {detail.address.notes && <p className="rounded-md bg-muted p-2 text-xs text-muted-foreground">{detail.address.notes}</p>}
             </div>
           </Card>
         </div>
@@ -101,9 +85,7 @@ function Row({ label, value, emphasis }: { label: string; value: string; emphasi
   return (
     <div className="flex justify-between">
       <span className="text-muted-foreground">{label}</span>
-      <span className={emphasis ? 'text-base font-bold text-navy-800' : 'font-medium'}>
-        {value}
-      </span>
+      <span className={emphasis ? 'text-base font-bold text-navy-800' : 'font-medium'}>{value}</span>
     </div>
   );
 }
@@ -144,18 +126,8 @@ async function loadOrder(id: string): Promise<OrderDetailView | null> {
       shipping: 0,
       total: m.total,
       currency: m.currency,
-      items: Array.from({ length: m.itemCount }, (_, i) => ({
-        name: `کالای نمایشی ${i + 1}`,
-        price: Math.round(m.total / m.itemCount),
-        quantity: 1,
-      })),
-      address: {
-        fullName: m.customerName,
-        phone: '+9370000000',
-        province: 'کابل',
-        district: 'ناحیه ۱۰',
-        addressLine: 'آدرس نمایشی',
-      },
+      items: Array.from({ length: m.itemCount }, (_, i) => ({ name: `کالای نمایشی ${i + 1}`, price: Math.round(m.total / m.itemCount), quantity: 1 })),
+      address: { fullName: m.customerName, phone: '+9370000000', province: 'کابل', district: 'ناحیه ۱۰', addressLine: 'آدرس نمایشی' },
     };
   }
   try {
@@ -171,11 +143,11 @@ async function loadOrder(id: string): Promise<OrderDetailView | null> {
       status: row.status,
       paymentMethod: row.paymentMethod,
       createdAt: row.createdAt.toISOString(),
-      subtotal: row.subtotal,
-      shipping: row.shipping,
-      total: row.total,
+      subtotal: Number(row.subtotal),
+      shipping: Number(row.shipping),
+      total: Number(row.total),
       currency: row.currency,
-      items: mapped.items,
+      items: mapped.items.map((item) => ({ ...item, price: Number(item.price) })),
       address: mapped.address,
     };
   } catch (err) {
