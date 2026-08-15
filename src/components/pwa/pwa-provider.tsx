@@ -34,7 +34,8 @@ export function PWAProvider() {
   const [iosHint, setIosHint] = useState(false);
   const [offline, setOffline] = useState(false);
 
-  // Register service worker
+  // Register service worker as a non-blocking progressive enhancement.
+  // PWA installation/update must never control page rendering or navigation.
   useEffect(() => {
     if (typeof window === 'undefined') return;
     if (!('serviceWorker' in navigator)) return;
@@ -55,14 +56,9 @@ export function PWAProvider() {
             });
           });
         })
-        .catch(() => {});
-
-      let refreshing = false;
-      navigator.serviceWorker.addEventListener('controllerchange', () => {
-        if (refreshing) return;
-        refreshing = true;
-        window.location.reload();
-      });
+        .catch(() => {
+          // PWA is optional. A registration failure must not affect the page.
+        });
     };
 
     if (document.readyState === 'complete') onLoad();
