@@ -35,9 +35,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!guard.ok) return guard.response;
 
   if (guard.user.id === id) {
-    return jsonError('self_modification_forbidden', 'You cannot modify yourself here', {
-      status: 409,
-    });
+    return jsonError('self_modification_forbidden', 'You cannot modify yourself here', { status: 409 });
   }
 
   let body: unknown;
@@ -55,15 +53,22 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   const data: Record<string, unknown> = {};
-  if (parsed.data.action === 'approve') {
-    data.sellerStatus = 'approved';
-    data.role = 'seller';
-  } else if (parsed.data.action === 'reject') {
-    data.sellerStatus = 'rejected';
-  } else if (parsed.data.action === 'reset') {
-    data.sellerStatus = 'none';
+  const requestedStatus = parsed.data.sellerStatus ??
+    (parsed.data.action === 'approve'
+      ? 'approved'
+      : parsed.data.action === 'reject'
+        ? 'rejected'
+        : parsed.data.action === 'reset'
+          ? 'none'
+          : undefined);
+
+  if (requestedStatus !== undefined) {
+    data.sellerStatus = requestedStatus;
+    // The role is derived from the approval lifecycle: only an approved
+    // seller can retain seller privileges. Rejection/reset explicitly revoke it.
+    data.role = requestedStatus === 'approved' ? 'seller' : 'customer';
   }
-  if (parsed.data.sellerStatus) data.sellerStatus = parsed.data.sellerStatus;
+
   if (parsed.data.isActive !== undefined) data.isActive = parsed.data.isActive;
   if (parsed.data.shopName !== undefined) data.sellerShopName = parsed.data.shopName;
   if (parsed.data.bio !== undefined) data.sellerBio = parsed.data.bio;
