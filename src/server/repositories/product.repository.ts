@@ -6,7 +6,7 @@
  * never on Prisma directly.
  */
 
-import type { Prisma, PrismaClient } from '@prisma/client';
+import { Prisma, type PrismaClient } from '@prisma/client';
 import type { PaginatedResult } from './base.repository';
 import { toPaginated } from './base.repository';
 import { buildProductOrderBy } from '../algorithms/product-ranking';
