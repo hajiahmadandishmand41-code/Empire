@@ -6,7 +6,7 @@ import { X, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
-export type ShopSort = 'newest' | 'price_asc' | 'price_desc' | 'popular';
+export type ShopSort = 'newest' | 'price_asc' | 'price_desc' | 'popular' | 'recommended';
 
 export interface ShopFiltersValue {
   priceMin: number | '';
@@ -17,6 +17,7 @@ export interface ShopFiltersValue {
 }
 
 const SORTS: Array<{ key: ShopSort; label: string }> = [
+  { key: 'recommended', label: 'پیشنهادی' },
   { key: 'newest', label: 'جدیدترین' },
   { key: 'popular', label: 'پرفروش‌ترین' },
   { key: 'price_asc', label: 'ارزان‌ترین' },
@@ -39,10 +40,8 @@ export function ShopFilters({ value, onChange, onReset }: ShopFiltersProps) {
 
   return (
     <div className="rounded-2xl border border-border bg-card shadow-sm shadow-xs">
-      {/* Header row */}
       <div className="flex items-center justify-between p-3.5 sm:p-4">
         <div className="flex items-center gap-3">
-          {/* Sort */}
           <div className="flex items-center gap-2">
             <label htmlFor="filter-sort" className="text-xs font-medium text-foreground whitespace-nowrap">
               مرتب‌سازی:
@@ -50,7 +49,10 @@ export function ShopFilters({ value, onChange, onReset }: ShopFiltersProps) {
             <select
               id="filter-sort"
               value={value.sort}
-              onChange={(e) => patch({ sort: e.target.value as ShopSort })}
+              onChange={(e) => {
+                const next = e.target.value;
+                if (SORTS.some((sort) => sort.key === next)) patch({ sort: next as ShopSort });
+              }}
               className="h-8 rounded-lg border border-border bg-background px-2 text-xs text-foreground shadow-xs focus:border-rose-400 focus:outline-none focus:ring-1 focus:ring-rose-400/20"
             >
               {SORTS.map((s) => (
@@ -61,10 +63,8 @@ export function ShopFilters({ value, onChange, onReset }: ShopFiltersProps) {
             </select>
           </div>
 
-          {/* Separator */}
           <div className="hidden h-4 w-px bg-border sm:block" aria-hidden />
 
-          {/* In stock toggle */}
           <label className="hidden cursor-pointer items-center gap-2 text-xs font-medium text-foreground sm:flex">
             <div
               role="checkbox"
@@ -88,7 +88,6 @@ export function ShopFilters({ value, onChange, onReset }: ShopFiltersProps) {
           </label>
         </div>
 
-        {/* Advanced filters toggle */}
         <button
           type="button"
           onClick={() => setExpanded(!expanded)}
@@ -99,11 +98,9 @@ export function ShopFilters({ value, onChange, onReset }: ShopFiltersProps) {
         </button>
       </div>
 
-      {/* Advanced filters panel */}
       {expanded && (
         <div className="border-t border-border p-3.5 sm:p-4">
           <div className="flex flex-wrap items-end gap-4">
-            {/* Price range */}
             <div className="flex items-center gap-2">
               <div>
                 <label htmlFor="filter-price-min" className="mb-1 block text-xs text-muted-foreground">
@@ -136,7 +133,6 @@ export function ShopFilters({ value, onChange, onReset }: ShopFiltersProps) {
               </div>
             </div>
 
-            {/* Mobile in-stock */}
             <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-foreground sm:hidden">
               <input
                 type="checkbox"
