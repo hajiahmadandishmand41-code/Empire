@@ -7,13 +7,15 @@ on:
     branches: [main]
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 env:
+  # Prisma requires a syntactically valid URL for `validate`/`generate`.
+  # No database is contacted during CI.
   DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
   NEXT_TELEMETRY_DISABLED: '1'
 
@@ -40,15 +42,6 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - name: Regenerate lockfile with npm
-        run: |
-          npm install --package-lock-only --ignore-scripts
-          if git diff --quiet -- package-lock.json; then exit 0; fi
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add package-lock.json
-          git commit -m 'chore(deps): regenerate npm lockfile'
-          git push
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
@@ -56,6 +49,8 @@ jobs:
       - run: npm run db:deploy
       - run: npm run test
       - run: npm audit --omit=dev --audit-level=high
+      # CI has no reachable database: `npm run build` would otherwise call
+      # `prisma migrate deploy` against the placeholder DATABASE_URL and fail.
       - run: npm run build
         env:
           SKIP_DB_MIGRATE: '1'
