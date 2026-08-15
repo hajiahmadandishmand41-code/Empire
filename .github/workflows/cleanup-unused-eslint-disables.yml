@@ -37,11 +37,9 @@ jobs:
                   raise SystemExit(f'Expected unused directive not found in {name}: {rule}')
               p.write_text(updated)
           PY
-          rm .github/workflows/cleanup-unused-eslint-disables.yml
+          rm .github/workflows/cleanup-unused-eslint-disables.yml .ci-trigger
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add -A
           git commit -m "fix(lint): remove unused eslint disable directives"
           git push origin HEAD:fix/typescript-complete-audit
-
-# trigger cleanup on branch push
