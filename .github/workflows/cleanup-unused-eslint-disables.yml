@@ -1,0 +1,54 @@
+name: Cleanup unused ESLint directives
+on:
+  push:
+    branches: [fix/typescript-complete-audit]
+permissions:
+  contents: write
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Remove only unused eslint disable directives reported by CI
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          files = {
+              'src/app/[locale]/error.tsx': ['    // eslint-disable-next-line no-console\n'],
+              'src/app/[locale]/search/page.tsx': [
+                  '    // eslint-disable-next-line react-hooks/exhaustive-deps\n',
+                  '  // eslint-disable-next-line react-hooks/exhaustive-deps\n',
+              ],
+              'src/app/[locale]/store/[id]/page.tsx': ['                  // eslint-disable-next-line @next/next/no-img-element\n'],
+              'src/features/home/components/mobile-menu.tsx': [
+                  '    // eslint-disable-next-line react-hooks/exhaustive-deps\n',
+                  '    // eslint-disable-next-line react-hooks/exhaustive-deps\n',
+              ],
+              'src/features/seller/components/product-images-editor.tsx': ['              // eslint-disable-next-line @next/next/no-img-element\n'],
+              'src/features/shop/components/shop-page-client.tsx': ['  // eslint-disable-next-line react-hooks/exhaustive-deps\n'],
+              'src/features/wishlist/components/wishlist-page-view.tsx': ['                        // eslint-disable-next-line react-hooks/exhaustive-deps\n'],
+              'src/lib/api/rate-limit.ts': ['    // eslint-disable-next-line no-console\n'],
+              'src/lib/auth/mock-users.ts': [
+                  '  // eslint-disable-next-line no-var\n',
+                  '  // eslint-disable-next-line no-var\n',
+              ],
+              'src/lib/logger.ts': ['  // eslint-disable-next-line no-console\n'],
+          }
+          for name, needles in files.items():
+              p = Path(name)
+              text = p.read_text()
+              old = text
+              for needle in needles:
+                  text = text.replace(needle, '', 1)
+              if text == old:
+                  raise SystemExit(f'Expected directive not found in {name}')
+              p.write_text(text)
+          PY
+          rm .github/workflows/cleanup-unused-eslint-disables.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "fix(lint): remove unused eslint disable directives"
+          git push origin HEAD:fix/typescript-complete-audit
