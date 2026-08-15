@@ -1,9 +1,7 @@
 /**
- * Seller API guard — Phase 11.2.
- *
- * Mirrors `requireAdminApi` but authorises both `seller` and `admin`
- * roles. Returns either the current user or a JSON `NextResponse`
- * (401/403) that the caller should return immediately.
+ * Seller API guard.
+ * Seller privileges require an authenticated, active account whose seller
+ * application is approved. Admins retain access to seller operations.
  */
 import { getCurrentUser, type CurrentUser } from './current-user';
 import { jsonError } from '@/lib/api/response';
@@ -21,10 +19,11 @@ export async function requireSellerApi(): Promise<SellerGuardResult> {
       response: jsonError('unauthorized', 'Authentication required', { status: 401 }),
     };
   }
-  if (user.role !== 'seller' && user.role !== 'admin') {
+  if (user.role === 'admin') return { ok: true, user };
+  if (user.role !== 'seller' || user.sellerStatus !== 'approved' || user.isActive === false) {
     return {
       ok: false,
-      response: jsonError('forbidden', 'Seller access required', { status: 403 }),
+      response: jsonError('forbidden', 'Approved seller access required', { status: 403 }),
     };
   }
   return { ok: true, user };
