@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { usePathname, useRouter } from '@/i18n/routing';
+import { usePathname, useRouter, type AppLocale } from '@/i18n/routing';
 import { Globe, Check, ChevronDown } from 'lucide-react';
 import {
   DropdownMenu,
@@ -18,7 +18,7 @@ const LOCALES = [
   { code: 'fa', label: 'دری' },
   { code: 'ps', label: 'پښتو' },
   { code: 'en', label: 'English' },
-] as const;
+] as const satisfies ReadonlyArray<{ code: AppLocale; label: string }>;
 
 interface LanguageSwitcherProps {
   variant?: 'icon' | 'full';
@@ -32,16 +32,10 @@ export function LanguageSwitcher({ variant = 'icon', className }: LanguageSwitch
   const t = useTranslations('mobileMenu');
   const current = LOCALES.find((l) => l.code === locale) ?? LOCALES[0];
 
-  function change(code: string) {
-    // Read the query string lazily from the browser instead of
-    // `useSearchParams()`: calling that hook during render forces the whole
-    // page tree to bail out of static/server rendering
-    // (BAILOUT_TO_CLIENT_SIDE_RENDERING), which left the prerendered HTML
-    // empty and the storefront stuck on the loading screen.
+  function change(code: AppLocale): void {
     const query = typeof window === 'undefined' ? '' : window.location.search.replace(/^\?/, '');
     const href = query ? `${pathname}?${query}` : pathname;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- next-intl router types do not expose href overload
-    router.replace(href as any, { locale: code as any });
+    router.replace(href, { locale: code });
   }
 
   return (
@@ -77,7 +71,7 @@ export function LanguageSwitcher({ variant = 'icon', className }: LanguageSwitch
           <DropdownMenuItem
             key={l.code}
             onClick={() => change(l.code)}
-            className="flex items-center justify-between gap-2 text-sm cursor-pointer"
+            className="flex cursor-pointer items-center justify-between gap-2 text-sm"
           >
             <span>{l.label}</span>
             {l.code === locale && <Check className="h-4 w-4 text-rose-500" aria-hidden />}
