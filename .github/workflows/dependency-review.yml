@@ -11,7 +11,12 @@ jobs:
   review:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/dependency-review-action@v4
-        with:
-          fail-on-severity: high
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      # GitHub's dependency-review-action requires the repository Dependency
+      # Graph to be enabled and currently emits a Node.js 20 deprecation warning.
+      # Use npm's native audit against the committed lockfile instead so this
+      # security gate works without repository-level Dependency Graph settings.
+      - name: Audit production and development dependencies
+        run: npm audit --audit-level=high
