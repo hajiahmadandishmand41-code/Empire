@@ -31,8 +31,8 @@ jobs:
           for name, rule in rules.items():
               p = Path(name)
               text = p.read_text()
-              pattern = rf'^[ \t]*(?:\{{[ \t]*)?(?://|/\*) eslint-disable-next-line {re.escape(rule)}(?: \*/)?[ \t]*(?:\}})?[ \t]*\n'
-              updated, count = re.subn(pattern, '', text, flags=re.MULTILINE)
+              pattern = rf'(?:\{{[ \t]*)?(?://|/\*) eslint-disable-(?:next-)?line {re.escape(rule)}(?: \*/)?[ \t]*(?:\}})?'
+              updated, count = re.subn(pattern, '', text)
               if count == 0:
                   raise SystemExit(f'Expected unused directive not found in {name}: {rule}')
               p.write_text(updated)
