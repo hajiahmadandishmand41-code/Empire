@@ -45,8 +45,11 @@ export function decodeSession(token: string): SessionPayload | null {
     const iat = parsed.iat;
     const exp = parsed.exp;
     if (!uid || !Number.isInteger(iat) || !Number.isInteger(exp)) return null;
-    if (iat <= 0 || exp <= iat || exp * 1000 < Date.now()) return null;
-    return { uid, iat, exp };
+
+    const issuedAt = iat;
+    const expiresAt = exp;
+    if (issuedAt <= 0 || expiresAt <= issuedAt || expiresAt * 1000 < Date.now()) return null;
+    return { uid, iat: issuedAt, exp: expiresAt };
   } catch {
     return null;
   }
