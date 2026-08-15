@@ -15,36 +15,27 @@ jobs:
           set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
-          files = {
-              'src/app/[locale]/error.tsx': ['    // eslint-disable-next-line no-console\n'],
-              'src/app/[locale]/search/page.tsx': [
-                  '    // eslint-disable-next-line react-hooks/exhaustive-deps\n',
-                  '  // eslint-disable-next-line react-hooks/exhaustive-deps\n',
-              ],
-              'src/app/[locale]/store/[id]/page.tsx': ['                  // eslint-disable-next-line @next/next/no-img-element\n'],
-              'src/features/home/components/mobile-menu.tsx': [
-                  '    // eslint-disable-next-line react-hooks/exhaustive-deps\n',
-                  '    // eslint-disable-next-line react-hooks/exhaustive-deps\n',
-              ],
-              'src/features/seller/components/product-images-editor.tsx': ['              // eslint-disable-next-line @next/next/no-img-element\n'],
-              'src/features/shop/components/shop-page-client.tsx': ['  // eslint-disable-next-line react-hooks/exhaustive-deps\n'],
-              'src/features/wishlist/components/wishlist-page-view.tsx': ['                        // eslint-disable-next-line react-hooks/exhaustive-deps\n'],
-              'src/lib/api/rate-limit.ts': ['    // eslint-disable-next-line no-console\n'],
-              'src/lib/auth/mock-users.ts': [
-                  '  // eslint-disable-next-line no-var\n',
-                  '  // eslint-disable-next-line no-var\n',
-              ],
-              'src/lib/logger.ts': ['  // eslint-disable-next-line no-console\n'],
+          import re
+          rules = {
+              'src/app/[locale]/error.tsx': 'no-console',
+              'src/app/[locale]/search/page.tsx': 'react-hooks/exhaustive-deps',
+              'src/app/[locale]/store/[id]/page.tsx': '@next/next/no-img-element',
+              'src/features/home/components/mobile-menu.tsx': 'react-hooks/exhaustive-deps',
+              'src/features/seller/components/product-images-editor.tsx': '@next/next/no-img-element',
+              'src/features/shop/components/shop-page-client.tsx': 'react-hooks/exhaustive-deps',
+              'src/features/wishlist/components/wishlist-page-view.tsx': 'react-hooks/exhaustive-deps',
+              'src/lib/api/rate-limit.ts': 'no-console',
+              'src/lib/auth/mock-users.ts': 'no-var',
+              'src/lib/logger.ts': 'no-console',
           }
-          for name, needles in files.items():
+          for name, rule in rules.items():
               p = Path(name)
               text = p.read_text()
-              old = text
-              for needle in needles:
-                  text = text.replace(needle, '', 1)
-              if text == old:
-                  raise SystemExit(f'Expected directive not found in {name}')
-              p.write_text(text)
+              pattern = rf'^[ \t]*(?://|/\*) eslint-disable-next-line {re.escape(rule)}(?: \*/)?[ \t]*\n'
+              updated, count = re.subn(pattern, '', text, flags=re.MULTILINE)
+              if count == 0:
+                  raise SystemExit(f'Expected unused directive not found in {name}: {rule}')
+              p.write_text(updated)
           PY
           rm .github/workflows/cleanup-unused-eslint-disables.yml
           git config user.name github-actions[bot]
