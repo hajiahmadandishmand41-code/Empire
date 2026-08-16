@@ -21,6 +21,10 @@ const verifySchema = z.object({
 
 const schema = z.discriminatedUnion('step', [sendSchema, verifySchema]);
 
+function mockAuthEnabled(): boolean {
+  return process.env.NODE_ENV === 'development' && process.env.ALLOW_MOCK_AUTH === 'true';
+}
+
 export async function POST(req: NextRequest) {
   const rl = await rateLimitAsync(clientKey(req, 'auth:otp-login'), RATE_PRESETS.auth);
   if (!rl.ok) {
@@ -28,15 +32,12 @@ export async function POST(req: NextRequest) {
     return err('rate_limited', 'تلاش‌های زیاد. کمی بعد دوباره امتحان کنید.', 429);
   }
 
-  if (!isDatabaseConfigured()) {
-    const env = process.env.NODE_ENV;
-    if (env !== 'development' && process.env.ALLOW_MOCK_AUTH !== 'true') {
-      logger.error('auth.otp_login.no_database', {
-        route: '/api/auth/otp-login',
-        nodeEnv: env,
-      });
-      return err('service_unavailable', 'سرویس در حال حاضر در دسترس نیست. لطفاً بعداً تلاش کنید.', 503);
-    }
+  if (!isDatabaseConfigured() && !mockAuthEnabled()) {
+    logger.error('auth.otp_login.no_database', {
+      route: '/api/auth/otp-login',
+      nodeEnv: process.env.NODE_ENV,
+    });
+    return err('service_unavailable', 'سرویس در حال حاضر در دسترس نیست. لطفاً بعداً تلاش کنید.', 503);
   }
 
   let body: unknown;
@@ -55,10 +56,8 @@ export async function POST(req: NextRequest) {
 
   if (!isDatabaseConfigured()) {
     if (data.step === 'send') return ok({ message: 'کد OTP ارسال شد.' });
-    if (data.step === 'verify') {
-      await setSessionCookie('mock-user');
-      return ok({ user: { id: 'mock-user', phone: data.phone, role: 'customer' } });
-    }
+    await setSessionCookie('mock-user');
+    return ok({ user: { id: 'mock-user', phone: data.phone, role: 'customer' } });
   }
 
   try {
@@ -78,8 +77,6 @@ export async function POST(req: NextRequest) {
     });
     if (!user || !user.isActive) return err('INVALID_OTP', 'کد تأیید نادرست است', 401);
 
-    // Bind the consume operation to the looked-up account. This prevents a
-    // valid token from another account from being consumed by this request.
     const userId = await consumeVerificationToken(data.otp, 'otp_login', user.id);
     if (!userId) {
       return err('INVALID_OTP', 'کد تأیید نادرست یا منقضی شده است', 401);
