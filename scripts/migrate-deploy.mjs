@@ -6,7 +6,11 @@
  *  - ONLY ever runs `prisma migrate deploy` (forward-only).
  *  - NEVER runs `migrate reset`, `db push --force-reset`, or any destructive command.
  *  - Prefers a direct (non-pooled) connection for migrations, because
- *    PgBouncer/Neon pooled endpoints break advisory locks and DDL.
+ *    PgBouncer/Neon pooled endpoints are not the right target for reliable DDL.
+ *  - If the direct environment variable is unavailable but DATABASE_URL is a
+ *    Neon pooled URL, derive the corresponding direct endpoint by removing
+ *    Neon’s `-pooler` suffix. This keeps migrations deterministic when Vercel
+ *    has only the standard pooled DATABASE_URL configured.
  *  - Soft-fails when no database URL is configured (e.g. preview builds
  *    without a database) so the build itself is never blocked.
  */
@@ -19,16 +23,45 @@ const DIRECT_KEYS = [
   'DIRECT_URL',
 ];
 
-function pickUrl() {
-  for (const key of DIRECT_KEYS) {
-    const value = process.env[key];
-    if (value && value.trim()) return { key, value: value.trim() };
-  }
-  for (const key of ['DATABASE_URL', 'POSTGRES_PRISMA_URL', 'POSTGRES_URL']) {
+const RUNTIME_KEYS = [
+  'DATABASE_URL',
+  'POSTGRES_PRISMA_URL',
+  'POSTGRES_URL',
+];
+
+function pickConfiguredUrl(keys) {
+  for (const key of keys) {
     const value = process.env[key];
     if (value && value.trim()) return { key, value: value.trim() };
   }
   return null;
+}
+
+function directNeonUrlFromPooledUrl(value) {
+  try {
+    const url = new URL(value);
+    if (!url.hostname.includes('-pooler.')) return null;
+
+    url.hostname = url.hostname.replace('-pooler.', '.');
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+function pickUrl() {
+  const direct = pickConfiguredUrl(DIRECT_KEYS);
+  if (direct) return direct;
+
+  const runtime = pickConfiguredUrl(RUNTIME_KEYS);
+  if (!runtime) return null;
+
+  const derivedDirect = directNeonUrlFromPooledUrl(runtime.value);
+  if (derivedDirect) {
+    return { key: `${runtime.key} (derived direct Neon endpoint)`, value: derivedDirect };
+  }
+
+  return runtime;
 }
 
 function main() {
@@ -44,11 +77,12 @@ function main() {
   }
 
   const pooled = /pgbouncer=true|-pooler\./.test(picked.value);
-  if (pooled && !DIRECT_KEYS.some((k) => k === picked.key)) {
-    console.warn(
-      '[migrate] WARNING: using a pooled connection for migrations. ' +
-        'Set DATABASE_URL_UNPOOLED or POSTGRES_URL_NON_POOLING for reliable DDL.',
+  if (pooled) {
+    console.error(
+      '[migrate] Refusing to run migrations against a pooled connection. ' +
+        'Configure DATABASE_URL_UNPOOLED, POSTGRES_URL_NON_POOLING, DIRECT_DATABASE_URL, or DIRECT_URL.',
     );
+    process.exit(1);
   }
 
   console.log(`[migrate] Running \`prisma migrate deploy\` using ${picked.key}.`);
