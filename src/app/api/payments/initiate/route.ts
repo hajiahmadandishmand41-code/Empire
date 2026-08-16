@@ -1,8 +1,4 @@
-/**
- * POST /api/payments/initiate
- *
- * Body: { orderReference: string }
- */
+import { randomBytes } from 'node:crypto';
 import type { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { prisma, isDatabaseConfigured } from '@/lib/db';
@@ -76,8 +72,6 @@ export async function POST(req: NextRequest) {
           },
         });
       } catch (err) {
-        // The schema has a unique (orderId, method, status) constraint. If two
-        // browser requests race, one wins creation and the loser must reuse it.
         if (isPrismaUniqueViolation(err)) {
           txn = await prisma.transaction.findFirst({
             where: { orderId: order.id, status: 'pending', method: order.paymentMethod },
@@ -121,7 +115,7 @@ export async function POST(req: NextRequest) {
 }
 
 function cryptoRandomSuffix(): string {
-  return Math.random().toString(36).slice(2, 10).toUpperCase();
+  return randomBytes(4).toString('hex').toUpperCase();
 }
 
 function isPrismaUniqueViolation(error: unknown): boolean {
