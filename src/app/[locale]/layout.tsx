@@ -11,10 +11,7 @@ import { PWAProvider } from '@/components/pwa/pwa-provider';
 import { vazirmatn, inter } from '@/lib/fonts';
 import '@/styles/globals.css';
 
-// The CSP nonce is generated per request in proxy.ts. Locale documents must
-// therefore be rendered dynamically so Next can attach that request nonce to
-// its inline/framework scripts instead of serving a prerendered HTML document
-// with nonce-less scripts under a nonce-based CSP.
+// Locale documents are dynamic because proxy.ts generates a CSP nonce per request.
 export const dynamic = 'force-dynamic';
 
 export const viewport = pwaViewport;
@@ -35,22 +32,17 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     ...baseMetadata(locale as AppLocale),
     alternates: {
       canonical: `${siteUrl}/${locale}`,
-      languages: Object.fromEntries(
-        routing.locales.map((l) => [l, `${siteUrl}/${l}`]),
-      ),
+      languages: Object.fromEntries(routing.locales.map((l) => [l, `${siteUrl}/${l}`])),
     },
   };
 }
 
 /**
- * Anti-flicker inline script — runs synchronously before first paint.
- * Reads 'empire-theme' from localStorage and applies the 'dark' class
- * to <html> immediately, preventing a white flash in dark mode.
- *
- * Must stay as a plain string (no JSX transformation) to be injected as
- * a raw <script> tag in the document head.
+ * Apply the user's explicitly stored theme before first paint. A missing
+ * preference MUST resolve to light; system preference is only consulted when
+ * the user previously selected the explicit `system` mode.
  */
-const ANTI_FLICKER_SCRIPT = `(function(){try{var t=localStorage.getItem('empire-theme')||'system';var d=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList[d?'add':'remove']('dark');document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}})();`;
+const ANTI_FLICKER_SCRIPT = `(function(){try{var t=localStorage.getItem('empire-theme')||'light';var d=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){document.documentElement.classList.remove('dark');document.documentElement.setAttribute('data-theme','light');}})();`;
 
 export default async function LocaleLayout({ children, params }: LocaleLayoutProps) {
   const { locale } = await params;
@@ -68,10 +60,6 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
       {...htmlProps(locale as AppLocale)}
       className={`${vazirmatn.variable} ${inter.variable}`}
     >
-      {/*
-        Anti-flicker script: applied synchronously before body renders.
-        suppressHydrationWarning is set on <html> via htmlProps() already.
-      */}
       <head>
         <script dangerouslySetInnerHTML={{ __html: ANTI_FLICKER_SCRIPT }} />
       </head>
@@ -79,7 +67,6 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
         <NextIntlClientProvider locale={locale} messages={messages}>
           <ThemeProvider>
             <DirectionProvider locale={locale as AppLocale}>
-              {/* Skip-to-content link: visually hidden until focused, required for keyboard nav */}
               <a href="#main" className="skip-link">
                 {t('skipToContent')}
               </a>
