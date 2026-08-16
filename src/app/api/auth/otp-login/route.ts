@@ -8,13 +8,11 @@ import { setSessionCookie } from '@/lib/auth/session';
 import { clientKey, rateLimitAsync, RATE_PRESETS } from '@/lib/api/rate-limit';
 import { logger } from '@/lib/logger';
 
-// Step 1: send OTP
 const sendSchema = z.object({
   phone: z.string().min(7),
   step: z.literal('send'),
 });
 
-// Step 2: verify OTP and login
 const verifySchema = z.object({
   phone: z.string().min(7),
   step: z.literal('verify'),
@@ -24,11 +22,23 @@ const verifySchema = z.object({
 const schema = z.discriminatedUnion('step', [sendSchema, verifySchema]);
 
 export async function POST(req: NextRequest) {
-  // Stage 3: rate-limit OTP login to prevent brute-force (10 attempts / 60 s per IP).
   const rl = await rateLimitAsync(clientKey(req, 'auth:otp-login'), RATE_PRESETS.auth);
   if (!rl.ok) {
     logger.warn('auth.otp_login.rate_limited', { route: '/api/auth/otp-login' });
     return err('rate_limited', 'تلاش‌های زیاد. کمی بعد دوباره امتحان کنید.', 429);
+  }
+
+  // Never fall back to a fake OTP session outside development. A missing
+  // production database is a service/configuration failure, not a login path.
+  if (!isDatabaseConfigured()) {
+    const env = process.env.NODE_ENV;
+    if (env !== 'development' && process.env.ALLOW_MOCK_AUTH !== 'true') {
+      logger.error('auth.otp_login.no_database', {
+        route: '/api/auth/otp-login',
+        nodeEnv: env,
+      });
+      return err('service_unavailable', 'سرویس در حال حاضر در دسترس نیست. لطفاً بعداً تلاش کنید.', 503);
+    }
   }
 
   let body: unknown;
@@ -64,7 +74,6 @@ export async function POST(req: NextRequest) {
       return ok({ message: 'کد OTP ارسال شد.' });
     }
 
-    // step === 'verify'
     const user = await prisma.user.findUnique({
       where: { phone: data.phone },
       select: { id: true, phone: true, fullName: true, role: true, isActive: true },
