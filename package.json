@@ -5,7 +5,7 @@
   "description": "Empire Shop — Afghan general e-commerce storefront. Next.js 16 + TypeScript + Tailwind + shadcn/ui + next-intl.",
   "scripts": {
     "dev": "next dev --hostname 0.0.0.0 --port ${PORT:-3000}",
-    "build": "prisma generate && node scripts/migrate-deploy.mjs && next build && npm run standalone:prepare",
+    "build": "prisma generate && next build && npm run standalone:prepare",
     "start": "node scripts/validate-production-env.mjs && HOSTNAME=0.0.0.0 node .next/standalone/server.js",
     "standalone:prepare": "node scripts/prepare-standalone.mjs",
     "build:standalone": "npm run build",
@@ -45,7 +45,7 @@
     "@radix-ui/react-select": "^2.1.2",
     "@radix-ui/react-separator": "^1.1.0",
     "@radix-ui/react-slider": "^1.1.0",
-    "@radix-ui/react-slot": "^1.1.0",
+    "@radix-ui/react-slot": "^1.1.1",
     "@radix-ui/react-switch": "^1.1.1",
     "@radix-ui/react-tabs": "^1.1.1",
     "@radix-ui/react-toast": "^1.1.1",
