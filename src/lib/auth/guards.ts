@@ -7,8 +7,13 @@ type GuardResult =
   | { user: CurrentUser; response: null }
   | { user: null; response: NextResponse };
 
+function mockAuthEnabled(): boolean {
+  return process.env.NODE_ENV === 'development' && process.env.ALLOW_MOCK_AUTH === 'true';
+}
+
 async function loadUser(userId: string): Promise<CurrentUser | null> {
   if (!isDatabaseConfigured()) {
+    if (!mockAuthEnabled()) return null;
     return {
       id: userId,
       email: null,
@@ -22,6 +27,7 @@ async function loadUser(userId: string): Promise<CurrentUser | null> {
       phoneVerified: false,
     };
   }
+
   try {
     const user = await prisma.user.findUnique({
       where: { id: userId },
