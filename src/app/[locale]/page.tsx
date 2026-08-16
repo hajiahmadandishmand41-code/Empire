@@ -48,29 +48,14 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
       <SiteHeader />
       <main id="main" className="min-h-dvh pb-16 md:pb-0">
         <HeroSection />
-
-        <section className="border-b border-border/70 bg-card/60 py-2.5 sm:py-3" aria-label="مزیت‌های فروشگاه">
-          <div className="mx-auto flex max-w-screen-xl flex-wrap items-center justify-center gap-x-6 gap-y-2 px-3 text-[11px] font-semibold text-muted-foreground sm:justify-between sm:px-6">
-            <span className="inline-flex items-center gap-1.5">✓ ارسال به سراسر افغانستان</span>
-            <span className="inline-flex items-center gap-1.5">✓ خرید امن و مطمئن</span>
-            <span className="inline-flex items-center gap-1.5">✓ فروشندگان محلی</span>
-            <span className="inline-flex items-center gap-1.5">✓ پشتیبانی مشتریان</span>
-          </div>
-        </section>
-
-        <Suspense fallback={<div className="h-28 animate-pulse bg-muted/40" />}>
-          <CategoriesSection />
-        </Suspense>
-
+        <Suspense fallback={<div className="h-28 animate-pulse bg-muted/40" />}><CategoriesSection /></Suspense>
         <LocalProductsHomeBanner />
-
         <Suspense fallback={<ProductSliderSkeleton />}><SpecialOffersSection /></Suspense>
         <Suspense fallback={<ProductSliderSkeleton />}><FeaturedProductsSection /></Suspense>
         <Suspense fallback={<ProductSliderSkeleton />}><NewProductsSection /></Suspense>
         <Suspense fallback={<ProductSliderSkeleton />}><BestSellersSection /></Suspense>
         <Suspense fallback={<ProductSliderSkeleton />}><PopularProductsSection /></Suspense>
         <Suspense fallback={<ProductSliderSkeleton />}><MostViewedSection /></Suspense>
-
         <TrustSection />
         <CallToActionSection />
       </main>
