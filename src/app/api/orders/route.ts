@@ -1,20 +1,8 @@
 import crypto from 'crypto';
 /**
  * Orders API — Phase 2 + Phase 3.
- *
- * POST /api/orders   → Create a new order.
- *   - If addressId supplied (signed-in user), we validate ownership and reuse it.
- *   - Otherwise a new Address is created from the payload.
- *   - Shipping cost is resolved server-side from ShippingMethod.
- * GET  /api/orders   → List the current user's orders (auth required).
- *
- * Stage 6 fixes:
- *  - inStock race condition: removed stale pre-fetched p.stockQuantity comparison.
- *    After all stock decrements, a batch updateMany syncs inStock=false for every
- *    product whose stockQuantity reached 0, regardless of concurrent tx order.
- *  - console.error replaced with logger.error.
- *  - guest orders receive a signed, HttpOnly receipt cookie so order references
- *    cannot be used by themselves to read or pay for another guest's order.
+ * Guest orders receive an order-scoped signed receipt cookie so public order
+ * references are not sufficient to view or pay for another guest's order.
  */
 import type { NextRequest } from 'next/server';
 import { prisma, isDatabaseConfigured } from '@/lib/db';
@@ -26,7 +14,7 @@ import { mapOrder } from '@/lib/db-mappers';
 import { getCurrentUser } from '@/lib/auth/current-user';
 import { listUserOrders } from '@/features/orders/lib/queries';
 import { logger } from '@/lib/logger';
-import { createGuestReceiptToken, GUEST_RECEIPT_COOKIE, guestReceiptCookieOptions } from '@/lib/auth/guest-receipt';
+import { createGuestReceiptToken, guestReceiptCookieName, guestReceiptCookieOptions } from '@/lib/auth/guest-receipt';
 
 export const dynamic = 'force-dynamic';
 
@@ -59,13 +47,10 @@ export async function POST(req: NextRequest) {
     });
   }
   const draft = parsed.data;
-
   const currentUser = await getCurrentUser();
 
   try {
-    if (!isDatabaseConfigured()) {
-      return jsonError('db_unavailable', 'Database is not configured', { status: 503 });
-    }
+    if (!isDatabaseConfigured()) return jsonError('db_unavailable', 'Database is not configured', { status: 503 });
 
     let shippingCost = new Prisma.Decimal(0);
     let shippingMethodId: string | null = null;
@@ -79,9 +64,7 @@ export async function POST(req: NextRequest) {
           ].filter(Boolean) as never,
         },
       });
-      if (!sm) {
-        return jsonError('unknown_shipping_method', 'Shipping method not available', { status: 422 });
-      }
+      if (!sm) return jsonError('unknown_shipping_method', 'Shipping method not available', { status: 422 });
       shippingCost = sm.cost;
       shippingMethodId = sm.id;
     }
@@ -92,30 +75,21 @@ export async function POST(req: NextRequest) {
     for (const item of draft.items) {
       const p = bySlug.get(item.slug);
       if (!p) return jsonError('unknown_product', `Unknown product: ${item.slug}`, { status: 422 });
-      if (p.isActive === false || p.inStock === false) {
-        return jsonError('product_unavailable', `Product not available: ${item.slug}`, { status: 422 });
-      }
+      if (p.isActive === false || p.inStock === false) return jsonError('product_unavailable', `Product not available: ${item.slug}`, { status: 422 });
     }
 
     const currencies = new Set(products.map((p) => p.currency));
-    if (currencies.size !== 1) {
-      return jsonError('mixed_currency', 'Products in one order must use the same currency', { status: 422 });
-    }
+    if (currencies.size !== 1) return jsonError('mixed_currency', 'Products in one order must use the same currency', { status: 422 });
     const orderCurrency = [...currencies][0];
     if (shippingMethodId) {
       const shippingMethod = await prisma.shippingMethod.findUnique({ where: { id: shippingMethodId }, select: { currency: true } });
-      if (!shippingMethod || shippingMethod.currency !== orderCurrency) {
-        return jsonError('currency_mismatch', 'Shipping method currency does not match product currency', { status: 422 });
-      }
+      if (!shippingMethod || shippingMethod.currency !== orderCurrency) return jsonError('currency_mismatch', 'Shipping method currency does not match the order', { status: 422 });
     }
-    const subtotal = draft.items.reduce(
-      (s, i) => s.add(bySlug.get(i.slug)!.price.mul(i.quantity)),
-      new Prisma.Decimal(0),
-    ).toDecimalPlaces(2);
+
+    const subtotal = draft.items.reduce((s, i) => s.add(bySlug.get(i.slug)!.price.mul(i.quantity)), new Prisma.Decimal(0)).toDecimalPlaces(2);
     const itemCount = draft.items.reduce((s, i) => s + i.quantity, 0);
     const shipping = draft.items.length > 0 ? shippingCost.toDecimalPlaces(2) : new Prisma.Decimal(0);
     const total = subtotal.add(shipping).toDecimalPlaces(2);
-
     const reference = `EMP-${Date.now().toString(36).toUpperCase()}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
 
     const created = await prisma.$transaction(async (tx) => {
@@ -126,9 +100,7 @@ export async function POST(req: NextRequest) {
       };
 
       if (draft.addressId) {
-        if (!currentUser) {
-          throw new OrderCreationError('address_requires_auth', 'An addressId requires an authenticated user');
-        }
+        if (!currentUser) throw new OrderCreationError('address_requires_auth', 'An addressId requires an authenticated user');
         const existing = await tx.address.findFirst({ where: { id: draft.addressId, userId: currentUser.id } });
         if (!existing) throw new OrderCreationError('address_not_found', 'Address not found for user');
         addressId = existing.id;
@@ -174,12 +146,7 @@ export async function POST(req: NextRequest) {
           shippingAddressLine: addressSnapshot.addressLine,
           shippingPostalCode: addressSnapshot.postalCode,
           shippingNotes: addressSnapshot.notes,
-          items: {
-            create: draft.items.map((i) => {
-              const p = bySlug.get(i.slug)!;
-              return { productId: p.id, slug: p.slug, name: p.name, price: p.price, quantity: i.quantity };
-            }),
-          },
+          items: { create: draft.items.map((i) => { const p = bySlug.get(i.slug)!; return { productId: p.id, slug: p.slug, name: p.name, price: p.price, quantity: i.quantity }; }) },
         },
         include: { items: true, address: true, shippingMethod: true },
       });
@@ -187,27 +154,16 @@ export async function POST(req: NextRequest) {
 
     const response = jsonOk(mapOrder(created), { status: 201, meta: { source: 'db' } });
     if (!currentUser) {
-      response.cookies.set(
-        GUEST_RECEIPT_COOKIE,
-        createGuestReceiptToken(created.id),
-        guestReceiptCookieOptions(),
-      );
+      response.cookies.set(guestReceiptCookieName(created.id), createGuestReceiptToken(created.id), guestReceiptCookieOptions());
     }
     return response;
   } catch (err) {
-    if (err instanceof OrderCreationError) {
-      const status = err.code === 'out_of_stock' ? 409 : 422;
-      return jsonError(err.code, err.message, { status });
-    }
+    if (err instanceof OrderCreationError) return jsonError(err.code, err.message, { status: err.code === 'out_of_stock' ? 409 : 422 });
     logger.error('orders.create_failed', {}, err);
     if (err && typeof err === 'object' && 'code' in err) {
       const code = (err as { code?: string }).code;
-      if (code === 'P2002') {
-        return jsonError('conflict', 'Order could not be created due to a duplicate reference', { status: 409 });
-      }
-      if (code === 'P2003') {
-        return jsonError('relation_conflict', 'Order references an invalid resource', { status: 409 });
-      }
+      if (code === 'P2002') return jsonError('conflict', 'Order could not be created due to a duplicate reference', { status: 409 });
+      if (code === 'P2003') return jsonError('relation_conflict', 'Order references an invalid resource', { status: 409 });
     }
     return jsonError('order_create_failed', 'Failed to create order', { status: 500 });
   }
@@ -216,15 +172,12 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   const rl = await rateLimitAsync(clientKey(req, 'orders:list'), { limit: 60 });
   if (!rl.ok) return jsonError('rate_limited', 'Too many requests', { status: 429 });
-
   const user = await getCurrentUser();
   if (!user) return jsonError('unauthorized', 'Authentication required', { status: 401 });
-
   const sp = req.nextUrl.searchParams;
   const page = Math.max(1, parseInt(sp.get('page') ?? '1', 10) || 1);
   const pageSize = Math.min(50, Math.max(5, parseInt(sp.get('pageSize') ?? '10', 10) || 10));
   const status = sp.get('status') ?? undefined;
-
   const result = await listUserOrders({ userId: user.id, page, pageSize, status });
   return jsonOk(result, { meta: { source: result.source } });
 }
