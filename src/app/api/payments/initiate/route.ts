@@ -12,6 +12,7 @@ import { createAtomaPaySession } from '@/lib/payments/atoma-pay';
 import { logger } from '@/lib/logger';
 import { getCurrentUser } from '@/lib/auth/current-user';
 import { toPrismaJson } from '@/lib/prisma-json';
+import { GUEST_RECEIPT_COOKIE, verifyGuestReceiptToken } from '@/lib/auth/guest-receipt';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,25 +42,51 @@ export async function POST(req: NextRequest) {
 
     const currentUser = await getCurrentUser();
     if (order.userId) {
-      if (!currentUser || currentUser.id !== order.userId) return jsonError('forbidden', 'Not allowed to pay for this order', { status: 403 });
-    } else if (currentUser && currentUser.role !== 'admin') {
-      return jsonError('forbidden', 'Not allowed to pay for this order', { status: 403 });
+      if (!currentUser || (currentUser.id !== order.userId && currentUser.role !== 'admin')) {
+        return jsonError('forbidden', 'Not allowed to pay for this order', { status: 403 });
+      }
+    } else if (currentUser) {
+      if (currentUser.role !== 'admin') return jsonError('forbidden', 'Not allowed to pay for this order', { status: 403 });
+    } else {
+      const guestToken = req.cookies.get(GUEST_RECEIPT_COOKIE)?.value;
+      if (!verifyGuestReceiptToken(guestToken, order.id)) {
+        return jsonError('forbidden', 'A valid guest order receipt is required', { status: 403 });
+      }
     }
 
     if (order.paymentStatus === 'paid') return jsonError('already_paid', 'Order is already paid', { status: 409 });
+    if (order.status === 'cancelled') return jsonError('order_cancelled', 'Cancelled orders cannot be paid', { status: 409 });
 
-    const existing = await prisma.transaction.findFirst({ where: { orderId: order.id, status: 'pending', method: order.paymentMethod }, orderBy: { createdAt: 'desc' } });
-    const txn = existing ?? await prisma.transaction.create({
-      data: {
-        orderId: order.id,
-        reference: `TXN-${order.reference}-${Date.now().toString(36).toUpperCase()}`,
-        provider: order.paymentMethod,
-        method: order.paymentMethod,
-        status: 'pending',
-        amount: order.total,
-        currency: order.currency,
-      },
+    let txn = await prisma.transaction.findFirst({
+      where: { orderId: order.id, status: 'pending', method: order.paymentMethod },
+      orderBy: { createdAt: 'desc' },
     });
+
+    if (!txn) {
+      try {
+        txn = await prisma.transaction.create({
+          data: {
+            orderId: order.id,
+            reference: `TXN-${order.reference}-${Date.now().toString(36).toUpperCase()}-${cryptoRandomSuffix()}`,
+            provider: order.paymentMethod,
+            method: order.paymentMethod,
+            status: 'pending',
+            amount: order.total,
+            currency: order.currency,
+          },
+        });
+      } catch (err) {
+        // The schema has a unique (orderId, method, status) constraint. If two
+        // browser requests race, one wins creation and the loser must reuse it.
+        if (isPrismaUniqueViolation(err)) {
+          txn = await prisma.transaction.findFirst({
+            where: { orderId: order.id, status: 'pending', method: order.paymentMethod },
+            orderBy: { createdAt: 'desc' },
+          });
+        }
+        if (!txn) throw err;
+      }
+    }
 
     if (order.paymentMethod === 'cod') {
       return jsonOk({ transactionId: txn.id, reference: txn.reference, method: 'cod', status: 'pending', message: 'Order will be paid in cash on delivery.' });
@@ -91,4 +118,12 @@ export async function POST(req: NextRequest) {
     logger.error('payments.initiate_failed', {}, err);
     return jsonError('payment_init_failed', 'Failed to initiate payment', { status: 500 });
   }
+}
+
+function cryptoRandomSuffix(): string {
+  return Math.random().toString(36).slice(2, 10).toUpperCase();
+}
+
+function isPrismaUniqueViolation(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && (error as { code?: string }).code === 'P2002';
 }
