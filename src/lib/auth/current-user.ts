@@ -19,8 +19,9 @@ export interface CurrentUser {
 
 /**
  * Loads the currently signed-in user and rejects sessions issued before the
- * user's last account mutation. This makes logout, password changes, role
- * changes and administrative deactivation effective against copied tokens.
+ * user's last account mutation. The session keeps an exact millisecond
+ * issuance timestamp so Prisma's sub-second timestamps cannot invalidate a
+ * brand-new login immediately after registration or OAuth linking.
  */
 export async function getCurrentUser(): Promise<CurrentUser | null> {
   const session = await getSessionPayload();
@@ -43,7 +44,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
 
   // updatedAt is changed by Prisma on account mutations. A token issued
   // before that timestamp is stale and must not authorize the request.
-  if (user.updatedAt.getTime() > session.issuedAt * 1000) return null;
+  if (user.updatedAt.getTime() > session.issuedAtMs) return null;
 
   const rawRole = (user as unknown as { role?: string }).role;
   const role: CurrentUserRole = rawRole === 'admin' || rawRole === 'seller' ? rawRole : 'customer';
