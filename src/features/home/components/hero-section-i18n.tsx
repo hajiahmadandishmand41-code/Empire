@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, ChevronLeft, ChevronRight, Home, Leaf, Percent, Shirt, ShoppingBag, Sparkles, Store } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Home, Leaf, Percent, Shirt, ShoppingBag, Smartphone, Sparkles, Store } from 'lucide-react';
 import Link from 'next/link';
 import { useLocale, useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
@@ -42,49 +42,19 @@ export function HeroSectionI18n() {
 
   const slides = useMemo<Slide[]>(() => [
     {
-      eyebrow: t('hero.eyebrow'),
-      badge: t('header.tagline'),
-      title: t('hero.title'),
-      highlight: t('hero.scrollHint'),
-      subtitle: t('hero.subtitle'),
-      primaryCta: t('hero.primaryCta'),
-      primaryHref: '/shop',
-      secondaryCta: t('hero.secondaryCta'),
-      secondaryHref: '/about',
-      darkBg: 'from-rose-700 via-rose-800 to-slate-950',
-      lightBg: 'from-[#dc1649] via-[#bd164a] to-[#68112f]',
-      icon: ShoppingBag,
-      accent: '#f59e0b',
+      eyebrow: t('hero.eyebrow'), badge: t('header.tagline'), title: t('hero.title'), highlight: t('hero.scrollHint'), subtitle: t('hero.subtitle'),
+      primaryCta: t('hero.primaryCta'), primaryHref: '/shop', secondaryCta: t('hero.secondaryCta'), secondaryHref: '/about',
+      darkBg: 'from-rose-700 via-rose-800 to-slate-950', lightBg: 'from-[#dc1649] via-[#bd164a] to-[#68112f]', icon: ShoppingBag, accent: '#f59e0b',
     },
     {
-      eyebrow: t('featured.sectionTitle'),
-      badge: t('featured.badgeBest'),
-      title: t('featured.sectionTitle'),
-      highlight: t('featured.badgeNew'),
-      subtitle: t('featured.sectionSubtitle'),
-      primaryCta: t('featured.viewAll'),
-      primaryHref: '/shop',
-      secondaryCta: tn('categories'),
-      secondaryHref: '/categories',
-      darkBg: 'from-violet-800 via-purple-800 to-slate-950',
-      lightBg: 'from-[#6d28d9] via-[#5b21b6] to-[#2e1065]',
-      icon: Percent,
-      accent: '#a78bfa',
+      eyebrow: t('featured.sectionTitle'), badge: t('featured.badgeBest'), title: t('featured.sectionTitle'), highlight: t('featured.badgeNew'), subtitle: t('featured.sectionSubtitle'),
+      primaryCta: t('featured.viewAll'), primaryHref: '/shop', secondaryCta: tn('categories'), secondaryHref: '/categories',
+      darkBg: 'from-violet-800 via-purple-800 to-slate-950', lightBg: 'from-[#6d28d9] via-[#5b21b6] to-[#2e1065]', icon: Percent, accent: '#a78bfa',
     },
     {
-      eyebrow: t('trust.sectionTitle'),
-      badge: t('trust.extra.payment.title'),
-      title: t('trust.items.shipping.title'),
-      highlight: t('trust.items.quality.title'),
-      subtitle: t('trust.items.shipping.description'),
-      primaryCta: tn('shop'),
-      primaryHref: '/shop',
-      secondaryCta: tn('contact'),
-      secondaryHref: '/contact',
-      darkBg: 'from-slate-800 via-slate-900 to-slate-950',
-      lightBg: 'from-[#1e3a5f] via-[#1e2d4f] to-[#0f172a]',
-      icon: Store,
-      accent: '#f59e0b',
+      eyebrow: t('trust.sectionTitle'), badge: t('trust.extra.payment.title'), title: t('trust.items.shipping.title'), highlight: t('trust.items.quality.title'), subtitle: t('trust.items.shipping.description'),
+      primaryCta: tn('shop'), primaryHref: '/shop', secondaryCta: tn('contact'), secondaryHref: '/contact',
+      darkBg: 'from-slate-800 via-slate-900 to-slate-950', lightBg: 'from-[#1e3a5f] via-[#1e2d4f] to-[#0f172a]', icon: Store, accent: '#f59e0b',
     },
   ], [t, tn]);
 
@@ -132,9 +102,7 @@ export function HeroSectionI18n() {
               <div className="relative flex min-h-[270px] items-center justify-between px-5 py-8 sm:min-h-[330px] sm:px-10 sm:py-10">
                 <div className="max-w-2xl flex-1 space-y-4">
                   <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-white/70">{slide.eyebrow}</p>
-                  <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[11px] font-bold text-white backdrop-blur-sm">
-                    <Sparkles className="h-3.5 w-3.5 text-amber-300" aria-hidden />{slide.badge}
-                  </div>
+                  <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[11px] font-bold text-white backdrop-blur-sm"><Sparkles className="h-3.5 w-3.5 text-amber-300" aria-hidden />{slide.badge}</div>
                   <h1 className="max-w-xl text-2xl font-black leading-[1.35] tracking-tight text-white sm:text-4xl md:text-5xl">{slide.title}{' '}<span className="text-amber-300 drop-shadow-sm">{slide.highlight}</span></h1>
                   <p className="max-w-xl text-xs leading-7 text-white/85 sm:text-sm">{slide.subtitle}</p>
                   <div className="flex flex-wrap gap-2.5 pt-1">
@@ -147,10 +115,7 @@ export function HeroSectionI18n() {
                   <div className="relative flex h-36 w-36 items-center justify-center rounded-[2rem] border border-white/20 bg-white/10 shadow-2xl backdrop-blur-md animate-float md:h-44 md:w-44"><Icon className="h-16 w-16 text-white/90 drop-shadow-lg md:h-20 md:w-20" /></div>
                 </div>
               </div>
-              <div className="flex items-center justify-between border-t border-white/10 bg-black/20 px-5 py-2.5 backdrop-blur-sm sm:px-10">
-                <span className="text-[10px] font-semibold text-white/75">{tc('tagline')}</span>
-                <span className="text-[10px] font-semibold text-white/60">{locale.toUpperCase()}</span>
-              </div>
+              <div className="flex items-center justify-between border-t border-white/10 bg-black/20 px-5 py-2.5 backdrop-blur-sm sm:px-10"><span className="text-[10px] font-semibold text-white/75">{tc('tagline')}</span><span className="text-[10px] font-semibold text-white/60">{locale.toUpperCase()}</span></div>
             </div>
             <div className="absolute inset-x-0 bottom-0 h-0.5 bg-white/15" aria-hidden><div className="h-full bg-white/80" style={{ width: `${progress}%` }} /></div>
             <button type="button" onClick={previous} aria-label={tc('previous')} className="absolute start-3 top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-black/30 text-white backdrop-blur-sm transition hover:scale-110 hover:bg-black/50 active:scale-95"><ChevronRight className="h-4 w-4" aria-hidden /></button>
