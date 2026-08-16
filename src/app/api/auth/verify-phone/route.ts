@@ -25,11 +25,11 @@ export async function POST(req: NextRequest) {
   const { otp } = parsed.data;
 
   try {
-    const userId = await consumeVerificationToken(otp, 'phone_otp');
-    if (!userId || userId !== user.id) {
+    const userId = await consumeVerificationToken(otp, 'phone_otp', user.id);
+    if (!userId) {
       return err('INVALID_OTP', 'کد تأیید نادرست یا منقضی شده است', 400);
     }
-    await prisma.user.update({ where: { id: userId }, data: { phoneVerified: true } });
+    await prisma.user.update({ where: { id: user.id }, data: { phoneVerified: true } });
     return ok({ message: 'شماره تلفن با موفقیت تأیید شد.' });
   } catch (e) {
     logger.error('auth.verify_phone.error', { userId: user.id, route: '/api/auth/verify-phone' }, e);
