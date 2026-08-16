@@ -52,28 +52,41 @@ export async function createVerificationToken(
 }
 
 /**
- * Verify and consume a token exactly once.
- * The final update is conditional on `usedAt IS NULL`, so concurrent
- * verification attempts cannot both successfully consume the same OTP.
+ * Verify and consume a token exactly once, optionally bound to a specific user.
+ * The user binding is part of the database predicate, so a valid OTP for one
+ * account cannot consume the token belonging to another account.
  */
 export async function consumeVerificationToken(
   token: string,
   type: VerificationTokenType,
+  userId?: string,
 ): Promise<string | null> {
   const storedToken = storageToken(token, type);
   const record = await prisma.verificationToken.findFirst({
-    where: { token: storedToken, type, usedAt: null },
+    where: {
+      token: storedToken,
+      type,
+      usedAt: null,
+      ...(userId ? { userId } : {}),
+    },
   });
   if (!record) return null;
 
-  if (record.expiresAt < new Date()) {
-    await prisma.verificationToken.deleteMany({ where: { id: record.id, usedAt: null } });
+  const now = new Date();
+  if (record.expiresAt <= now) {
+    await prisma.verificationToken.deleteMany({
+      where: { id: record.id, usedAt: null },
+    });
     return null;
   }
 
   const consumed = await prisma.verificationToken.updateMany({
-    where: { id: record.id, usedAt: null },
-    data: { usedAt: new Date() },
+    where: {
+      id: record.id,
+      usedAt: null,
+      ...(userId ? { userId } : {}),
+    },
+    data: { usedAt: now },
   });
 
   return consumed.count === 1 ? record.userId : null;
