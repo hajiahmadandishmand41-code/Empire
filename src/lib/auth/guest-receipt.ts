@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
-export const GUEST_RECEIPT_COOKIE = 'empire_guest_receipt';
+export const GUEST_RECEIPT_COOKIE_PREFIX = 'empire_guest_receipt_';
 const GUEST_RECEIPT_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
 
 type GuestReceiptPayload = {
@@ -33,6 +33,10 @@ function decode(value: string): string | null {
 
 function sign(value: string): string {
   return createHmac('sha256', getSecret()).update(value).digest('base64url');
+}
+
+export function guestReceiptCookieName(orderId: string): string {
+  return `${GUEST_RECEIPT_COOKIE_PREFIX}${orderId}`;
 }
 
 export function createGuestReceiptToken(orderId: string, nowMs = Date.now()): string {
