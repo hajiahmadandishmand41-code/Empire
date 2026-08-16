@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 import { setRequestLocale } from 'next-intl/server';
 import { SiteHeader } from '@/features/home/components/site-header';
-import { HeroSection } from '@/features/home/components/hero-section';
+import { HeroSectionI18n } from '@/features/home/components/hero-section-i18n';
 import { CategoriesSection } from '@/features/home/components/categories-section';
 import { FeaturedProductsSection } from '@/features/home/components/featured-products-section';
 import { NewProductsSection } from '@/features/home/components/new-products-section';
@@ -47,7 +47,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
     <div className="min-h-dvh bg-gradient-to-b from-background via-muted/20 to-background">
       <SiteHeader />
       <main id="main" className="min-h-dvh pb-16 md:pb-0">
-        <HeroSection />
+        <HeroSectionI18n />
         <Suspense fallback={<div className="h-28 animate-pulse bg-muted/40" />}><CategoriesSection /></Suspense>
         <LocalProductsHomeBanner />
         <Suspense fallback={<ProductSliderSkeleton />}><SpecialOffersSection /></Suspense>
