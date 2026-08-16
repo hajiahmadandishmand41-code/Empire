@@ -28,8 +28,6 @@ export async function POST(req: NextRequest) {
     return err('rate_limited', 'تلاش‌های زیاد. کمی بعد دوباره امتحان کنید.', 429);
   }
 
-  // Never fall back to a fake OTP session outside development. A missing
-  // production database is a service/configuration failure, not a login path.
   if (!isDatabaseConfigured()) {
     const env = process.env.NODE_ENV;
     if (env !== 'development' && process.env.ALLOW_MOCK_AUTH !== 'true') {
@@ -66,7 +64,7 @@ export async function POST(req: NextRequest) {
   try {
     if (data.step === 'send') {
       const user = await prisma.user.findUnique({ where: { phone: data.phone } });
-      if (!user) return ok({ message: 'کد OTP ارسال شد.' }); // anti-enumeration
+      if (!user) return ok({ message: 'کد OTP ارسال شد.' });
       if (!user.isActive) return err('ACCOUNT_DISABLED', 'حساب غیرفعال است', 403);
 
       const otp = await createVerificationToken(user.id, 'otp_login', 10);
@@ -80,8 +78,10 @@ export async function POST(req: NextRequest) {
     });
     if (!user || !user.isActive) return err('INVALID_OTP', 'کد تأیید نادرست است', 401);
 
-    const userId = await consumeVerificationToken(data.otp, 'otp_login');
-    if (!userId || userId !== user.id) {
+    // Bind the consume operation to the looked-up account. This prevents a
+    // valid token from another account from being consumed by this request.
+    const userId = await consumeVerificationToken(data.otp, 'otp_login', user.id);
+    if (!userId) {
       return err('INVALID_OTP', 'کد تأیید نادرست یا منقضی شده است', 401);
     }
 
