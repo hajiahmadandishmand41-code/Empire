@@ -8,10 +8,9 @@ import { createAtomaPaySession } from '@/lib/payments/atoma-pay';
 import { logger } from '@/lib/logger';
 import { getCurrentUser } from '@/lib/auth/current-user';
 import { toPrismaJson } from '@/lib/prisma-json';
-import { GUEST_RECEIPT_COOKIE, verifyGuestReceiptToken } from '@/lib/auth/guest-receipt';
+import { guestReceiptCookieName, verifyGuestReceiptToken } from '@/lib/auth/guest-receipt';
 
 export const dynamic = 'force-dynamic';
-
 const bodySchema = z.object({ orderReference: z.string().trim().min(4).max(64) });
 
 function baseUrl(req: NextRequest): string {
@@ -26,9 +25,7 @@ export async function POST(req: NextRequest) {
   if (!isDatabaseConfigured()) return jsonError('db_unavailable', 'Database is not configured', { status: 503 });
 
   let raw: unknown;
-  try { raw = await req.json(); }
-  catch { return jsonError('invalid_json', 'Request body is not valid JSON', { status: 400 }); }
-
+  try { raw = await req.json(); } catch { return jsonError('invalid_json', 'Request body is not valid JSON', { status: 400 }); }
   const parsed = bodySchema.safeParse(raw);
   if (!parsed.success) return jsonError('invalid_body', 'Invalid payload', { status: 422, details: { issues: parsed.error.issues } });
 
@@ -38,32 +35,24 @@ export async function POST(req: NextRequest) {
 
     const currentUser = await getCurrentUser();
     if (order.userId) {
-      if (!currentUser || (currentUser.id !== order.userId && currentUser.role !== 'admin')) {
-        return jsonError('forbidden', 'Not allowed to pay for this order', { status: 403 });
-      }
+      if (!currentUser || (currentUser.id !== order.userId && currentUser.role !== 'admin')) return jsonError('forbidden', 'Not allowed to pay for this order', { status: 403 });
     } else if (currentUser) {
       if (currentUser.role !== 'admin') return jsonError('forbidden', 'Not allowed to pay for this order', { status: 403 });
     } else {
-      const guestToken = req.cookies.get(GUEST_RECEIPT_COOKIE)?.value;
-      if (!verifyGuestReceiptToken(guestToken, order.id)) {
-        return jsonError('forbidden', 'A valid guest order receipt is required', { status: 403 });
-      }
+      const guestToken = req.cookies.get(guestReceiptCookieName(order.id))?.value;
+      if (!verifyGuestReceiptToken(guestToken, order.id)) return jsonError('forbidden', 'A valid guest order receipt is required', { status: 403 });
     }
 
     if (order.paymentStatus === 'paid') return jsonError('already_paid', 'Order is already paid', { status: 409 });
     if (order.status === 'cancelled') return jsonError('order_cancelled', 'Cancelled orders cannot be paid', { status: 409 });
 
-    let txn = await prisma.transaction.findFirst({
-      where: { orderId: order.id, status: 'pending', method: order.paymentMethod },
-      orderBy: { createdAt: 'desc' },
-    });
-
+    let txn = await prisma.transaction.findFirst({ where: { orderId: order.id, status: 'pending', method: order.paymentMethod }, orderBy: { createdAt: 'desc' } });
     if (!txn) {
       try {
         txn = await prisma.transaction.create({
           data: {
             orderId: order.id,
-            reference: `TXN-${order.reference}-${Date.now().toString(36).toUpperCase()}-${cryptoRandomSuffix()}`,
+            reference: `TXN-${order.reference}-${Date.now().toString(36).toUpperCase()}-${randomBytes(4).toString('hex').toUpperCase()}`,
             provider: order.paymentMethod,
             method: order.paymentMethod,
             status: 'pending',
@@ -72,11 +61,8 @@ export async function POST(req: NextRequest) {
           },
         });
       } catch (err) {
-        if (isPrismaUniqueViolation(err)) {
-          txn = await prisma.transaction.findFirst({
-            where: { orderId: order.id, status: 'pending', method: order.paymentMethod },
-            orderBy: { createdAt: 'desc' },
-          });
+        if (typeof err === 'object' && err !== null && 'code' in err && (err as { code?: string }).code === 'P2002') {
+          txn = await prisma.transaction.findFirst({ where: { orderId: order.id, status: 'pending', method: order.paymentMethod }, orderBy: { createdAt: 'desc' } });
         }
         if (!txn) throw err;
       }
@@ -98,12 +84,7 @@ export async function POST(req: NextRequest) {
         cancelUrl: `${b}/api/payments/return?txn=${encodeURIComponent(txn.id)}&cancelled=1`,
         webhookUrl: `${b}/api/payments/callback`,
       });
-
-      await prisma.transaction.update({
-        where: { id: txn.id },
-        data: { providerTxnId: session.providerTxnId, providerRaw: toPrismaJson(session.raw) },
-      });
-
+      await prisma.transaction.update({ where: { id: txn.id }, data: { providerTxnId: session.providerTxnId, providerRaw: toPrismaJson(session.raw) } });
       return jsonOk({ transactionId: txn.id, reference: txn.reference, method: 'atoma_pay', status: 'pending', redirectUrl: session.redirectUrl, mock: session.mock });
     }
 
@@ -112,12 +93,4 @@ export async function POST(req: NextRequest) {
     logger.error('payments.initiate_failed', {}, err);
     return jsonError('payment_init_failed', 'Failed to initiate payment', { status: 500 });
   }
-}
-
-function cryptoRandomSuffix(): string {
-  return randomBytes(4).toString('hex').toUpperCase();
-}
-
-function isPrismaUniqueViolation(error: unknown): boolean {
-  return typeof error === 'object' && error !== null && 'code' in error && (error as { code?: string }).code === 'P2002';
 }
