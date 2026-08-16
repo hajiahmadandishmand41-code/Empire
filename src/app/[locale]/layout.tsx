@@ -11,6 +11,12 @@ import { PWAProvider } from '@/components/pwa/pwa-provider';
 import { vazirmatn, inter } from '@/lib/fonts';
 import '@/styles/globals.css';
 
+// The CSP nonce is generated per request in proxy.ts. Locale documents must
+// therefore be rendered dynamically so Next can attach that request nonce to
+// its inline/framework scripts instead of serving a prerendered HTML document
+// with nonce-less scripts under a nonce-based CSP.
+export const dynamic = 'force-dynamic';
+
 export const viewport = pwaViewport;
 
 interface LocaleLayoutProps {
