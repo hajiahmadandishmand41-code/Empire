@@ -1,13 +1,13 @@
 /* Empire Shop — Service Worker (Phase 9)
  * Strategies:
- *  - HTML navigations: network-first, fallback to /offline.html
- *  - Private/auth HTML: network-only (never serve stale account/session UI)
+ *  - Locale-detection root + private/auth HTML: network-only
+ *  - Other HTML navigations: network-first, fallback to /offline.html
  *  - Static /_next/static + /fonts + /icons: cache-first (immutable)
  *  - Images (same-origin + next/image): stale-while-revalidate
  *  - APIs (/api/*): network-only (never cache auth/data)
  *  - Push: shows notification and focuses/opens URL on click
  */
-const VERSION = 'v1.2.0';
+const VERSION = 'v1.3.0';
 const PRECACHE = `empire-precache-${VERSION}`;
 const RUNTIME_HTML = `empire-html-${VERSION}`;
 const RUNTIME_ASSETS = `empire-assets-${VERSION}`;
@@ -72,7 +72,11 @@ function isPrivateOrAuthPage(url) {
   const match = url.pathname.match(/^\/(fa|ps|en)(?:\/|$)/);
   if (!match) return false;
   const rest = url.pathname.slice(match[0].length);
-  return /^(?:auth|profile|admin|seller)(?:\/|$)/.test(rest);
+  return /^(?:auth|profile|account|orders|checkout|admin|seller)(?:\/|$)/.test(rest);
+}
+
+function isLocaleDetectionRoot(url) {
+  return url.pathname === '/';
 }
 
 function isStaticAsset(url) {
@@ -101,10 +105,10 @@ self.addEventListener('fetch', (event) => {
   // Never cache APIs, including authentication/session endpoints.
   if (url.pathname.startsWith('/api/')) return;
 
-  // Never cache authenticated or auth-flow HTML. This prevents a logged-out
-  // browser from seeing stale account UI and prevents one locale/session state
-  // from being reused after authentication changes.
-  if (isHTMLRequest(req) && isPrivateOrAuthPage(url)) {
+  // The root endpoint chooses a locale from the user's explicit preference
+  // and Accept-Language. Caching `/` would leak the first visitor's choice to
+  // another visitor on the same browser/device.
+  if (isHTMLRequest(req) && (isLocaleDetectionRoot(url) || isPrivateOrAuthPage(url))) {
     event.respondWith(fetch(req));
     return;
   }
