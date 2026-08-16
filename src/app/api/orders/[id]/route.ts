@@ -5,12 +5,9 @@
  *   - admin              → any order
  *   - order owner (user) → their own order
  *   - seller             → orders that contain at least one of their products
- *   - guest              → only orders with no userId (guest checkout receipt)
+ *   - guest              → only their guest order, proven by a signed receipt cookie
  *
  * `[id]` accepts either the internal cuid or the public `reference`.
- *
- * Stage 6 fix:
- *  - console.error replaced with logger.error.
  */
 import type { NextRequest } from 'next/server';
 import { z } from 'zod';
@@ -20,6 +17,7 @@ import { clientKey, rateLimitAsync } from '@/lib/api/rate-limit';
 import { mapOrder } from '@/lib/db-mappers';
 import { getCurrentUser } from '@/lib/auth/current-user';
 import { logger } from '@/lib/logger';
+import { GUEST_RECEIPT_COOKIE, verifyGuestReceiptToken } from '@/lib/auth/guest-receipt';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,9 +36,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   if (!parsed.success) return jsonError('invalid_id', 'Invalid order id', { status: 400 });
   const orderId = parsed.data;
 
-  if (!isDatabaseConfigured()) {
-    return jsonError('not_found', 'Order not found (mock mode)', { status: 404 });
-  }
+  if (!isDatabaseConfigured()) return jsonError('not_found', 'Order not found', { status: 404 });
 
   try {
     const row = await prisma.order.findFirst({
@@ -50,12 +46,14 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     if (!row) return jsonError('not_found', 'Order not found', { status: 404 });
 
     const user = await getCurrentUser();
-    const isOwner = user && row.userId && row.userId === user.id;
+    const isOwner = Boolean(user && row.userId && row.userId === user.id);
     const isAdmin = user?.role === 'admin';
     const isSeller =
       user?.role === 'seller' &&
       row.items.some((i) => i.product?.sellerId && i.product.sellerId === user.id);
-    const isGuestReceipt = !row.userId && !user;
+
+    const cookieToken = req.cookies.get(GUEST_RECEIPT_COOKIE)?.value;
+    const isGuestReceipt = !row.userId && !user && verifyGuestReceiptToken(cookieToken, row.id);
 
     if (!isOwner && !isAdmin && !isSeller && !isGuestReceipt) {
       return jsonError('forbidden', 'Not allowed to view this order', { status: 403 });
@@ -63,7 +61,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
     return jsonOk(mapOrder(row));
   } catch (err) {
-    logger.error('orders.get_failed', { orderId }, err);
+    logger.error('orders.get_failed', {}, err);
     return jsonError('server_error', 'Failed to load order', { status: 500 });
   }
 }
