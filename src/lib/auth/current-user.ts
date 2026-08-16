@@ -17,6 +17,10 @@ export interface CurrentUser {
   sellerStatus?: string;
 }
 
+function mockAuthEnabled(): boolean {
+  return process.env.NODE_ENV === 'development' && process.env.ALLOW_MOCK_AUTH === 'true';
+}
+
 /**
  * Loads the currently signed-in user and rejects sessions issued before the
  * user's last account mutation. The session keeps an exact millisecond
@@ -28,9 +32,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
   if (!session) return null;
 
   if (!isDatabaseConfigured()) {
-    if (process.env.NODE_ENV !== 'development' && process.env.ALLOW_MOCK_AUTH !== 'true') {
-      return null;
-    }
+    if (!mockAuthEnabled()) return null;
     const mock = await findMockUser({ id: session.userId });
     if (!mock || !mock.isActive) return null;
     return toCurrentUserShape(mock);
@@ -42,8 +44,6 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
   const isActive = (user as unknown as { isActive?: boolean }).isActive;
   if (isActive != null && !isActive) return null;
 
-  // updatedAt is changed by Prisma on account mutations. A token issued
-  // before that timestamp is stale and must not authorize the request.
   if (user.updatedAt.getTime() > session.issuedAtMs) return null;
 
   const rawRole = (user as unknown as { role?: string }).role;
