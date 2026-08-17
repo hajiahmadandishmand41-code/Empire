@@ -11,7 +11,7 @@ interface HeaderSearchBarProps {
 
 /** Interactive global search trigger. Typing is allowed; Enter submits to /search. */
 export function HeaderSearchBar({ locale: _locale }: HeaderSearchBarProps) {
-  const t = useTranslations('siteHeader');
+  const t = useTranslations('common');
   const router = useRouter();
 
   function navigateToSearch(query = '') {
@@ -27,11 +27,11 @@ export function HeaderSearchBar({ locale: _locale }: HeaderSearchBarProps) {
   }
 
   return (
-    <form role="search" onSubmit={onSubmit} className="w-full" aria-label="جستجوی محصولات">
+    <form role="search" onSubmit={onSubmit} className="w-full" aria-label={t('search')}>
       <div className="group relative w-full">
         <button
           type="submit"
-          aria-label={t('searchPlaceholder')}
+          aria-label={t('search')}
           className="pointer-events-auto absolute start-3.5 top-1/2 z-10 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-rose-500 group-hover:text-rose-500"
         >
           <Search className="h-4 w-4" aria-hidden />
