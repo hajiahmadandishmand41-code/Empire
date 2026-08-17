@@ -1,0 +1,18 @@
+{
+  "traditional": {
+    "categories": {"all":"همه","carpet":"قالین","saffron":"زعفران","driedFruits":"میوه خشک","handicrafts":"صنایع دستی","localClothing":"لباس محلی","honey":"عسل","nuts":"خشکبار","gemstones":"سنگ قیمتی","traditional":"سایر"},
+    "badge":"🇦🇫 محصولات اصیل افغانستان",
+    "title":"محصولات سنتی افغانستان",
+    "subtitle":"صنایع دستی اصیل، زعفران، قالین و بیشتر — مستقیم از تولیدکننده",
+    "discount":"٪ تخفیف",
+    "video":"ویدیو",
+    "removeWishlist":"حذف از علاقه‌مندی",
+    "addWishlist":"افزودن به علاقه‌مندی",
+    "buy":"خرید",
+    "emptyTitle":"محصولی یافت نشد",
+    "emptyDescription":"در این دسته‌بندی محصول سنتی ثبت‌شده‌ای موجود نیست",
+    "showAll":"مشاهده همه",
+    "loading":"در حال بارگذاری…",
+    "endOfList":"همه محصولات نمایش داده شدند"
+  }
+}
