@@ -1,18 +1,19 @@
 /**
  * GET /api/payments/return
  *
- * ATOMA Pay redirects the user back here (returnUrl / cancelUrl).
- * We verify status once, then bounce the browser to the localized
- * order-success or payment page.
+ * Browser return endpoint for ATOMA Pay. Transaction IDs are identifiers, not
+ * credentials, so order ownership/guest receipt authorization is required
+ * before any local payment-state mutation.
  */
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { prisma, isDatabaseConfigured } from '@/lib/db';
 import { verifyAtomaPayStatus } from '@/lib/payments/atoma-pay';
 import { applyPaymentResult } from '@/lib/payments/apply-result';
+import { getCurrentUser } from '@/lib/auth/current-user';
+import { guestReceiptCookieName, verifyGuestReceiptToken } from '@/lib/auth/guest-receipt';
 
 export const dynamic = 'force-dynamic';
-
 const DEFAULT_LOCALE = 'fa';
 
 export async function GET(req: NextRequest) {
@@ -27,6 +28,25 @@ export async function GET(req: NextRequest) {
   try {
     const txn = await prisma.transaction.findUnique({ where: { id: txnId } });
     if (!txn) return NextResponse.redirect(new URL(`/${DEFAULT_LOCALE}`, req.url));
+
+    const order = await prisma.order.findUnique({ where: { id: txn.orderId }, select: { id: true, reference: true, userId: true } });
+    if (!order) return NextResponse.redirect(new URL(`/${DEFAULT_LOCALE}`, req.url));
+
+    const currentUser = await getCurrentUser();
+    let authorized = false;
+
+    if (order.userId) {
+      authorized = Boolean(currentUser && (currentUser.id === order.userId || currentUser.role === 'admin'));
+    } else if (currentUser) {
+      authorized = currentUser.role === 'admin';
+    } else {
+      const guestToken = req.cookies.get(guestReceiptCookieName(order.id))?.value;
+      authorized = verifyGuestReceiptToken(guestToken, order.id);
+    }
+
+    if (!authorized) {
+      return NextResponse.redirect(new URL(`/${DEFAULT_LOCALE}`, req.url));
+    }
 
     if (cancelled) {
       await applyPaymentResult({
@@ -47,17 +67,15 @@ export async function GET(req: NextRequest) {
             failureReason: remote.failureReason,
           });
         }
-      } catch (err) {
-        console.warn('[api/payments/return] verify failed:', err);
+      } catch {
+        // The provider callback remains the authoritative asynchronous source
+        // of payment status. A temporary verify failure must not fabricate a
+        // local payment result.
       }
     }
 
-    const order = await prisma.order.findUnique({ where: { id: txn.orderId } });
-    const ref = order?.reference ?? '';
-    const target = new URL(`/${DEFAULT_LOCALE}/payment/${ref}`, req.url);
-    return NextResponse.redirect(target);
-  } catch (err) {
-    console.error('[api/payments/return]', err);
+    return NextResponse.redirect(new URL(`/${DEFAULT_LOCALE}/payment/${order.reference}`, req.url));
+  } catch {
     return NextResponse.redirect(new URL(`/${DEFAULT_LOCALE}`, req.url));
   }
 }
