@@ -9,15 +9,17 @@ interface HeaderSearchBarProps {
   locale: string;
 }
 
-/** Interactive global search trigger. Typing is allowed; Enter submits to /search. */
+/** Interactive global search trigger using the existing next-intl route architecture. */
 export function HeaderSearchBar({ locale: _locale }: HeaderSearchBarProps) {
   const t = useTranslations('common');
   const router = useRouter();
 
   function navigateToSearch(query = '') {
     const q = query.trim();
-    const path = q ? `/search?q=${encodeURIComponent(q)}` : '/search';
-    router.push(path as Parameters<typeof router.push>[0]);
+    router.push({
+      pathname: '/shop',
+      query: q ? { q } : undefined,
+    });
   }
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -32,9 +34,9 @@ export function HeaderSearchBar({ locale: _locale }: HeaderSearchBarProps) {
         <button
           type="submit"
           aria-label={t('search')}
-          className="pointer-events-auto absolute start-3.5 top-1/2 z-10 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-rose-500 group-hover:text-rose-500"
+          className="pointer-events-auto absolute start-3.5 top-1/2 z-10 -translate-y-1/2 rounded-md text-muted-foreground transition-colors group-focus-within:text-primary group-hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <Search className="h-4 w-4" aria-hidden />
+          <Search className="h-4 w-4" aria-hidden="true" />
         </button>
         <input
           type="search"

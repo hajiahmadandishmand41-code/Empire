@@ -15,7 +15,7 @@ export async function CallToActionSection() {
       <Container size="xl">
         <div className="relative grid grid-cols-1 items-center gap-10 lg:grid-cols-2">
           <div className="space-y-5">
-            <span className="inline-flex items-center gap-2 rounded-full border border-rose-500/30 bg-rose-600/15 px-4 py-1.5 text-xs font-bold text-rose-400"><Store className="h-3.5 w-3.5" aria-hidden />{h('becomeSeller')}</span>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-rose-500/25 bg-rose-600/10 px-2.5 py-1 text-[11px] font-semibold leading-none text-rose-300"><Store className="h-3 w-3" aria-hidden />{h('becomeSeller')}</span>
             <div className="space-y-2"><h2 className="text-2xl font-extrabold leading-tight text-white sm:text-4xl">{t('title')}</h2><p className="max-w-md text-sm leading-relaxed text-gray-400">{t('subtitle')}</p></div>
             <ul className="space-y-2">{benefits.map((benefit) => <li key={benefit} className="flex items-center gap-2.5 text-sm text-gray-300"><CheckCircle className="h-4 w-4 shrink-0 text-emerald-400" aria-hidden />{benefit}</li>)}</ul>
             <div className="flex flex-wrap items-center gap-3 pt-1"><Link href="/shop" className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-rose-900/40 transition-all hover:-translate-y-0.5 hover:bg-rose-700 active:scale-95">{t('primaryCta')}<ArrowLeft className="h-3.5 w-3.5 rtl:rotate-180" aria-hidden /></Link><Link href="/about" className="inline-flex items-center gap-2 rounded-xl border border-gray-700 px-6 py-3 text-sm font-semibold text-gray-300 transition-all hover:border-gray-500 hover:text-white">{t('secondaryCta')}</Link></div>

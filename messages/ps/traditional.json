@@ -1,0 +1,18 @@
+{
+  "traditional": {
+    "categories": {"all":"ټول","carpet":"غالۍ","saffron":"زعفران","driedFruits":"وچې مېوې","handicrafts":"لاسي صنایع","localClothing":"ځايي جامې","honey":"شات","nuts":"مغز لرونکي","gemstones":"قیمتي ډبرې","traditional":"نور"},
+    "badge":"🇦🇫 اصلي افغان محصولات",
+    "title":"د افغانستان دودیز محصولات",
+    "subtitle":"اصلي لاسي صنایع، زعفران، غالۍ او نور — مستقیم له تولیدوونکو",
+    "discount":"٪ تخفیف",
+    "video":"ویډیو",
+    "removeWishlist":"له خوښو لرې کول",
+    "addWishlist":"خوښو ته زیاتول",
+    "buy":"پېرود",
+    "emptyTitle":"محصولات ونه موندل شول",
+    "emptyDescription":"په دې وېشنيزه کې دودیز ثبت شوي محصولات نشته",
+    "showAll":"ټول وګورئ",
+    "loading":"د بارولو په حال کې…",
+    "endOfList":"ټول محصولات وښودل شول"
+  }
+}

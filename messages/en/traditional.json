@@ -1,0 +1,18 @@
+{
+  "traditional": {
+    "categories": {"all":"All","carpet":"Carpets","saffron":"Saffron","driedFruits":"Dried fruits","handicrafts":"Handicrafts","localClothing":"Local clothing","honey":"Honey","nuts":"Nuts","gemstones":"Gemstones","traditional":"Other"},
+    "badge":"🇦🇫 Authentic Afghan products",
+    "title":"Traditional products of Afghanistan",
+    "subtitle":"Authentic crafts, saffron, carpets and more — directly from producers",
+    "discount":"% off",
+    "video":"Video",
+    "removeWishlist":"Remove from wishlist",
+    "addWishlist":"Add to wishlist",
+    "buy":"Buy",
+    "emptyTitle":"No products found",
+    "emptyDescription":"There are no registered traditional products in this category",
+    "showAll":"View all",
+    "loading":"Loading…",
+    "endOfList":"All products have been displayed"
+  }
+}
