@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /** Strict production startup validation. Never prints secret values. */
 
+const dbKeys = ['DATABASE_URL', 'DATABASE_URL_UNPOOLED', 'DIRECT_DATABASE_URL', 'DIRECT_URL', 'POSTGRES_PRISMA_URL', 'POSTGRES_URL'];
 const required = [
-  'DATABASE_URL',
   'AUTH_SECRET',
   'NEXT_PUBLIC_SITE_URL',
   'UPSTASH_REDIS_REST_URL',
@@ -19,6 +19,11 @@ const required = [
 ];
 
 const errors = [];
+
+if (!dbKeys.some((key) => process.env[key]?.trim())) {
+  errors.push(`one database URL must be configured: ${dbKeys.join(', ')}`);
+}
+
 for (const key of required) {
   if (!process.env[key]?.trim()) errors.push(`${key} is required in production`);
 }
@@ -39,7 +44,7 @@ try {
 for (const key of ['UPSTASH_REDIS_REST_URL', 'ATOMA_PAY_BASE_URL']) {
   try {
     const url = new URL(process.env[key] ?? '');
-    if (!['https:'].includes(url.protocol)) errors.push(`${key} must use https`);
+    if (url.protocol !== 'https:') errors.push(`${key} must use https`);
   } catch {
     errors.push(`${key} must be a valid URL`);
   }
