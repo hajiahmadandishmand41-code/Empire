@@ -9,14 +9,14 @@ interface HeaderSearchBarProps {
   locale: string;
 }
 
-/** Interactive global search trigger. Typing is allowed; Enter submits to /search. */
+/** Interactive global search trigger. Search is handled by the existing shop surface. */
 export function HeaderSearchBar({ locale: _locale }: HeaderSearchBarProps) {
   const t = useTranslations('common');
   const router = useRouter();
 
   function navigateToSearch(query = '') {
     const q = query.trim();
-    const path = q ? `/search?q=${encodeURIComponent(q)}` : '/search';
+    const path = q ? `/shop?q=${encodeURIComponent(q)}` : '/shop';
     router.push(path as Parameters<typeof router.push>[0]);
   }
 
@@ -32,7 +32,7 @@ export function HeaderSearchBar({ locale: _locale }: HeaderSearchBarProps) {
         <button
           type="submit"
           aria-label={t('search')}
-          className="pointer-events-auto absolute start-3.5 top-1/2 z-10 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-rose-500 group-hover:text-rose-500"
+          className="pointer-events-auto absolute start-3.5 top-1/2 z-10 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-primary group-hover:text-primary"
         >
           <Search className="h-4 w-4" aria-hidden />
         </button>
