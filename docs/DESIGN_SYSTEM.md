@@ -24,6 +24,16 @@ Features
 
 Design-system primitives must not depend on database, authentication, cart, seller, or other business-domain state.
 
+## Ownership and governance
+
+`src/components/ui` is the ownership boundary for reusable interaction primitives. A feature component may compose these primitives, but it must not silently introduce a parallel token, radius, shadow, focus, or interaction system.
+
+Add a new shared primitive only when at least two independent product areas need the same interaction model, or when the interaction is foundational (for example Dialog, Select, Tabs, or Tooltip). Keep one-off business UI feature-local.
+
+Add a new token only when an existing semantic token cannot correctly express the intended meaning. New color values should be rare; prefer a semantic role over a raw palette name. Breaking primitive API changes require consumer migration, tests, documentation, and a deliberate review before merge.
+
+Every new or changed primitive is expected to cover the states that apply: default, hover, focus-visible, active, selected, open/closed, disabled, loading, invalid/error, success, and read-only. Not every component needs every state, but the applicable states must be explicit.
+
 ## Semantic tokens
 
 Use semantic tokens for new UI:
@@ -38,6 +48,20 @@ Use semantic tokens for new UI:
 - `--color-success`, `--color-warning`, `--color-danger`, `--color-info`
 
 The legacy shadcn variables (`--primary`, `--background`, `--card`, etc.) remain as compatibility aliases. New component code should use semantic Tailwind aliases such as `bg-background`, `bg-card`, `text-foreground`, `border-border`, and `ring-ring`.
+
+## Primitive inventory
+
+The shared inventory includes the following groups and should be treated as the review surface for Section 01:
+
+- Foundation: Button, IconButton, Label, Separator
+- Forms: Input, Textarea, Select, Checkbox, RadioGroup, Switch, Form
+- Overlays: Dialog, Drawer, Sheet, DropdownMenu, Popover, Tooltip, ContextMenu, HoverCard
+- Navigation: Tabs, Accordion, Breadcrumb, Pagination, NavigationMenu, Menubar
+- Feedback: Alert, AlertDialog, Toast/Sonner, Progress, Skeleton, Spinner/Loading, Empty/Error states
+- Data display: Card, Badge, Avatar, Table
+- Composite utilities: Command, Calendar, Carousel, Collapsible, Toggle, ToggleGroup, ScrollArea, Slider and other Radix-backed shared primitives present in the repository
+
+A primitive is not considered production-ready solely because the file compiles. Its API, states, accessibility semantics, RTL/LTR behavior, responsive behavior, and real consumers must also be reviewed.
 
 ## Typography
 
@@ -66,18 +90,40 @@ Shadows should describe elevation instead of decoration. Prefer `shadow-sm` or `
 ## Component conventions
 
 - `Button` is the default action primitive.
-- `IconButton` is for icon-only actions and must provide an accessible `aria-label`.
+- `IconButton` is for icon-only actions and must provide an accessible `aria-label` or equivalent accessible naming mechanism.
 - `Input`, `Select`, `Checkbox`, `RadioGroup`, and `Switch` provide native/Radix semantics; do not replace them with clickable `div` elements.
 - Interactive primitives must expose visible `:focus-visible` states.
 - Disabled state is represented by both interaction blocking and reduced visual emphasis.
 - Validation should use `aria-invalid` and a visible text explanation; do not rely on color alone.
 - Dialogs, menus, popovers, tabs, and other composite widgets should continue to use Radix primitives for keyboard and focus management.
+- Directional icons must use the shared direction-aware convention when they communicate movement or navigation.
+
+## State matrix
+
+For every interactive primitive, explicitly review the states that apply:
+
+| State | Visual | Semantic | Keyboard/pointer | RTL/LTR | Theme |
+| --- | --- | --- | --- | --- | --- |
+| Default | Yes | Yes | Yes | Yes | Yes |
+| Hover | If pointer applies | Yes | n/a | Yes | Yes |
+| Focus-visible | Yes | Yes | Yes | Yes | Yes |
+| Active/pressed | If applicable | Yes | Yes | Yes | Yes |
+| Selected/open | If applicable | Yes | Yes | Yes | Yes |
+| Disabled | Yes | Yes | No interaction | Yes | Yes |
+| Loading | If applicable | Yes | Defined explicitly | Yes | Yes |
+| Invalid/error | If applicable | Yes | Yes | Yes | Yes |
+| Success | If applicable | Yes | Yes | Yes | Yes |
+| Read-only | If applicable | Yes | Limited | Yes | Yes |
+
+Never communicate a critical state using color alone.
 
 ## RTL / LTR
 
 Use logical properties and utilities where possible: `ps-*`, `pe-*`, `ms-*`, `me-*`, `start-*`, `end-*`, and direction-aware flex layouts. Directional icons must be reviewed when they communicate movement or navigation.
 
 The locale layout already supplies a document direction through the direction provider. Components should not override `dir` unless they have a specific, documented reason.
+
+Physical `left/right` values are acceptable when the API itself expresses a physical placement, such as a Sheet's explicit `side="left|right"`. They are not acceptable merely because a previous implementation used them for generic spacing or alignment.
 
 ## Responsive rules
 
@@ -97,6 +143,8 @@ Target WCAG 2.2 AA quality. Use native semantics before ARIA. Every control need
 
 Never use color as the only signal for status. Combine color with text, iconography, or state attributes.
 
+Source inspection is not equivalent to WCAG conformance. Browser-level testing and automated accessibility tooling are required before claiming formal compliance.
+
 ## Creating a new component
 
 1. Reuse an existing primitive before creating a new abstraction.
@@ -108,6 +156,7 @@ Never use color as the only signal for status. Combine color with text, iconogra
 7. Verify keyboard access and the accessible name.
 8. Add or update tests for the public API and interaction states.
 9. Check all current consumers before changing an existing primitive API.
+10. Prefer composition over adding a new global token or variant.
 
 ## Anti-patterns
 
@@ -121,8 +170,25 @@ Avoid introducing:
 - emoji as UI icons;
 - `aria-*` attributes that duplicate or contradict native semantics;
 - feature-specific forks of core primitives;
-- animation that continues indefinitely without conveying state.
+- animation that continues indefinitely without conveying state;
+- a second feature-local design token system that duplicates the shared foundation.
 
 ## Compatibility policy
 
 Existing public primitive APIs are kept backward-compatible unless a change is unavoidable and all consumers can be migrated safely. Legacy visual aliases may remain during migration, but new code should not expand the legacy surface.
+
+## Section 01 lock criteria
+
+Section 01 may be marked **GREEN** only when the repository has evidence for all of the following:
+
+- primitive inventory and duplication/drift audit completed;
+- affected consumers checked or migrated;
+- state and accessibility review completed;
+- RTL/LTR and responsive behavior tested in a real browser where tooling is available;
+- reduced-motion behavior verified;
+- documentation matches implementation;
+- `npm ci`, lint, typecheck, tests, and build executed successfully, or equivalent CI evidence is available;
+- no intentional TypeScript or lint suppression was introduced;
+- no known critical design-system regression remains.
+
+If browser automation or project CI is unavailable, the status must remain **YELLOW** rather than being represented as fully production-ready.
