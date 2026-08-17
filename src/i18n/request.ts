@@ -1,22 +1,51 @@
 import { notFound } from 'next/navigation';
 import { getRequestConfig } from 'next-intl/server';
 import { routing, type AppLocale } from './routing';
+import faAuthForm from '../../messages/fa/auth-form.json';
+import faResetPassword from '../../messages/fa/reset-password.json';
+import faSearchUi from '../../messages/fa/search-ui.json';
+import faAccountNav from '../../messages/fa/account-nav.json';
+import faMetadata from '../../messages/fa/metadata.json';
+import enAuthForm from '../../messages/en/auth-form.json';
+import enResetPassword from '../../messages/en/reset-password.json';
+import enSearchUi from '../../messages/en/search-ui.json';
+import enAccountNav from '../../messages/en/account-nav.json';
+import enMetadata from '../../messages/en/metadata.json';
+import psAuthForm from '../../messages/ps/auth-form.json';
+import psResetPassword from '../../messages/ps/reset-password.json';
+import psSearchUi from '../../messages/ps/search-ui.json';
+import psAccountNav from '../../messages/ps/account-nav.json';
+import psMetadata from '../../messages/ps/metadata.json';
 
-/**
- * Loads the message catalog for the active locale.
- * next-intl calls this for every server-rendered route under `/[locale]`.
- */
+type Messages = Record<string, unknown>;
+
+function mergeMessages(...sources: Messages[]): Messages {
+  const result: Messages = {};
+  for (const source of sources) {
+    for (const [key, value] of Object.entries(source)) {
+      const current = result[key];
+      if (current && typeof current === 'object' && !Array.isArray(current) && value && typeof value === 'object' && !Array.isArray(value)) {
+        result[key] = mergeMessages(current as Messages, value as Messages);
+      } else {
+        result[key] = value;
+      }
+    }
+  }
+  return result;
+}
+
+const modulesByLocale: Record<AppLocale, Messages[]> = {
+  fa: [faAuthForm, faResetPassword, faSearchUi, faAccountNav, faMetadata],
+  en: [enAuthForm, enResetPassword, enSearchUi, enAccountNav, enMetadata],
+  ps: [psAuthForm, psResetPassword, psSearchUi, psAccountNav, psMetadata],
+};
+
 export default getRequestConfig(async ({ requestLocale }) => {
   let locale = await requestLocale;
-
-  // Default locale guard — must be a known locale or 404.
-  if (!locale || !routing.locales.includes(locale as AppLocale)) {
-    locale = routing.defaultLocale;
-  }
-
+  if (!locale || !routing.locales.includes(locale as AppLocale)) locale = routing.defaultLocale;
   try {
-    const messages = (await import(`../../messages/${locale}.json`)).default;
-    return { locale, messages };
+    const base = (await import(`../../messages/${locale}.json`)).default as Messages;
+    return { locale, messages: mergeMessages(base, ...modulesByLocale[locale as AppLocale]) };
   } catch {
     notFound();
   }
