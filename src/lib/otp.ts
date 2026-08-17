@@ -74,9 +74,7 @@ export async function consumeVerificationToken(
 
   const now = new Date();
   if (record.expiresAt <= now) {
-    await prisma.verificationToken.deleteMany({
-      where: { id: record.id, usedAt: null },
-    });
+    await prisma.verificationToken.deleteMany({ where: { id: record.id, usedAt: null } });
     return null;
   }
 
@@ -90,4 +88,43 @@ export async function consumeVerificationToken(
   });
 
   return consumed.count === 1 ? record.userId : null;
+}
+
+/**
+ * Atomically consumes a password-reset token and changes the user's password.
+ * If either operation fails, neither mutation is committed.
+ */
+export async function consumePasswordResetAndUpdatePassword(
+  token: string,
+  passwordHash: string,
+): Promise<string | null> {
+  const storedToken = storageToken(token, 'password_reset');
+  const now = new Date();
+
+  return prisma.$transaction(async (tx) => {
+    const record = await tx.verificationToken.findFirst({
+      where: {
+        token: storedToken,
+        type: 'password_reset',
+        usedAt: null,
+        expiresAt: { gt: now },
+      },
+      select: { id: true, userId: true },
+    });
+
+    if (!record) return null;
+
+    const consumed = await tx.verificationToken.updateMany({
+      where: { id: record.id, usedAt: null, expiresAt: { gt: now } },
+      data: { usedAt: now },
+    });
+    if (consumed.count !== 1) return null;
+
+    await tx.user.update({
+      where: { id: record.userId },
+      data: { passwordHash, updatedAt: now },
+    });
+
+    return record.userId;
+  });
 }
