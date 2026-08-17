@@ -1,5 +1,8 @@
 /**
  * Server-side validation schemas for orders.
+ *
+ * Prices, names and totals are deliberately NOT accepted as trusted input.
+ * The order service re-reads all product and shipping data from PostgreSQL.
  */
 import { z } from 'zod';
 
@@ -17,15 +20,7 @@ export const shippingAddressSchema = z.object({
 
 export const cartLineSchema = z.object({
   slug: z.string().trim().min(1).max(120),
-  name: z.string().trim().min(1).max(200),
-  price: z.number().finite().nonnegative(),
   quantity: z.number().int().positive().max(999),
-});
-
-export const cartSummarySchema = z.object({
-  itemCount: z.number().int().nonnegative(),
-  subtotal: z.number().finite().nonnegative(),
-  currency: z.enum(['USD', 'AFN', 'EUR']).default('USD'),
 });
 
 export const orderDraftSchema = z
@@ -36,7 +31,14 @@ export const orderDraftSchema = z
     paymentMethod: z.enum(['cod', 'bank_transfer', 'whatsapp', 'atoma_pay']).default('cod'),
     shippingMethodId: z.string().trim().min(1).optional(),
     shippingMethodKey: z.enum(['standard', 'express', 'cod']).optional(),
-    summary: cartSummarySchema,
+    // Kept optional for backwards-compatible clients. It is never trusted for pricing.
+    summary: z
+      .object({
+        itemCount: z.number().int().nonnegative().optional(),
+        subtotal: z.number().finite().nonnegative().optional(),
+        currency: z.enum(['USD', 'AFN', 'EUR']).optional(),
+      })
+      .optional(),
   })
   .refine((v) => !!v.addressId || !!v.address, {
     message: 'Either addressId or address is required',
