@@ -61,11 +61,12 @@ export async function POST(req: NextRequest) {
 
   const draft = parsed.data;
   const currentUser = await getCurrentUser();
+  let reference: string | null = null;
 
   try {
     if (!isDatabaseConfigured()) return jsonError('db_unavailable', 'Database is not configured', { status: 503 });
 
-    const reference = idempotencyKey
+    reference = idempotencyKey
       ? idempotentReference(idempotencyKey, currentUser?.id ?? null)
       : `EMP-${Date.now().toString(36).toUpperCase()}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
 
@@ -200,7 +201,7 @@ export async function POST(req: NextRequest) {
       // Concurrent retries can race on the same deterministic reference. The
       // unique reference constraint is authoritative; return the committed
       // order instead of reporting a generic failure.
-      if (code === 'P2002' && idempotencyKey) {
+      if (code === 'P2002' && idempotencyKey && reference) {
         const existing = await prisma.order.findUnique({ where: { reference }, include: { items: true, address: true, shippingMethod: true } });
         if (existing && (!existing.userId || existing.userId === currentUser?.id)) {
           const response = jsonOk(mapOrder(existing), { status: 200, meta: { source: 'idempotent-race-replay' } });
