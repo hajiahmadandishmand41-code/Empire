@@ -26,6 +26,7 @@ function assertConfigured(): void {
 
 async function sendEmailOtp(to: string, otp: string): Promise<void> {
   if (!smtpConfigured) {
+    if (isProduction) throw new Error('SMTP is not configured');
     logger.info('auth.otp.email_dev_mode', { to });
     return;
   }
@@ -35,15 +36,12 @@ async function sendEmailOtp(to: string, otp: string): Promise<void> {
     host: process.env.SMTP_HOST,
     port: Number(process.env.SMTP_PORT ?? 587),
     secure: process.env.SMTP_SECURE === 'true',
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
-    },
+    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
   });
 
   const subject = `${APP_NAME} — کد تأیید`;
   const text = `${APP_NAME}: کد تأیید شما ${otp} است. این کد ۱۰ دقیقه اعتبار دارد. کد را با دیگران به اشتراک نگذارید.`;
-  const html = `<!doctype html><html><body style="font-family:Arial,sans-serif"><h2>${APP_NAME}</h2><p>کد تأیید شما:</p><div style="font-size:32px;font-weight:700;letter-spacing:8px">${otp}</div><p>این کد ۱۰ دقیقه اعتبار دارد.</p><p>کد را با دیگران به اشتراک نگذارید.</p></body></html>`;
+  const html = `<!doctype html><html dir="rtl"><body style="font-family:Arial,sans-serif"><h2>${APP_NAME}</h2><p>کد تأیید شما:</p><div style="font-size:32px;font-weight:700;letter-spacing:8px">${otp}</div><p>این کد ۱۰ دقیقه اعتبار دارد.</p><p>کد را با دیگران به اشتراک نگذارید.</p></body></html>`;
 
   await transporter.sendMail({
     from: process.env.SMTP_FROM ?? process.env.SMTP_USER,
@@ -56,25 +54,34 @@ async function sendEmailOtp(to: string, otp: string): Promise<void> {
 
 async function sendSmsOtp(to: string, otp: string): Promise<void> {
   if (!twilioConfigured) {
+    if (isProduction) throw new Error('Twilio is not configured');
     logger.info('auth.otp.sms_dev_mode', { to });
     return;
   }
 
-  const { default: twilio } = await import('twilio');
-  const client = twilio(process.env.TWILIO_ACCOUNT_SID!, process.env.TWILIO_AUTH_TOKEN!);
-  await client.messages.create({
-    from: process.env.TWILIO_PHONE!,
-    to,
-    body: `${APP_NAME}: کد تأیید شما ${otp} است. این کد ۱۰ دقیقه اعتبار دارد.`,
+  const accountSid = process.env.TWILIO_ACCOUNT_SID!;
+  const auth = Buffer.from(`${accountSid}:${process.env.TWILIO_AUTH_TOKEN!}`).toString('base64');
+  const body = new URLSearchParams({
+    From: process.env.TWILIO_PHONE!,
+    To: to,
+    Body: `${APP_NAME}: کد تأیید شما ${otp} است. این کد ۱۰ دقیقه اعتبار دارد.`,
   });
+
+  const response = await fetch(
+    `https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(accountSid)}/Messages.json`,
+    {
+      method: 'POST',
+      headers: { Authorization: `Basic ${auth}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+      body,
+      cache: 'no-store',
+    },
+  );
+  if (!response.ok) throw new Error(`Twilio delivery failed (${response.status})`);
 }
 
-export interface OtpDeliveryResult {
-  email: boolean;
-  sms: boolean;
-}
+export interface OtpDeliveryResult { email: boolean; sms: boolean; }
 
-/** Send the same OTP to every available verified delivery channel. */
+/** Send the exact same OTP to every configured contact channel. */
 export async function sendOtpToEmailAndPhone(
   otp: string,
   channels: { email?: string | null; phone?: string | null },
@@ -87,29 +94,17 @@ export async function sendOtpToEmailAndPhone(
 
   const tasks: Array<Promise<void>> = [];
   const labels: Array<'email' | 'sms'> = [];
-
-  if (email) {
-    labels.push('email');
-    tasks.push(sendEmailOtp(email, otp));
-  }
-  if (phone) {
-    labels.push('sms');
-    tasks.push(sendSmsOtp(phone, otp));
-  }
+  if (email) { labels.push('email'); tasks.push(sendEmailOtp(email, otp)); }
+  if (phone) { labels.push('sms'); tasks.push(sendSmsOtp(phone, otp)); }
 
   const results = await Promise.allSettled(tasks);
   const delivery: OtpDeliveryResult = { email: false, sms: false };
   const failures: string[] = [];
-
   results.forEach((result, index) => {
     const label = labels[index];
     if (result.status === 'fulfilled') delivery[label] = true;
     else failures.push(label);
   });
-
-  if (failures.length > 0) {
-    throw new Error(`OTP delivery failed for: ${failures.join(', ')}`);
-  }
-
+  if (failures.length) throw new Error(`OTP delivery failed for: ${failures.join(', ')}`);
   return delivery;
 }
