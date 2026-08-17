@@ -7,26 +7,8 @@ type GuardResult =
   | { user: CurrentUser; response: null }
   | { user: null; response: NextResponse };
 
-function mockAuthEnabled(): boolean {
-  return process.env.NODE_ENV === 'development' && process.env.ALLOW_MOCK_AUTH === 'true';
-}
-
 async function loadUser(userId: string): Promise<CurrentUser | null> {
-  if (!isDatabaseConfigured()) {
-    if (!mockAuthEnabled()) return null;
-    return {
-      id: userId,
-      email: null,
-      phone: null,
-      fullName: 'Mock User',
-      role: 'customer' as CurrentUserRole,
-      createdAt: new Date().toISOString(),
-      isActive: true,
-      sellerStatus: 'none',
-      emailVerified: false,
-      phoneVerified: false,
-    };
-  }
+  if (!isDatabaseConfigured()) return null;
 
   try {
     const user = await prisma.user.findUnique({
@@ -42,13 +24,25 @@ async function loadUser(userId: string): Promise<CurrentUser | null> {
         emailVerified: true,
         phoneVerified: true,
         createdAt: true,
+        updatedAt: true,
       },
     });
     if (!user || !user.isActive) return null;
+
+    const session = await getSessionPayload();
+    if (!session || user.updatedAt.getTime() > session.issuedAtMs) return null;
+
     return {
-      ...user,
+      id: user.id,
+      email: user.email,
+      phone: user.phone,
+      fullName: user.fullName,
       role: user.role as CurrentUserRole,
       createdAt: user.createdAt.toISOString(),
+      isActive: user.isActive,
+      sellerStatus: user.sellerStatus,
+      emailVerified: user.emailVerified,
+      phoneVerified: user.phoneVerified,
     };
   } catch {
     return null;
@@ -66,16 +60,18 @@ export async function requireUserApi(): Promise<GuardResult> {
       ),
     };
   }
+
   const user = await loadUser(session.userId);
   if (!user) {
     return {
       user: null,
       response: NextResponse.json(
-        { ok: false, error: { code: 'UNAUTHORIZED', message: 'User not found or inactive' } },
+        { ok: false, error: { code: 'UNAUTHORIZED', message: 'User not found, inactive, or session expired' } },
         { status: 401 },
       ),
     };
   }
+
   return { user, response: null };
 }
 
