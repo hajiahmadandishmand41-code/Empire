@@ -1,4 +1,5 @@
 import type { NextRequest } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { prisma, isDatabaseConfigured } from '@/lib/db';
 import { jsonOk, jsonError, jsonPreflight } from '@/lib/api/response';
 import { setSessionCookie } from '@/lib/auth/session';
@@ -9,6 +10,16 @@ import { logger } from '@/lib/logger';
 
 export async function OPTIONS() {
   return jsonPreflight();
+}
+
+function isKnownPrismaError(error: unknown): error is Prisma.PrismaClientKnownRequestError {
+  return error instanceof Prisma.PrismaClientKnownRequestError;
+}
+
+function databaseUnavailable(): ReturnType<typeof jsonError> {
+  return jsonError('service_unavailable', 'سرویس در حال حاضر در دسترس نیست. لطفاً بعداً تلاش کنید.', {
+    status: 503,
+  });
 }
 
 export async function POST(req: NextRequest) {
@@ -31,11 +42,7 @@ export async function POST(req: NextRequest) {
         message: 'DATABASE_URL is not set. Auth is disabled outside development.',
         nodeEnv: env,
       });
-      return jsonError(
-        'service_unavailable',
-        'سرویس در حال حاضر در دسترس نیست. لطفاً بعداً تلاش کنید.',
-        { status: 503 },
-      );
+      return databaseUnavailable();
     }
   }
 
@@ -94,14 +101,23 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const existing = await prisma.user.findFirst({
-    where: {
-      OR: [
-        id.email ? { email: id.email } : { id: '__none__' },
-        id.phone ? { phone: id.phone } : { id: '__none__' },
-      ],
-    },
-  });
+  let existing: Awaited<ReturnType<typeof prisma.user.findFirst>>;
+  try {
+    existing = await prisma.user.findFirst({
+      where: {
+        OR: [
+          id.email ? { email: id.email } : { id: '__none__' },
+          id.phone ? { phone: id.phone } : { id: '__none__' },
+        ],
+      },
+    });
+  } catch (error) {
+    logger.error('auth.register.lookup_failed', {
+      code: isKnownPrismaError(error) ? error.code : 'UNKNOWN',
+    });
+    return databaseUnavailable();
+  }
+
   if (existing) {
     return jsonError('USER_EXISTS', 'کاربری با این ایمیل یا شماره وجود دارد', {
       status: 409,
@@ -110,14 +126,31 @@ export async function POST(req: NextRequest) {
 
   const { hashPassword } = await import('@/lib/auth/password');
   const passwordHash = await hashPassword(parsed.data.password);
-  const user = await prisma.user.create({
-    data: {
-      fullName: parsed.data.fullName.trim(),
-      email: id.email,
-      phone: id.phone,
-      passwordHash,
-    },
-  });
+
+  let user: Awaited<ReturnType<typeof prisma.user.create>>;
+  try {
+    user = await prisma.user.create({
+      data: {
+        fullName: parsed.data.fullName.trim(),
+        email: id.email,
+        phone: id.phone,
+        passwordHash,
+      },
+    });
+  } catch (error) {
+    // The pre-check above is intentionally not the source of truth because
+    // concurrent requests can race. The unique DB constraint is authoritative.
+    if (isKnownPrismaError(error) && error.code === 'P2002') {
+      return jsonError('USER_EXISTS', 'کاربری با این ایمیل یا شماره وجود دارد', {
+        status: 409,
+      });
+    }
+
+    logger.error('auth.register.create_failed', {
+      code: isKnownPrismaError(error) ? error.code : 'UNKNOWN',
+    });
+    return databaseUnavailable();
+  }
 
   await setSessionCookie(user.id);
 
