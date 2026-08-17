@@ -1,29 +1,20 @@
 /**
- * ATOMA Pay client.
+ * ATOMA Pay adapter.
  *
- * ATOMA Pay adapter. The Afghan ATOMA public site documents merchant
- * registration and customer/merchant wallet payments, but does not publish
- * a public web checkout API specification. Therefore production endpoint
- * paths are configurable and MUST come from ATOMA's merchant onboarding/API
- * documentation rather than being guessed in source code.
- *
- * It also exposes an HMAC-SHA256 signature verifier for the webhook
- * callback (`X-Atoma-Signature` header over the raw request body).
- *
- * If ATOMA credentials are missing, the client operates in MOCK mode:
- * it returns deterministic fake payment sessions so local development
- * and CI can exercise the full flow without a real provider account.
+ * The provider's concrete API paths and credentials are configuration-driven.
+ * No mock payment flow exists: when the provider is not configured, payment
+ * initiation/verification fails explicitly instead of returning a fake success.
  *
  * Environment variables:
- *   ATOMA_PAY_BASE_URL     - official ATOMA API base URL supplied by ATOMA
- *   ATOMA_PAY_CREATE_PATH  - payment creation path supplied by ATOMA (default /v1/payments)
- *   ATOMA_PAY_STATUS_PATH  - status path template supplied by ATOMA (default /v1/payments/:id)
- *   ATOMA_PAY_MERCHANT_ID  - your merchant identifier
- *   ATOMA_PAY_API_KEY      - server-side secret
- *   ATOMA_PAY_WEBHOOK_SECRET - HMAC secret for callback verification
- *   ATOMA_PAY_PUBLIC_BASE_URL - override for return/cancel URLs
+ *   ATOMA_PAY_BASE_URL              - official ATOMA API base URL
+ *   ATOMA_PAY_CREATE_PATH           - payment creation path
+ *   ATOMA_PAY_STATUS_PATH           - payment status path template
+ *   ATOMA_PAY_MERCHANT_ID           - merchant identifier
+ *   ATOMA_PAY_API_KEY               - server-side secret
+ *   ATOMA_PAY_WEBHOOK_SECRET        - HMAC secret for callback verification
+ *   ATOMA_PAY_PUBLIC_BASE_URL       - public return/cancel URL base
  */
-import crypto from 'crypto';
+import crypto from 'node:crypto';
 import { Prisma } from '@prisma/client';
 
 export interface AtomaPaySessionInput {
@@ -46,7 +37,7 @@ export interface AtomaPaySession {
   redirectUrl: string;
   status: 'pending' | 'paid' | 'failed';
   raw: unknown;
-  mock: boolean;
+  mock: false;
 }
 
 export interface AtomaPayStatus {
@@ -57,7 +48,7 @@ export interface AtomaPayStatus {
   paidAt?: string;
   failureReason?: string;
   raw: unknown;
-  mock: boolean;
+  mock: false;
 }
 
 function config() {
@@ -73,33 +64,26 @@ function config() {
 
 export function isAtomaPayConfigured(): boolean {
   const c = config();
-  return Boolean(c.baseUrl && c.merchantId && c.apiKey);
+  return Boolean(c.baseUrl && c.merchantId && c.apiKey && c.webhookSecret);
 }
 
-/** Create a hosted payment session. Falls back to mock when unconfigured. */
+function requireConfigured(): ReturnType<typeof config> {
+  const c = config();
+  if (!c.baseUrl || !c.merchantId || !c.apiKey || !c.webhookSecret) {
+    throw new Error('ATOMA Pay is not fully configured. Required provider credentials and webhook secret are missing.');
+  }
+  return c;
+}
+
+/** Create a hosted payment session against the real provider. */
 export async function createAtomaPaySession(
   input: AtomaPaySessionInput,
 ): Promise<AtomaPaySession> {
-  const c = config();
+  const c = requireConfigured();
+  const base = c.baseUrl.replace(/\/$/, '');
+  const path = c.createPath.startsWith('/') ? c.createPath : `/${c.createPath}`;
 
-  if (!isAtomaPayConfigured()) {
-    if (process.env.APP_MODE !== 'demo') {
-      throw new Error('ATOMA Pay is not configured (missing merchantId or apiKey)');
-    }
-
-    // MOCK: deterministic ID + a redirect that just bounces to the return URL.
-    const providerTxnId = `mock_${input.orderReference}_${Date.now().toString(36)}`;
-    const redirectUrl = `${input.returnUrl}${input.returnUrl.includes('?') ? '&' : '?'}mock=1&providerTxnId=${encodeURIComponent(providerTxnId)}&status=paid`;
-    return {
-      providerTxnId,
-      redirectUrl,
-      status: 'pending',
-      raw: { mock: true, input },
-      mock: true,
-    };
-  }
-
-  const res = await fetch(`${c.baseUrl.replace(/\/$/, '')}${c.createPath.startsWith('/') ? c.createPath : `/${c.createPath}`}`, {
+  const res = await fetch(`${base}${path}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -116,13 +100,15 @@ export async function createAtomaPaySession(
       cancel_url: input.cancelUrl,
       webhook_url: input.webhookUrl,
     }),
+    cache: 'no-store',
   });
 
   const raw = await res.json().catch(() => ({}));
   if (!res.ok) {
     const msg =
-      (raw && typeof raw === 'object' && 'message' in raw && String((raw as { message: unknown }).message)) ||
-      `ATOMA Pay returned HTTP ${res.status}`;
+      raw && typeof raw === 'object' && 'message' in raw
+        ? String((raw as { message: unknown }).message)
+        : `ATOMA Pay returned HTTP ${res.status}`;
     throw new Error(msg);
   }
 
@@ -136,46 +122,35 @@ export async function createAtomaPaySession(
   const providerTxnId = data.id ?? data.payment_id ?? '';
   const redirectUrl = data.redirect_url ?? data.checkout_url ?? '';
   if (!providerTxnId || !redirectUrl) {
-    throw new Error('ATOMA Pay response missing id or redirect_url');
+    throw new Error('ATOMA Pay response is missing payment id or checkout URL.');
   }
+
   return {
     providerTxnId,
     redirectUrl,
-    status: (data.status as AtomaPaySession['status']) ?? 'pending',
+    status: data.status === 'paid' ? 'paid' : data.status === 'failed' ? 'failed' : 'pending',
     raw,
     mock: false,
   };
 }
 
-/** Verify status by provider transaction id. */
+/** Verify payment status against the real provider. */
 export async function verifyAtomaPayStatus(providerTxnId: string): Promise<AtomaPayStatus> {
-  const c = config();
-
-  if (!isAtomaPayConfigured() || providerTxnId.startsWith('mock_')) {
-    if (process.env.APP_MODE !== 'demo' || !providerTxnId.startsWith('mock_')) {
-      throw new Error('ATOMA Pay is not configured or mock verification is disabled');
-    }
-    // MOCK: any mock id we ever created is treated as paid.
-    return {
-      providerTxnId,
-      status: 'paid',
-      paidAt: new Date().toISOString(),
-      raw: { mock: true },
-      mock: true,
-    };
-  }
-
-
+  const c = requireConfigured();
   const statusPath = c.statusPath.replace(':id', encodeURIComponent(providerTxnId));
-  const res = await fetch(`${c.baseUrl.replace(/\/$/, '')}${statusPath.startsWith('/') ? statusPath : `/${statusPath}`}`, {
+  const base = c.baseUrl.replace(/\/$/, '');
+  const path = statusPath.startsWith('/') ? statusPath : `/${statusPath}`;
+
+  const res = await fetch(`${base}${path}`, {
     method: 'GET',
     headers: {
       Authorization: `Bearer ${c.apiKey}`,
       'X-Merchant-Id': c.merchantId,
     },
+    cache: 'no-store',
   });
   const raw = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(`ATOMA Pay verify HTTP ${res.status}`);
+  if (!res.ok) throw new Error(`ATOMA Pay verify returned HTTP ${res.status}`);
 
   const data = raw as {
     id?: string;
@@ -206,26 +181,13 @@ export async function verifyAtomaPayStatus(providerTxnId: string): Promise<Atoma
   };
 }
 
-/**
- * Verify the HMAC-SHA256 signature ATOMA Pay attaches to webhook
- * callbacks. Callers pass the raw request body (as a string) and the
- * `X-Atoma-Signature` header.
- *
- * Uses timing-safe comparison to prevent signature-guessing.
- */
+/** Verify the HMAC-SHA256 signature ATOMA Pay attaches to webhooks. */
 export function verifyAtomaPaySignature(rawBody: string, signature: string | null): boolean {
   const c = config();
-  if (!c.webhookSecret) {
-    // Fail closed in production — a missing secret means we cannot
-    // authenticate the sender, so any webhook must be rejected.
-    if (process.env.APP_MODE !== 'demo') return false;
-    return true;
-  }
-  if (!signature) return false;
+  if (!c.webhookSecret || !signature) return false;
   const expected = crypto.createHmac('sha256', c.webhookSecret).update(rawBody).digest('hex');
   const a = Buffer.from(expected, 'utf8');
   const b = Buffer.from(signature, 'utf8');
   if (a.length !== b.length) return false;
   return crypto.timingSafeEqual(a, b);
 }
-

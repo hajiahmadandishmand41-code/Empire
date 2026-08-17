@@ -1,5 +1,7 @@
 /**
- * Sliding-window rate limiter with Redis and in-memory backends.
+ * Distributed fixed-window rate limiter with Redis and an in-memory fallback.
+ * Production requires Redis through startup environment validation, so the
+ * fallback is intended for local development/tests only.
  */
 
 type Bucket = { count: number; resetAt: number };
@@ -101,10 +103,7 @@ async function redisLimit(key: string, limit: number, windowMs: number): Promise
   };
 }
 
-export function rateLimit(
-  key: string,
-  opts: { limit?: number; windowMs?: number } = {},
-): RateLimitResult {
+export function rateLimit(key: string, opts: { limit?: number; windowMs?: number } = {}): RateLimitResult {
   return memoryLimit(key, opts.limit ?? 60, opts.windowMs ?? 60_000);
 }
 
@@ -156,8 +155,6 @@ export function rateLimitHeaders(r: RateLimitResult): Record<string, string> {
     'X-RateLimit-Remaining': String(r.remaining),
     'X-RateLimit-Reset': String(Math.ceil(r.resetAt / 1000)),
   };
-  if (!r.ok) {
-    headers['Retry-After'] = String(Math.max(1, Math.ceil((r.resetAt - Date.now()) / 1000)));
-  }
+  if (!r.ok) headers['Retry-After'] = String(Math.max(1, Math.ceil((r.resetAt - Date.now()) / 1000)));
   return headers;
 }

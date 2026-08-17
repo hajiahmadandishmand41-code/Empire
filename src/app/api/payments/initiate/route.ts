@@ -47,6 +47,20 @@ export async function POST(req: NextRequest) {
     if (order.status === 'cancelled') return jsonError('order_cancelled', 'Cancelled orders cannot be paid', { status: 409 });
 
     let txn = await prisma.transaction.findFirst({ where: { orderId: order.id, status: 'pending', method: order.paymentMethod }, orderBy: { createdAt: 'desc' } });
+
+    // Transaction status is part of a uniqueness constraint for compatibility
+    // with the existing schema. A failed/cancelled attempt is therefore reset
+    // into a single pending lifecycle instead of creating a duplicate row.
+    if (!txn) {
+      const previous = await prisma.transaction.findFirst({ where: { orderId: order.id, method: order.paymentMethod }, orderBy: { createdAt: 'desc' } });
+      if (previous && (previous.status === 'failed' || previous.status === 'cancelled')) {
+        txn = await prisma.transaction.update({
+          where: { id: previous.id },
+          data: { status: 'pending', providerTxnId: null, providerRaw: undefined, failureReason: null, paidAt: null },
+        });
+      }
+    }
+
     if (!txn) {
       try {
         txn = await prisma.transaction.create({
@@ -84,7 +98,7 @@ export async function POST(req: NextRequest) {
         cancelUrl: `${b}/api/payments/return?txn=${encodeURIComponent(txn.id)}&cancelled=1`,
         webhookUrl: `${b}/api/payments/callback`,
       });
-      await prisma.transaction.update({ where: { id: txn.id }, data: { providerTxnId: session.providerTxnId, providerRaw: toPrismaJson(session.raw) } });
+      await prisma.transaction.update({ where: { id: txn.id }, data: { providerTxnId: session.providerTxnId, providerRaw: toPrismaJson(session.raw), failureReason: null } });
       return jsonOk({ transactionId: txn.id, reference: txn.reference, method: 'atoma_pay', status: 'pending', redirectUrl: session.redirectUrl, mock: session.mock });
     }
 

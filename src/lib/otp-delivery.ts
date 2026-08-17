@@ -2,7 +2,6 @@ import { logger } from '@/lib/logger';
 
 const APP_NAME = 'Empire Shop';
 
-const isProduction = process.env.NODE_ENV === 'production';
 const smtpConfigured = Boolean(
   process.env.SMTP_HOST?.trim() &&
   process.env.SMTP_USER?.trim() &&
@@ -19,17 +18,13 @@ function assertConfigured(): void {
   const missing: string[] = [];
   if (!smtpConfigured) missing.push('SMTP_HOST/SMTP_USER/SMTP_PASS');
   if (!twilioConfigured) missing.push('SMS_PROVIDER=twilio + Twilio credentials');
-  if (missing.length && isProduction) {
+  if (missing.length) {
     throw new Error(`OTP delivery is not configured: ${missing.join(', ')}`);
   }
 }
 
 async function sendEmailOtp(to: string, otp: string): Promise<void> {
-  if (!smtpConfigured) {
-    if (isProduction) throw new Error('SMTP is not configured');
-    logger.info('auth.otp.email_dev_mode', { to });
-    return;
-  }
+  if (!smtpConfigured) throw new Error('SMTP is not configured');
 
   const nodemailer = await import('nodemailer');
   const transporter = nodemailer.createTransport({
@@ -39,9 +34,9 @@ async function sendEmailOtp(to: string, otp: string): Promise<void> {
     auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
   });
 
-  const subject = `${APP_NAME} — کد تأیید`;
-  const text = `${APP_NAME}: کد تأیید شما ${otp} است. این کد ۱۰ دقیقه اعتبار دارد. کد را با دیگران به اشتراک نگذارید.`;
-  const html = `<!doctype html><html dir="rtl"><body style="font-family:Arial,sans-serif"><h2>${APP_NAME}</h2><p>کد تأیید شما:</p><div style="font-size:32px;font-weight:700;letter-spacing:8px">${otp}</div><p>این کد ۱۰ دقیقه اعتبار دارد.</p><p>کد را با دیگران به اشتراک نگذارید.</p></body></html>`;
+  const subject = `${APP_NAME} — verification code`;
+  const text = `${APP_NAME}: Your verification code is ${otp}. It expires in 10 minutes. Do not share this code.`;
+  const html = `<!doctype html><html dir="ltr"><body style="font-family:Arial,sans-serif"><h2>${APP_NAME}</h2><p>Your verification code:</p><div style="font-size:32px;font-weight:700;letter-spacing:8px">${otp}</div><p>This code expires in 10 minutes.</p><p>Do not share this code with anyone.</p></body></html>`;
 
   await transporter.sendMail({
     from: process.env.SMTP_FROM ?? process.env.SMTP_USER,
@@ -53,18 +48,14 @@ async function sendEmailOtp(to: string, otp: string): Promise<void> {
 }
 
 async function sendSmsOtp(to: string, otp: string): Promise<void> {
-  if (!twilioConfigured) {
-    if (isProduction) throw new Error('Twilio is not configured');
-    logger.info('auth.otp.sms_dev_mode', { to });
-    return;
-  }
+  if (!twilioConfigured) throw new Error('Twilio is not configured');
 
   const accountSid = process.env.TWILIO_ACCOUNT_SID!;
   const auth = Buffer.from(`${accountSid}:${process.env.TWILIO_AUTH_TOKEN!}`).toString('base64');
   const body = new URLSearchParams({
     From: process.env.TWILIO_PHONE!,
     To: to,
-    Body: `${APP_NAME}: کد تأیید شما ${otp} است. این کد ۱۰ دقیقه اعتبار دارد.`,
+    Body: `${APP_NAME}: Your verification code is ${otp}. It expires in 10 minutes.`,
   });
 
   const response = await fetch(
@@ -105,6 +96,10 @@ export async function sendOtpToEmailAndPhone(
     if (result.status === 'fulfilled') delivery[label] = true;
     else failures.push(label);
   });
-  if (failures.length) throw new Error(`OTP delivery failed for: ${failures.join(', ')}`);
+
+  if (failures.length) {
+    logger.warn('auth.otp_delivery.partial_failure', { channels: failures });
+    throw new Error(`OTP delivery failed for: ${failures.join(', ')}`);
+  }
   return delivery;
 }

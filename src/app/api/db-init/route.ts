@@ -1,15 +1,25 @@
 /**
- * DB Init — Legacy endpoint stub.
- * The project now uses Prisma migrations. This endpoint is kept for
- * backwards compatibility but does nothing harmful.
+ * Legacy database-init endpoint.
+ * Prisma migrations are the only supported database initialization mechanism.
+ * This route intentionally does not mutate the database.
  */
 import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  return NextResponse.json({
-    ok: true,
-    message: 'This project uses Prisma. Run `prisma migrate deploy` to initialize the database.',
-  });
+  return NextResponse.json(
+    {
+      ok: false,
+      error: {
+        code: 'LEGACY_ENDPOINT',
+        message: 'Database initialization is managed by Prisma migrations.',
+      },
+    },
+    { status: 410 },
+  );
+}
+
+export async function POST() {
+  return GET();
 }
