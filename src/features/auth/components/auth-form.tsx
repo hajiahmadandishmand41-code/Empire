@@ -3,13 +3,13 @@
 import { useState, type FormEvent, useId } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useRouter } from '@/i18n/routing';
+import { useLocale } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { AlertCircle, Eye, EyeOff, Loader2, CheckCircle2, User, Lock, Mail } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { AlertCircle, CheckCircle2, Eye, EyeOff, Loader2, Lock, Mail, User } from 'lucide-react';
 import Link from 'next/link';
-import { useLocale } from 'next-intl';
+import { cn } from '@/lib/utils';
 
 type Mode = 'login' | 'register';
 
@@ -22,32 +22,30 @@ interface ApiFailure {
   error: { code: string; message: string };
 }
 
-const ERROR_MESSAGES: Record<string, string> = {
-  INVALID_CREDENTIALS: 'ایمیل/شماره یا رمز عبور اشتباه است',
-  USER_EXISTS: 'این ایمیل یا شماره قبلاً ثبت شده است',
-  TOO_MANY_REQUESTS: 'تعداد تلاش زیاد است، چند دقیقه صبر کنید',
-  VALIDATION_ERROR: 'اطلاعات وارد شده معتبر نیست',
-  INTERNAL_ERROR: 'خطای سرور — لطفاً دوباره تلاش کنید',
-};
+const copy = {
+  fa: { name: 'نام و نام خانوادگی', identifier: 'ایمیل یا شماره موبایل', password: 'رمز عبور', confirm: 'تکرار رمز عبور', namePlaceholder: 'مثلاً احمد کریمی', identifierPlaceholder: 'example@email.com یا 0700000000', loginPasswordPlaceholder: 'رمز عبور خود را وارد کنید', registerPasswordPlaceholder: 'حداقل ۸ کاراکتر', forgot: 'فراموشی رمز عبور؟', login: 'ورود به حساب', register: 'ایجاد حساب کاربری', loading: 'در حال ارسال…', noAccount: 'حساب ندارید؟', haveAccount: 'قبلاً ثبت‌نام کرده‌اید؟', signUp: 'ثبت‌نام کنید', signIn: 'وارد شوید', mismatch: 'رمز عبور و تکرار آن یکسان نیستند', connection: 'خطای ارتباط با سرور — اتصال اینترنت خود را بررسی کنید', unknown: 'خطایی رخ داد، لطفاً دوباره تلاش کنید', successLogin: 'ورود موفق!', successRegister: 'حساب کاربری ایجاد شد!', redirecting: 'در حال انتقال…', show: 'نمایش رمز', hide: 'مخفی کردن رمز', strength: ['','ضعیف','متوسط','خوب','قوی','عالی'], strengthLabel: 'قدرت رمز' },
+  ps: { name: 'بشپړ نوم', identifier: 'برېښنالیک یا موبایل شمېره', password: 'پټنوم', confirm: 'د پټنوم بیا تکرار', namePlaceholder: 'لکه احمد کریمي', identifierPlaceholder: 'example@email.com یا 0700000000', loginPasswordPlaceholder: 'خپل پټنوم دننه کړئ', registerPasswordPlaceholder: 'لږ تر لږه ۸ توري', forgot: 'پټنوم مو هېر شوی؟', login: 'حساب ته ننوتل', register: 'حساب جوړول', loading: 'لېږل کېږي…', noAccount: 'حساب نه لرئ؟', haveAccount: 'مخکې مو ثبت‌نام کړی؟', signUp: 'ثبت‌نام وکړئ', signIn: 'ننوزئ', mismatch: 'پټنومونه یو شان نه دي', connection: 'له سرور سره اړیکه ونښلېده', unknown: 'ستونزه رامنځته شوه، بیا هڅه وکړئ', successLogin: 'بریالی ننوتل!', successRegister: 'حساب جوړ شو!', redirecting: 'لېږدول کېږي…', show: 'پټنوم ښکاره کړئ', hide: 'پټنوم پټ کړئ', strength: ['','کمزوری','منځنی','ښه','قوي','ډېر قوي'], strengthLabel: 'د پټنوم ځواک' },
+  en: { name: 'Full name', identifier: 'Email or phone number', password: 'Password', confirm: 'Confirm password', namePlaceholder: 'e.g. Ahmad Karimi', identifierPlaceholder: 'name@example.com or 0700000000', loginPasswordPlaceholder: 'Enter your password', registerPasswordPlaceholder: 'At least 8 characters', forgot: 'Forgot password?', login: 'Sign in', register: 'Create account', loading: 'Submitting…', noAccount: "Don't have an account?", haveAccount: 'Already registered?', signUp: 'Create an account', signIn: 'Sign in', mismatch: 'Passwords do not match', connection: "We couldn't connect to the server. Check your internet connection.", unknown: 'Something went wrong. Please try again.', successLogin: 'Signed in successfully!', successRegister: 'Account created successfully!', redirecting: 'Redirecting…', show: 'Show password', hide: 'Hide password', strength: ['','Weak','Fair','Good','Strong','Excellent'], strengthLabel: 'Password strength' },
+} as const;
 
 export function AuthForm({ mode }: Props) {
   const router = useRouter();
   const locale = useLocale();
   const searchParams = useSearchParams();
   const uid = useId();
+  const language = locale === 'en' || locale === 'ps' ? locale : 'fa';
+  const t = copy[language];
 
   const [fullName, setFullName] = useState('');
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
-  /** Password strength indicator (register only) */
   const pwStrength = (() => {
     if (!password || mode !== 'register') return 0;
     let score = 0;
@@ -59,275 +57,80 @@ export function AuthForm({ mode }: Props) {
     return score;
   })();
 
-  const pwStrengthLabel = ['', 'ضعیف', 'متوسط', 'خوب', 'قوی', 'عالی'][pwStrength] ?? '';
-  const pwStrengthColor = [
-    '',
-    'bg-red-400',
-    'bg-orange-400',
-    'bg-yellow-400',
-    'bg-green-400',
-    'bg-emerald-500',
-  ][pwStrength] ?? '';
+  const passwordMismatch = mode === 'register' && confirmPassword.length > 0 && confirmPassword !== password;
+  const pwColors = ['', 'bg-red-400', 'bg-orange-400', 'bg-yellow-400', 'bg-green-500', 'bg-emerald-500'];
 
-  const passwordMismatch =
-    mode === 'register' && confirmPassword.length > 0 && confirmPassword !== password;
-
-  function getSafeRedirect(): string {
+  function getSafeRedirect() {
     const requested = searchParams.get('redirect');
-    if (!requested || !requested.startsWith('/') || requested.startsWith('//')) {
-      return '/';
-    }
-    return requested;
+    return requested && requested.startsWith('/') && !requested.startsWith('//') ? requested : '/';
   }
 
-  async function onSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError(null);
+  function validateIdentifier(value: string) {
+    const normalized = value.trim();
+    if (!normalized) return t.identifier;
+    if (normalized.includes('@')) return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized) ? null : (language === 'en' ? 'Enter a valid email address.' : language === 'ps' ? 'د سم برېښنالیک پته دننه کړئ.' : 'ایمیل معتبر وارد کنید.');
+    return /^[+0-9\s()\-]{8,20}$/.test(normalized) ? null : (language === 'en' ? 'Enter a valid phone number.' : language === 'ps' ? 'د تلیفون سمه شمېره دننه کړئ.' : 'شماره تلفن معتبر وارد کنید.');
+  }
 
-    if (mode === 'register' && password !== confirmPassword) {
-      setError('رمز عبور و تکرار آن یکسان نیستند');
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    const identifierError = validateIdentifier(identifier);
+    if (identifierError) { setError(identifierError); return; }
+    if (mode === 'register') {
+      if (fullName.trim().length < 2) { setError(language === 'en' ? 'Enter your full name.' : language === 'ps' ? 'خپل بشپړ نوم دننه کړئ.' : 'نام کامل خود را وارد کنید.'); return; }
+      if (password.length < 8) { setError(language === 'en' ? 'Password must be at least 8 characters.' : language === 'ps' ? 'پټنوم باید لږ تر لږه ۸ توري ولري.' : 'رمز عبور باید حداقل ۸ کاراکتر باشد.'); return; }
+      if (password !== confirmPassword) { setError(t.mismatch); return; }
+    } else if (!password) {
+      setError(language === 'en' ? 'Enter your password.' : language === 'ps' ? 'خپل پټنوم دننه کړئ.' : 'رمز عبور را وارد کنید.');
       return;
     }
 
     setLoading(true);
     try {
-      const url = mode === 'register' ? '/api/auth/register' : '/api/auth/login';
-      const payload =
-        mode === 'register'
-          ? { fullName: fullName.trim(), identifier: identifier.trim(), password, confirmPassword }
-          : { identifier: identifier.trim(), password };
-
-      const res = await fetch(url, {
+      const response = await fetch(mode === 'register' ? '/api/auth/register' : '/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
         credentials: 'same-origin',
+        body: JSON.stringify(mode === 'register' ? { fullName: fullName.trim(), identifier: identifier.trim(), password, confirmPassword } : { identifier: identifier.trim(), password }),
       });
-
-      const data = (await res.json()) as ApiFailure | { ok: true };
-
-      if (!res.ok || !data.ok) {
+      const data = (await response.json()) as ApiFailure | { ok: true };
+      if (!response.ok || !data.ok) {
         const code = (data as ApiFailure)?.error?.code ?? '';
-        const fallback = (data as ApiFailure)?.error?.message ?? 'خطایی رخ داد، لطفاً دوباره تلاش کنید';
-        setError(ERROR_MESSAGES[code] ?? fallback);
+        const mapped: Record<string, string> = {
+          INVALID_CREDENTIALS: language === 'en' ? 'The email/phone or password is incorrect.' : language === 'ps' ? 'برېښنالیک/شمېره یا پټنوم سم نه دی.' : 'ایمیل/شماره یا رمز عبور اشتباه است.',
+          USER_EXISTS: language === 'en' ? 'An account with this email or phone already exists.' : language === 'ps' ? 'له دې برېښنالیک یا شمېرې سره حساب مخکې شته.' : 'این ایمیل یا شماره قبلاً ثبت شده است.',
+          TOO_MANY_REQUESTS: language === 'en' ? 'Too many attempts. Please try again later.' : language === 'ps' ? 'هڅې ډېرې شوې؛ وروسته بیا هڅه وکړئ.' : 'تعداد تلاش زیاد است؛ بعداً دوباره تلاش کنید.',
+          VALIDATION_ERROR: language === 'en' ? 'Please check the information you entered.' : language === 'ps' ? 'مهرباني وکړئ خپل معلومات وڅېړئ.' : 'اطلاعات واردشده را بررسی کنید.',
+          ACCOUNT_DISABLED: language === 'en' ? 'This account is disabled. Please contact support.' : language === 'ps' ? 'دا حساب غیر فعال دی؛ له ملاتړ سره اړیکه ونیسئ.' : 'این حساب غیرفعال است؛ با پشتیبانی تماس بگیرید.',
+          service_unavailable: language === 'en' ? 'Authentication is temporarily unavailable. Please try again later.' : language === 'ps' ? 'د ننوتلو خدمت لنډ مهال شتون نه لري.' : 'سرویس ورود موقتاً در دسترس نیست. بعداً دوباره تلاش کنید.',
+        };
+        setError(mapped[code] ?? t.unknown);
         return;
       }
-
       setSuccess(true);
       router.replace(getSafeRedirect());
       router.refresh();
     } catch {
-      setError('خطای ارتباط با سرور — اتصال اینترنت خود را بررسی کنید');
+      setError(t.connection);
     } finally {
       setLoading(false);
     }
   }
 
   if (success) {
-    return (
-      <div className="flex flex-col items-center gap-3 py-6 text-center">
-        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-green-50 ring-4 ring-green-100">
-          <CheckCircle2 className="h-7 w-7 text-green-500" />
-        </div>
-        <p className="font-semibold text-foreground">
-          {mode === 'register' ? 'حساب کاربری ایجاد شد!' : 'ورود موفق!'}
-        </p>
-        <p className="text-sm text-muted-foreground">در حال انتقال…</p>
-      </div>
-    );
+    return <div className="flex flex-col items-center gap-3 py-6 text-center" role="status" aria-live="polite"><div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 ring-4 ring-primary/10"><CheckCircle2 className="h-7 w-7 text-primary" /></div><p className="font-semibold text-foreground">{mode === 'register' ? t.successRegister : t.successLogin}</p><p className="text-sm text-muted-foreground">{t.redirecting}</p></div>;
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4" noValidate>
-      {mode === 'register' && (
-        <div className="space-y-1.5">
-          <Label htmlFor={`${uid}-fullName`} className="text-sm font-medium text-foreground">
-            نام و نام خانوادگی <span className="text-red-500">*</span>
-          </Label>
-          <div className="relative">
-            <User className="pointer-events-none absolute start-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-            <Input
-              id={`${uid}-fullName`}
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              required
-              autoComplete="name"
-              maxLength={80}
-              placeholder="مثلاً احمد کریمی"
-              className="h-11 rounded-xl border-border bg-muted/40 dark:bg-muted/20 ps-10 text-sm transition focus:border-rose-400 focus:bg-background focus:ring-2 focus:ring-rose-400/15"
-            />
-          </div>
-        </div>
-      )}
-
-      <div className="space-y-1.5">
-        <Label htmlFor={`${uid}-identifier`} className="text-sm font-medium text-foreground">
-          ایمیل یا شماره موبایل <span className="text-red-500">*</span>
-        </Label>
-        <div className="relative">
-          <Mail className="pointer-events-none absolute start-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-          <Input
-            id={`${uid}-identifier`}
-            value={identifier}
-            onChange={(e) => setIdentifier(e.target.value)}
-            required
-            autoComplete={mode === 'register' ? 'email' : 'username'}
-            maxLength={120}
-            dir="ltr"
-            placeholder="example@email.com یا 0700000000"
-            className="h-11 rounded-xl border-border bg-muted/40 dark:bg-muted/20 ps-10 text-sm transition focus:border-rose-400 focus:bg-background focus:ring-2 focus:ring-rose-400/15"
-          />
-        </div>
-      </div>
-
-      <div className="space-y-1.5">
-        <div className="flex items-center justify-between">
-          <Label htmlFor={`${uid}-password`} className="text-sm font-medium text-foreground">
-            رمز عبور <span className="text-red-500">*</span>
-          </Label>
-          {mode === 'login' && (
-            <Link
-              href={`/${locale}/auth/forgot-password`}
-              className="text-xs text-rose-600 hover:text-rose-700 hover:underline"
-            >
-              فراموشی رمز عبور؟
-            </Link>
-          )}
-        </div>
-        <div className="relative">
-          <Lock className="pointer-events-none absolute start-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-          <Input
-            id={`${uid}-password`}
-            type={showPassword ? 'text' : 'password'}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
-            minLength={8}
-            maxLength={128}
-            placeholder={mode === 'register' ? 'حداقل ۸ کاراکتر' : 'رمز عبور خود را وارد کنید'}
-            className="h-11 rounded-xl border-border bg-muted/40 dark:bg-muted/20 ps-10 pe-11 text-sm transition focus:border-rose-400 focus:bg-background focus:ring-2 focus:ring-rose-400/15"
-          />
-          <button
-            type="button"
-            onClick={() => setShowPassword(!showPassword)}
-            className="absolute end-3 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            aria-label={showPassword ? 'مخفی کردن رمز' : 'نمایش رمز'}
-          >
-            {showPassword ? <EyeOff className="h-4 w-4" aria-hidden /> : <Eye className="h-4 w-4" aria-hidden />}
-          </button>
-        </div>
-
-        {/* Password strength meter — register only */}
-        {mode === 'register' && password.length > 0 && (
-          <div className="space-y-1 pt-0.5">
-            <div className="flex gap-1">
-              {[1, 2, 3, 4, 5].map((level) => (
-                <div
-                  key={level}
-                  className={cn(
-                    'h-1 flex-1 rounded-full transition-all duration-300',
-                    level <= pwStrength ? pwStrengthColor : 'bg-muted',
-                  )}
-                />
-              ))}
-            </div>
-            <p className={cn('text-[11px]', pwStrength <= 1 ? 'text-red-500' : pwStrength <= 3 ? 'text-yellow-600' : 'text-green-600')}>
-              قدرت رمز: {pwStrengthLabel}
-            </p>
-          </div>
-        )}
-      </div>
-
-      {mode === 'register' && (
-        <div className="space-y-1.5">
-          <Label htmlFor={`${uid}-confirmPassword`} className="text-sm font-medium text-foreground">
-            تکرار رمز عبور <span className="text-red-500">*</span>
-          </Label>
-          <div className="relative">
-            <Lock className="pointer-events-none absolute start-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-            <Input
-              id={`${uid}-confirmPassword`}
-              type={showConfirm ? 'text' : 'password'}
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-              autoComplete="new-password"
-              minLength={8}
-              maxLength={128}
-              aria-invalid={passwordMismatch}
-              aria-describedby={passwordMismatch ? `${uid}-pw-mismatch` : undefined}
-              placeholder="رمز عبور را مجدداً وارد کنید"
-              className={cn(
-                'h-11 rounded-xl border-border bg-muted/40 dark:bg-muted/20 ps-10 pe-11 text-sm transition focus:border-rose-400 focus:bg-background focus:ring-2 focus:ring-rose-400/15',
-                passwordMismatch && 'border-red-300 focus:border-red-400 focus:ring-red-400/15 bg-red-50/30',
-              )}
-            />
-            <button
-              type="button"
-              onClick={() => setShowConfirm(!showConfirm)}
-              className="absolute end-3 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              aria-label={showConfirm ? 'مخفی کردن رمز' : 'نمایش رمز'}
-            >
-              {showConfirm ? <EyeOff className="h-4 w-4" aria-hidden /> : <Eye className="h-4 w-4" aria-hidden />}
-            </button>
-          </div>
-          {passwordMismatch && (
-            <p id={`${uid}-pw-mismatch`} role="alert" className="text-xs text-red-500">
-              رمز عبور و تکرار آن یکسان نیستند
-            </p>
-          )}
-        </div>
-      )}
-
-      {/* Error alert */}
-      {error && (
-        <div
-          role="alert"
-          className="flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 px-3.5 py-3 text-sm text-red-700"
-        >
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-          <span>{error}</span>
-        </div>
-      )}
-
-      {/* Submit */}
-      <Button
-        type="submit"
-        disabled={loading || passwordMismatch}
-        size="lg"
-        className="w-full gap-2 btn-primary-premium h-11 rounded-xl font-semibold disabled:opacity-60"
-      >
-        {loading ? (
-          <>
-            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-            <span>در حال ارسال…</span>
-          </>
-        ) : mode === 'register' ? (
-          'ایجاد حساب کاربری'
-        ) : (
-          'ورود به حساب'
-        )}
-      </Button>
-
-      {/* Footer links */}
-      <p className="text-center text-xs text-muted-foreground">
-        {mode === 'login' ? (
-          <>
-            حساب ندارید؟{' '}
-            <Link href={`/${locale}/auth/register`} className="text-rose-600 font-medium hover:underline">
-              ثبت‌نام کنید
-            </Link>
-          </>
-        ) : (
-          <>
-            قبلاً ثبت‌نام کرده‌اید؟{' '}
-            <Link href={`/${locale}/auth/login`} className="text-rose-600 font-medium hover:underline">
-              وارد شوید
-            </Link>
-          </>
-        )}
-      </p>
+    <form onSubmit={onSubmit} className="space-y-4" noValidate aria-label={mode === 'login' ? t.login : t.register}>
+      {mode === 'register' && <div className="space-y-1.5"><Label htmlFor={`${uid}-name`} className="text-sm font-medium">{t.name} <span className="text-destructive" aria-hidden="true">*</span></Label><div className="relative"><User className="pointer-events-none absolute start-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" /><Input id={`${uid}-name`} value={fullName} onChange={(e) => setFullName(e.target.value)} autoComplete="name" required maxLength={80} placeholder={t.namePlaceholder} className="h-11 rounded-xl ps-10" /></div></div>}
+      <div className="space-y-1.5"><Label htmlFor={`${uid}-identifier`} className="text-sm font-medium">{t.identifier} <span className="text-destructive" aria-hidden="true">*</span></Label><div className="relative"><Mail className="pointer-events-none absolute start-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" /><Input id={`${uid}-identifier`} value={identifier} onChange={(e) => setIdentifier(e.target.value)} autoComplete="username" inputMode="email" required maxLength={120} dir="ltr" placeholder={t.identifierPlaceholder} className="h-11 rounded-xl ps-10" /></div></div>
+      <div className="space-y-1.5"><div className="flex items-center justify-between"><Label htmlFor={`${uid}-password`} className="text-sm font-medium">{t.password} <span className="text-destructive" aria-hidden="true">*</span></Label>{mode === 'login' && <Link href={`/${locale}/auth/forgot-password`} className="text-xs text-primary hover:underline">{t.forgot}</Link>}</div><div className="relative"><Lock className="pointer-events-none absolute start-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" /><Input id={`${uid}-password`} type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} required minLength={mode === 'register' ? 8 : undefined} maxLength={128} autoComplete={mode === 'register' ? 'new-password' : 'current-password'} placeholder={mode === 'register' ? t.registerPasswordPlaceholder : t.loginPasswordPlaceholder} dir="ltr" className="h-11 rounded-xl ps-10 pe-11" /><button type="button" onClick={() => setShowPassword((v) => !v)} className="absolute end-3 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground" aria-label={showPassword ? t.hide : t.show}>{showPassword ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}</button></div>{mode === 'register' && password && <div className="space-y-1.5" aria-label={`${t.strengthLabel}: ${t.strength[pwStrength]}`}><div className="flex gap-1" aria-hidden="true">{[1,2,3,4,5].map((level) => <span key={level} className={cn('h-1 flex-1 rounded-full', level <= pwStrength ? pwColors[pwStrength] : 'bg-muted')} />)}</div><p className="text-[11px] text-muted-foreground">{t.strengthLabel}: {t.strength[pwStrength]}</p></div>}</div></div>
+      {mode === 'register' && <div className="space-y-1.5"><Label htmlFor={`${uid}-confirm`} className="text-sm font-medium">{t.confirm} <span className="text-destructive" aria-hidden="true">*</span></Label><div className="relative"><Lock className="pointer-events-none absolute start-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" /><Input id={`${uid}-confirm`} type={showConfirm ? 'text' : 'password'} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required minLength={8} maxLength={128} autoComplete="new-password" aria-invalid={passwordMismatch} aria-describedby={passwordMismatch ? `${uid}-mismatch` : undefined} placeholder={t.confirm} dir="ltr" className="h-11 rounded-xl ps-10 pe-11" /><button type="button" onClick={() => setShowConfirm((v) => !v)} className="absolute end-3 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground" aria-label={showConfirm ? t.hide : t.show}>{showConfirm ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}</button></div>{passwordMismatch && <p id={`${uid}-mismatch`} role="alert" className="text-xs text-destructive">{t.mismatch}</p>}</div>}
+      {error && <div role="alert" aria-live="polite" className="flex items-start gap-2.5 rounded-xl border border-destructive/20 bg-destructive/10 px-3.5 py-3 text-sm text-destructive"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" /><span>{error}</span></div>}
+      <Button type="submit" disabled={loading || passwordMismatch} size="lg" className="h-11 w-full rounded-xl font-semibold">{loading ? <><Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />{t.loading}</> : mode === 'register' ? t.register : t.login}</Button>
+      <p className="text-center text-xs text-muted-foreground">{mode === 'login' ? <>{t.noAccount}{' '}<Link href={`/${locale}/auth/register`} className="font-semibold text-primary hover:underline">{t.signUp}</Link></> : <>{t.haveAccount}{' '}<Link href={`/${locale}/auth/login`} className="font-semibold text-primary hover:underline">{t.signIn}</Link></>}</p>
     </form>
   );
 }
