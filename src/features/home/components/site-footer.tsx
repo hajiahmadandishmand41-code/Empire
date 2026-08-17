@@ -11,14 +11,8 @@ import { NewsletterForm } from './newsletter-form';
 function FooterLink({ label, href }: { label: string; href: string }) {
   return (
     <li>
-      <Link
-        href={href}
-        className="group flex items-center gap-1.5 rounded text-xs text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      >
-        <ChevronLeft
-          className="h-3 w-3 shrink-0 -ms-4 text-primary opacity-0 transition-all group-hover:ms-0 group-hover:opacity-100 rtl:rotate-180"
-          aria-hidden="true"
-        />
+      <Link href={href} className="group flex items-center gap-1.5 rounded text-xs text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        <ChevronLeft className="h-3 w-3 shrink-0 -ms-4 text-primary opacity-0 transition-all group-hover:ms-0 group-hover:opacity-100 rtl:rotate-180" aria-hidden="true" />
         {label}
       </Link>
     </li>
@@ -32,9 +26,7 @@ function FooterNav({ title, links }: { title: string; links: { label: string; hr
         <span className="inline-block h-3 w-0.5 rounded-full bg-primary" aria-hidden="true" />
         {title}
       </h3>
-      <ul className="space-y-2.5">
-        {links.map((link) => <FooterLink key={`${link.href}-${link.label}`} {...link} />)}
-      </ul>
+      <ul className="space-y-2.5">{links.map((link) => <FooterLink key={`${link.href}-${link.label}`} {...link} />)}</ul>
     </nav>
   );
 }
@@ -42,7 +34,6 @@ function FooterNav({ title, links }: { title: string; links: { label: string; hr
 export function SiteFooter() {
   const t = useTranslations('siteFooter');
   const year = new Date().getFullYear();
-
   const navLinks = [
     { label: t('home'), href: '/' },
     { label: t('shop'), href: '/shop' },
@@ -67,13 +58,6 @@ export function SiteFooter() {
     { label: t('myOrders'), href: '/orders' },
     { label: t('wishlist'), href: '/wishlist' },
   ];
-  const sellerLinks = [
-    { label: t('sellerPanel'), href: '/seller' },
-    { label: t('newProduct'), href: '/seller/products/new' },
-    { label: t('manageOrders'), href: '/seller/orders' },
-    { label: t('revenueReports'), href: '/seller/reports' },
-    { label: t('wallet'), href: '/seller/wallet' },
-  ];
   const trustItems = [
     { icon: ShieldCheck, label: t('trustSecure'), sub: t('trustSecureSub'), iconBg: 'bg-emerald-500/15', iconColor: 'text-emerald-400' },
     { icon: Truck, label: t('trustShipping'), sub: t('trustShippingSub'), iconBg: 'bg-primary/10', iconColor: 'text-primary' },
@@ -96,125 +80,49 @@ export function SiteFooter() {
   return (
     <footer className="border-t border-border bg-card" role="contentinfo">
       <div className="border-b border-border/60 py-4">
-        <Container size="xl">
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {trustItems.map(({ icon: Icon, label, sub, iconBg, iconColor }) => (
-              <div key={label} className="group flex min-w-0 items-center gap-3 rounded-xl p-2 transition-colors hover:bg-muted/50">
-                <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${iconBg} ring-1 ring-border`}>
-                  <Icon className={`h-5 w-5 ${iconColor}`} aria-hidden="true" />
-                </div>
-                <div className="min-w-0">
-                  <p className="truncate text-xs font-bold text-foreground transition-colors group-hover:text-primary">{label}</p>
-                  <p className="mt-0.5 text-[10px] text-muted-foreground">{sub}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Container>
+        <Container size="xl"><div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {trustItems.map(({ icon: Icon, label, sub, iconBg, iconColor }) => (
+            <div key={label} className="group flex min-w-0 items-center gap-3 rounded-xl p-2 transition-colors hover:bg-muted/50">
+              <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${iconBg} ring-1 ring-border`}><Icon className={`h-5 w-5 ${iconColor}`} aria-hidden="true" /></div>
+              <div className="min-w-0"><p className="truncate text-xs font-bold text-foreground transition-colors group-hover:text-primary">{label}</p><p className="mt-0.5 text-[10px] text-muted-foreground">{sub}</p></div>
+            </div>
+          ))}
+        </div></Container>
       </div>
 
       <Container size="xl" className="py-12">
-        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-6">
+        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-5">
           <div className="space-y-5 lg:col-span-2">
-            <Link
-              href="/"
-              className="group flex w-fit items-center gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              aria-label={`${t('brandSubline')} — ${t('home')}`}
-            >
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary ring-1 ring-primary/20 shadow-sm shadow-primary/20 transition-transform group-hover:scale-[1.02]" aria-hidden="true">
-                <EmpireLogo size={30} variant="color" />
-              </div>
-              <div>
-                <span className="block font-display text-base font-extrabold tracking-tight text-foreground">EmpireShop</span>
-                <span className="-mt-0.5 block text-[10px] tracking-wide text-muted-foreground">{t('brandSubline')}</span>
-              </div>
+            <Link href="/" className="group flex w-fit items-center gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label={`${t('brandSubline')} — ${t('home')}`}>
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary ring-1 ring-primary/20 shadow-sm shadow-primary/20 transition-transform group-hover:scale-[1.02]" aria-hidden="true"><EmpireLogo size={30} variant="color" /></div>
+              <div><span className="block font-display text-base font-extrabold tracking-tight text-foreground">EmpireShop</span><span className="-mt-0.5 block text-[10px] tracking-wide text-muted-foreground">{t('brandSubline')}</span></div>
             </Link>
-
             <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">{t('brandDescription')}</p>
-
             <address className="not-italic space-y-2.5">
-              <a
-                href="tel:+93798228441"
-                dir="ltr"
-                className="group flex items-center gap-2.5 rounded text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 transition-colors group-hover:bg-primary/20">
-                  <Phone className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
-                </span>
-                <span className="text-xs">+93 798 228 441</span>
-              </a>
-              <a
-                href="mailto:support@empireshop.af"
-                className="group flex items-center gap-2.5 rounded text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 transition-colors group-hover:bg-primary/20">
-                  <Mail className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
-                </span>
-                <span className="text-xs">support@empireshop.af</span>
-              </a>
-              <div className="flex items-start gap-2.5">
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                  <MapPin className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
-                </span>
-                <span className="mt-0.5 text-xs text-muted-foreground">{t('cityCountry')}</span>
-              </div>
-              <div className="flex items-center gap-2.5">
-                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/10">
-                  <Headphones className="h-3.5 w-3.5 text-emerald-500" aria-hidden="true" />
-                </span>
-                <span className="text-xs text-muted-foreground">{t('support247')}</span>
-              </div>
+              <a href="tel:+93798228441" dir="ltr" className="group flex items-center gap-2.5 rounded text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 transition-colors group-hover:bg-primary/20"><Phone className="h-3.5 w-3.5 text-primary" aria-hidden="true" /></span><span className="text-xs">+93 798 228 441</span></a>
+              <a href="mailto:support@empireshop.af" className="group flex items-center gap-2.5 rounded text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 transition-colors group-hover:bg-primary/20"><Mail className="h-3.5 w-3.5 text-primary" aria-hidden="true" /></span><span className="text-xs">support@empireshop.af</span></a>
+              <div className="flex items-start gap-2.5"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10"><MapPin className="h-3.5 w-3.5 text-primary" aria-hidden="true" /></span><span className="mt-0.5 text-xs text-muted-foreground">{t('cityCountry')}</span></div>
+              <div className="flex items-center gap-2.5"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/10"><Headphones className="h-3.5 w-3.5 text-emerald-500" aria-hidden="true" /></span><span className="text-xs text-muted-foreground">{t('support247')}</span></div>
             </address>
-
             <div className="flex items-center gap-2" role="list" aria-label={t('socials')}>
-              {socials.map(({ icon: Icon, href, label, className }) => (
-                <a
-                  key={label}
-                  href={href}
-                  aria-label={label}
-                  role="listitem"
-                  className={`flex h-9 w-9 items-center justify-center rounded-xl border border-border text-muted-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${className}`}
-                >
-                  <Icon className="h-4 w-4" aria-hidden="true" />
-                </a>
-              ))}
+              {socials.map(({ icon: Icon, href, label, className }) => <a key={label} href={href} aria-label={label} role="listitem" className={`flex h-9 w-9 items-center justify-center rounded-xl border border-border text-muted-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${className}`}><Icon className="h-4 w-4" aria-hidden="true" /></a>)}
             </div>
           </div>
 
           <FooterNav title={t('mainPages')} links={navLinks} />
           <FooterNav title={t('supportHeading')} links={supportLinks} />
           <FooterNav title={t('accountHeading')} links={accountLinks} />
-
-          <div className="space-y-6">
-            <FooterNav title={t('sellerPanel')} links={sellerLinks} />
-            <div className="space-y-3 rounded-xl border border-border bg-muted/40 p-4">
-              <div>
-                <p className="mb-0.5 text-xs font-bold text-foreground">{t('newsletterTitle')}</p>
-                <p className="text-[11px] text-muted-foreground">{t('newsletterDescription')}</p>
-              </div>
-              <NewsletterForm />
-            </div>
+          <div className="space-y-3 rounded-xl border border-border bg-muted/40 p-4">
+            <div><p className="mb-0.5 text-xs font-bold text-foreground">{t('newsletterTitle')}</p><p className="text-[11px] text-muted-foreground">{t('newsletterDescription')}</p></div>
+            <NewsletterForm />
           </div>
         </div>
       </Container>
 
-      <div className="border-t border-border/60">
-        <Container size="xl" className="py-4">
-          <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-between">
-            <p className="text-[11px] text-muted-foreground">&copy; {year} EmpireShop. {t('copyright')}</p>
-            <nav aria-label={t('legalHeading')}>
-              <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
-                {legalLinks.map(({ label, href }, index) => (
-                  <span key={`${href}-${label}`} className="flex items-center gap-4">
-                    <Link href={href} className="rounded text-[11px] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{label}</Link>
-                    {index < legalLinks.length - 1 && <span aria-hidden="true" className="text-xs text-border">·</span>}
-                  </span>
-                ))}
-              </div>
-            </nav>
-          </div>
-        </Container>
-      </div>
+      <div className="border-t border-border/60"><Container size="xl" className="py-4"><div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-between">
+        <p className="text-[11px] text-muted-foreground">&copy; {year} EmpireShop. {t('copyright')}</p>
+        <nav aria-label={t('legalHeading')}><div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">{legalLinks.map(({ label, href }, index) => <span key={`${href}-${label}`} className="flex items-center gap-4"><Link href={href} className="rounded text-[11px] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{label}</Link>{index < legalLinks.length - 1 && <span aria-hidden="true" className="text-xs text-border">·</span>}</span>)}</div></nav>
+      </div></Container></div>
     </footer>
   );
 }
