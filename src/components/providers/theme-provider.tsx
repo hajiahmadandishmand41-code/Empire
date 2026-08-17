@@ -1,14 +1,16 @@
 'use client';
 
 /**
- * ThemeProvider — Production-level Dark Mode implementation
+ * ThemeProvider — production-level light/dark mode implementation.
  *
  * Features:
- * - Supports 'light' | 'dark' | 'system' modes
- * - Persists to localStorage under key 'empire-theme'
- * - Zero-flicker: an inline <script> in layout.tsx applies the class before paint
- * - Reacts to OS-level color scheme changes in 'system' mode
- * - Exposes useTheme() hook for consumers
+ * - Supports explicit 'light' | 'dark' | 'system' modes.
+ * - Persists to localStorage under key 'empire-theme'.
+ * - Defaults to LIGHT when no preference exists.
+ * - The initial hydration effect reads the persisted preference before the
+ *   normal theme-sync effect is allowed to run, avoiding a light/dark flip.
+ * - Reacts to OS-level color-scheme changes only when the user explicitly
+ *   selected 'system'.
  */
 
 import * as React from 'react';
@@ -17,14 +19,14 @@ export type ThemeMode = 'light' | 'dark' | 'system';
 export type ResolvedTheme = 'light' | 'dark';
 
 const STORAGE_KEY = 'empire-theme';
-const DEFAULT_THEME: ThemeMode = 'system';
+const DEFAULT_THEME: ThemeMode = 'light';
 
 interface ThemeContextValue {
-  /** User-selected theme (may be 'system') */
+  /** User-selected theme (may be 'system'). */
   theme: ThemeMode;
-  /** Actual applied theme ('light' | 'dark') */
+  /** Actual applied theme ('light' | 'dark'). */
   resolvedTheme: ResolvedTheme;
-  /** Change the active theme and persist it */
+  /** Change the active theme and persist it. */
   setTheme: (mode: ThemeMode) => void;
 }
 
@@ -36,32 +38,29 @@ function getSystemTheme(): ResolvedTheme {
 }
 
 function resolveTheme(mode: ThemeMode): ResolvedTheme {
-  if (mode === 'system') return getSystemTheme();
-  return mode;
+  return mode === 'system' ? getSystemTheme() : mode;
 }
 
 function applyTheme(resolved: ResolvedTheme) {
   const root = document.documentElement;
-  if (resolved === 'dark') {
-    root.classList.add('dark');
-    root.setAttribute('data-theme', 'dark');
-  } else {
-    root.classList.remove('dark');
-    root.setAttribute('data-theme', 'light');
-  }
+  root.classList.toggle('dark', resolved === 'dark');
+  root.setAttribute('data-theme', resolved);
 }
 
 interface ThemeProviderProps {
   children: React.ReactNode;
-  /** Override for SSR; defaults to reading localStorage on mount */
+  /** SSR default. No stored preference means light. */
   defaultTheme?: ThemeMode;
 }
 
 export function ThemeProvider({ children, defaultTheme = DEFAULT_THEME }: ThemeProviderProps) {
   const [theme, setThemeState] = React.useState<ThemeMode>(defaultTheme);
   const [resolvedTheme, setResolvedTheme] = React.useState<ResolvedTheme>('light');
+  const initializedRef = React.useRef(false);
 
-  // On mount: read persisted theme and sync DOM
+  // First client pass: load the persisted choice and apply it immediately.
+  // This effect must run before the normal [theme] synchronization effect so
+  // a stored dark theme is never overwritten by the SSR light default.
   React.useEffect(() => {
     let stored: ThemeMode = DEFAULT_THEME;
     try {
@@ -70,39 +69,38 @@ export function ThemeProvider({ children, defaultTheme = DEFAULT_THEME }: ThemeP
         stored = raw;
       }
     } catch {
-      // localStorage unavailable (private mode, etc.)
+      // localStorage unavailable (private mode, storage policy, etc.).
     }
-    setThemeState(stored);
+
     const resolved = resolveTheme(stored);
+    setThemeState(stored);
     setResolvedTheme(resolved);
     applyTheme(resolved);
+    initializedRef.current = true;
   }, []);
 
-  // Keep DOM in sync when theme state changes
+  // Subsequent changes are driven by the explicit user selection.
   React.useEffect(() => {
+    if (!initializedRef.current) return;
     const resolved = resolveTheme(theme);
     setResolvedTheme(resolved);
     applyTheme(resolved);
   }, [theme]);
 
-  // Listen for OS-level color scheme changes (only relevant in 'system' mode)
   React.useEffect(() => {
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
 
     function onSystemChange() {
-      if (theme === 'system') {
-        const resolved = getSystemTheme();
-        setResolvedTheme(resolved);
-        applyTheme(resolved);
-      }
+      if (theme !== 'system') return;
+      const resolved = getSystemTheme();
+      setResolvedTheme(resolved);
+      applyTheme(resolved);
     }
 
-    // Modern API
     if (mq.addEventListener) {
       mq.addEventListener('change', onSystemChange);
       return () => mq.removeEventListener('change', onSystemChange);
     }
-    // Legacy API (Safari < 14)
     mq.addListener(onSystemChange);
     return () => mq.removeListener(onSystemChange);
   }, [theme]);
@@ -112,8 +110,11 @@ export function ThemeProvider({ children, defaultTheme = DEFAULT_THEME }: ThemeP
     try {
       localStorage.setItem(STORAGE_KEY, mode);
     } catch {
-      // Ignore
+      // Ignore storage failures; the current tab still changes theme.
     }
+    const resolved = resolveTheme(mode);
+    setResolvedTheme(resolved);
+    applyTheme(resolved);
   }, []);
 
   const value = React.useMemo(

@@ -8,13 +8,11 @@ import { setSessionCookie } from '@/lib/auth/session';
 import { clientKey, rateLimitAsync, RATE_PRESETS } from '@/lib/api/rate-limit';
 import { logger } from '@/lib/logger';
 
-// Step 1: send OTP
 const sendSchema = z.object({
   phone: z.string().min(7),
   step: z.literal('send'),
 });
 
-// Step 2: verify OTP and login
 const verifySchema = z.object({
   phone: z.string().min(7),
   step: z.literal('verify'),
@@ -23,12 +21,23 @@ const verifySchema = z.object({
 
 const schema = z.discriminatedUnion('step', [sendSchema, verifySchema]);
 
+function mockAuthEnabled(): boolean {
+  return process.env.NODE_ENV === 'development' && process.env.ALLOW_MOCK_AUTH === 'true';
+}
+
 export async function POST(req: NextRequest) {
-  // Stage 3: rate-limit OTP login to prevent brute-force (10 attempts / 60 s per IP).
   const rl = await rateLimitAsync(clientKey(req, 'auth:otp-login'), RATE_PRESETS.auth);
   if (!rl.ok) {
     logger.warn('auth.otp_login.rate_limited', { route: '/api/auth/otp-login' });
     return err('rate_limited', 'تلاش‌های زیاد. کمی بعد دوباره امتحان کنید.', 429);
+  }
+
+  if (!isDatabaseConfigured() && !mockAuthEnabled()) {
+    logger.error('auth.otp_login.no_database', {
+      route: '/api/auth/otp-login',
+      nodeEnv: process.env.NODE_ENV,
+    });
+    return err('service_unavailable', 'سرویس در حال حاضر در دسترس نیست. لطفاً بعداً تلاش کنید.', 503);
   }
 
   let body: unknown;
@@ -47,16 +56,14 @@ export async function POST(req: NextRequest) {
 
   if (!isDatabaseConfigured()) {
     if (data.step === 'send') return ok({ message: 'کد OTP ارسال شد.' });
-    if (data.step === 'verify') {
-      await setSessionCookie('mock-user');
-      return ok({ user: { id: 'mock-user', phone: data.phone, role: 'customer' } });
-    }
+    await setSessionCookie('mock-user');
+    return ok({ user: { id: 'mock-user', phone: data.phone, role: 'customer' } });
   }
 
   try {
     if (data.step === 'send') {
       const user = await prisma.user.findUnique({ where: { phone: data.phone } });
-      if (!user) return ok({ message: 'کد OTP ارسال شد.' }); // anti-enumeration
+      if (!user) return ok({ message: 'کد OTP ارسال شد.' });
       if (!user.isActive) return err('ACCOUNT_DISABLED', 'حساب غیرفعال است', 403);
 
       const otp = await createVerificationToken(user.id, 'otp_login', 10);
@@ -64,15 +71,14 @@ export async function POST(req: NextRequest) {
       return ok({ message: 'کد OTP ارسال شد.' });
     }
 
-    // step === 'verify'
     const user = await prisma.user.findUnique({
       where: { phone: data.phone },
       select: { id: true, phone: true, fullName: true, role: true, isActive: true },
     });
     if (!user || !user.isActive) return err('INVALID_OTP', 'کد تأیید نادرست است', 401);
 
-    const userId = await consumeVerificationToken(data.otp, 'otp_login');
-    if (!userId || userId !== user.id) {
+    const userId = await consumeVerificationToken(data.otp, 'otp_login', user.id);
+    if (!userId) {
       return err('INVALID_OTP', 'کد تأیید نادرست یا منقضی شده است', 401);
     }
 

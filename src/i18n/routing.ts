@@ -4,32 +4,30 @@ import type { Direction } from '@/types';
 
 /**
  * Empire Shop locales:
- * - fa: Dari (default)
+ * - fa: Dari (default fallback)
  * - ps: Pashto
  * - en: English
+ *
+ * Browser/device language negotiation is enabled. When the device language is
+ * not supported, Persian remains the safe default.
  */
 export const routing = defineRouting({
   locales: ['fa', 'ps', 'en'] as const,
   defaultLocale: 'fa',
   localePrefix: 'always',
+  localeDetection: true,
 });
 
 export type AppLocale = (typeof routing.locales)[number];
 
-/**
- * Logical direction per locale.
- * Used by next-intl + CSS `dir=` attribute.
- */
 export const localeDirection: Record<AppLocale, Direction> = {
   fa: 'rtl',
   ps: 'rtl',
   en: 'ltr',
 };
 
-/** Localized `<html lang="..." />` value. */
 export function htmlLang(locale: AppLocale): string {
   return locale;
 }
 
-/** Lightweight helpers around next-intl navigation. */
 export const { Link, redirect, usePathname, useRouter, getPathname } = createNavigation(routing);

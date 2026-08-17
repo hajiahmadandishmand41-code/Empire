@@ -114,11 +114,10 @@ export async function getOrderForViewer(
   });
   if (!row) return null;
 
-  const isOwner = viewer && row.userId && row.userId === viewer.id;
+  const isOwner = Boolean(viewer && row.userId && row.userId === viewer.id);
   const isAdmin = viewer?.role === 'admin';
   const isSeller = viewer?.role === 'seller' && row.items.some((i) => i.product?.sellerId && i.product.sellerId === viewer.id);
-  const isGuestReceipt = !row.userId && !viewer;
-  if (!isOwner && !isAdmin && !isSeller && !isGuestReceipt) return null;
+  if (!isOwner && !isAdmin && !isSeller) return null;
 
   return {
     order: mapOrder(row),

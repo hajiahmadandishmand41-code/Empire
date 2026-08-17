@@ -1,6 +1,9 @@
 /**
  * Signed, HTTP-only session cookie.
- * Payload: base64url(JSON({ uid, iat, exp })) + '.' + base64url(HMAC-SHA256)
+ * Payload: base64url(JSON({ uid, iat, iatMs, exp })) + '.' + base64url(HMAC-SHA256)
+ *
+ * `iat` remains second-based for compatibility with existing sessions while
+ * `iatMs` preserves the exact issuance time for account-mutation invalidation.
  */
 import { cookies } from 'next/headers';
 import { createHmac, timingSafeEqual } from 'node:crypto';
@@ -11,6 +14,7 @@ const MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 interface SessionPayload {
   uid: string;
   iat: number;
+  iatMs?: number;
   exp: number;
 }
 
@@ -45,6 +49,8 @@ function isSessionPayload(value: unknown): value is SessionPayload {
     record.uid.length > 0 &&
     typeof record.iat === 'number' &&
     Number.isInteger(record.iat) &&
+    (record.iatMs === undefined ||
+      (typeof record.iatMs === 'number' && Number.isInteger(record.iatMs) && record.iatMs > 0)) &&
     typeof record.exp === 'number' &&
     Number.isInteger(record.exp)
   );
@@ -53,7 +59,7 @@ function isSessionPayload(value: unknown): value is SessionPayload {
 export function encodeSession(uid: string, nowMs = Date.now()): string {
   const iat = Math.floor(nowMs / 1000);
   const exp = iat + MAX_AGE_SECONDS;
-  const payload: SessionPayload = { uid, iat, exp };
+  const payload: SessionPayload = { uid, iat, iatMs: nowMs, exp };
   const encoded = b64url(JSON.stringify(payload));
   return `${encoded}.${sign(encoded)}`;
 }
@@ -116,9 +122,16 @@ export async function readSessionUserId(): Promise<string | null> {
 export interface SessionPayloadShape {
   userId: string;
   issuedAt: number;
+  issuedAtMs: number;
 }
 
 export async function getSessionPayload(): Promise<SessionPayloadShape | null> {
   const payload = await readSessionPayload();
-  return payload ? { userId: payload.uid, issuedAt: payload.iat } : null;
+  return payload
+    ? {
+        userId: payload.uid,
+        issuedAt: payload.iat,
+        issuedAtMs: payload.iatMs ?? payload.iat * 1000,
+      }
+    : null;
 }

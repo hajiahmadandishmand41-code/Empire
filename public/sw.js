@@ -1,12 +1,13 @@
 /* Empire Shop — Service Worker (Phase 9)
  * Strategies:
- *  - HTML navigations: network-first, fallback to /offline.html
+ *  - Locale-detection root + private/auth HTML: network-only
+ *  - Other HTML navigations: network-first, fallback to /offline.html
  *  - Static /_next/static + /fonts + /icons: cache-first (immutable)
  *  - Images (same-origin + next/image): stale-while-revalidate
- *  - APIs (/api/*): network-only (never cache to avoid stale auth/data)
+ *  - APIs (/api/*): network-only (never cache auth/data)
  *  - Push: shows notification and focuses/opens URL on click
  */
-const VERSION = 'v1.1.0';
+const VERSION = 'v1.3.0';
 const PRECACHE = `empire-precache-${VERSION}`;
 const RUNTIME_HTML = `empire-html-${VERSION}`;
 const RUNTIME_ASSETS = `empire-assets-${VERSION}`;
@@ -23,14 +24,13 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     (async () => {
       const cache = await caches.open(PRECACHE);
-      // Per-URL so one missing icon can't abort the whole install.
       await Promise.all(
         PRECACHE_URLS.map(async (url) => {
           try {
             const res = await fetch(url, { cache: 'no-cache' });
             if (isCacheable(res)) await cache.put(url, res.clone());
           } catch {
-            /* ignore — precache is best-effort */
+            /* best-effort precache */
           }
         }),
       );
@@ -53,11 +53,6 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-/**
- * A response is only safe to cache when it is a real, complete, successful
- * same-origin response. Never cache errors, redirects, partial (206) or
- * opaque responses.
- */
 function isCacheable(res) {
   return Boolean(
     res &&
@@ -71,6 +66,17 @@ function isCacheable(res) {
 
 function isHTMLRequest(req) {
   return req.mode === 'navigate' || (req.method === 'GET' && req.headers.get('accept')?.includes('text/html'));
+}
+
+function isPrivateOrAuthPage(url) {
+  const match = url.pathname.match(/^\/(fa|ps|en)(?:\/|$)/);
+  if (!match) return false;
+  const rest = url.pathname.slice(match[0].length);
+  return /^(?:auth|profile|account|orders|checkout|admin|seller)(?:\/|$)/.test(rest);
+}
+
+function isLocaleDetectionRoot(url) {
+  return url.pathname === '/';
 }
 
 function isStaticAsset(url) {
@@ -96,18 +102,22 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
 
-  // Never cache API / auth
+  // Never cache APIs, including authentication/session endpoints.
   if (url.pathname.startsWith('/api/')) return;
 
-  // HTML navigations — network-first with offline fallback
+  // The root endpoint chooses a locale from the user's explicit preference
+  // and Accept-Language. Caching `/` would leak the first visitor's choice to
+  // another visitor on the same browser/device.
+  if (isHTMLRequest(req) && (isLocaleDetectionRoot(url) || isPrivateOrAuthPage(url))) {
+    event.respondWith(fetch(req));
+    return;
+  }
+
   if (isHTMLRequest(req)) {
     event.respondWith(
       (async () => {
         try {
           const fresh = await fetch(req);
-          // Only cache good, complete, same-origin responses. Caching a 404 /
-          // 500 / redirect / partial response would pin a broken page for
-          // every subsequent visit.
           if (isCacheable(fresh)) {
             const cache = await caches.open(RUNTIME_HTML);
             cache.put(req, fresh.clone()).catch(() => {});
@@ -125,7 +135,6 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static assets — cache-first
   if (isStaticAsset(url)) {
     event.respondWith(
       caches.open(RUNTIME_ASSETS).then(async (cache) => {
@@ -139,7 +148,6 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Images — stale-while-revalidate
   if (isImage(req, url)) {
     event.respondWith(
       caches.open(RUNTIME_IMAGES).then(async (cache) => {
@@ -169,7 +177,7 @@ self.addEventListener('push', (event) => {
     body: data.body || '',
     icon: data.icon || '/icons/icon-192.png',
     badge: data.badge || '/icons/icon-192.png',
-    dir: 'rtl',
+    dir: data.dir || 'rtl',
     lang: data.lang || 'fa-AF',
     tag: data.tag,
     data: { url: data.url || '/' },
