@@ -31,6 +31,7 @@
     --color-danger: 0 67% 46%;
     --color-info: 211 75% 44%;
 
+    --surface: var(--color-surface);
     --background: var(--color-background);
     --foreground: var(--color-foreground);
     --card: var(--color-surface);
