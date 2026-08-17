@@ -3,7 +3,6 @@ import crypto from 'node:crypto';
 import { prisma, isDatabaseConfigured } from '@/lib/db';
 import { hashPassword } from '@/lib/auth/password';
 import { setSessionCookie } from '@/lib/auth/session';
-import { createMockUser, findMockUser } from '@/lib/auth/mock-users';
 import { routing } from '@/i18n/routing';
 import {
   GOOGLE_STATE_COOKIE,
@@ -50,6 +49,7 @@ export async function GET(req: NextRequest) {
   };
 
   if (!state || !googleConfigured()) return responseForError('google_auth_failed');
+  if (!isDatabaseConfigured()) return responseForError('service_unavailable');
   if (req.nextUrl.searchParams.get('error')) return responseForError('google_access_denied');
 
   const code = req.nextUrl.searchParams.get('code');
@@ -82,39 +82,26 @@ export async function GET(req: NextRequest) {
       return responseForError('google_email_unverified');
     }
 
-    let userId: string;
     const email = profile.email.toLowerCase();
-    if (!isDatabaseConfigured()) {
-      const existing = await findMockUser({ email });
-      if (existing) {
-        userId = existing.id;
-      } else {
-        const created = await createMockUser({
-          fullName: profile.name?.trim() || email.split('@')[0],
-          email,
-          phone: null,
-          password: `google:${profile.sub}:${crypto.randomUUID()}`,
-        });
-        userId = created.id;
+    const existing = await prisma.user.findUnique({ where: { email } });
+    let userId: string;
+
+    if (existing) {
+      if (!existing.isActive) return responseForError('account_disabled');
+      userId = existing.id;
+      if (!existing.emailVerified) {
+        await prisma.user.update({ where: { id: existing.id }, data: { emailVerified: true } });
       }
     } else {
-      const existing = await prisma.user.findUnique({ where: { email } });
-      if (existing) {
-        userId = existing.id;
-        if (!existing.emailVerified) {
-          await prisma.user.update({ where: { id: existing.id }, data: { emailVerified: true } });
-        }
-      } else {
-        const created = await prisma.user.create({
-          data: {
-            email,
-            fullName: profile.name?.trim() || email.split('@')[0],
-            passwordHash: await hashPassword(`google:${profile.sub}:${crypto.randomUUID()}`),
-            emailVerified: true,
-          },
-        });
-        userId = created.id;
-      }
+      const created = await prisma.user.create({
+        data: {
+          email,
+          fullName: profile.name?.trim() || email.split('@')[0],
+          passwordHash: await hashPassword(`google:${profile.sub}:${crypto.randomUUID()}`),
+          emailVerified: true,
+        },
+      });
+      userId = created.id;
     }
 
     const target = state.redirect && state.redirect.startsWith('/') && !state.redirect.startsWith('//') ? state.redirect : `/${locale}`;
@@ -122,7 +109,8 @@ export async function GET(req: NextRequest) {
     response.cookies.delete(GOOGLE_STATE_COOKIE);
     await setSessionCookie(userId);
     return response;
-  } catch {
+  } catch (error) {
+    console.error('[auth/google/callback]', error);
     return responseForError('google_auth_failed');
   }
 }
