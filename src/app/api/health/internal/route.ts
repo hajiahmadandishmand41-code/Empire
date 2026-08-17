@@ -1,5 +1,6 @@
 /** Protected readiness/diagnostics endpoint for monitoring only. */
 import { NextRequest, NextResponse } from 'next/server';
+import { isDatabaseConfigured } from '@/lib/db';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -11,8 +12,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 401 });
   }
 
-  const hasDb = Boolean(process.env.DATABASE_URL || process.env.DATABASE_URL_UNPOOLED || process.env.POSTGRES_URL_NON_POOLING);
-  if (!hasDb) return NextResponse.json({ ok: false, status: 'degraded', db: 'missing' }, { status: 503 });
+  if (!isDatabaseConfigured()) {
+    return NextResponse.json({ ok: false, status: 'degraded', db: 'missing' }, { status: 503 });
+  }
 
   try {
     const { prisma } = await import('@/lib/db');
@@ -26,7 +28,10 @@ export async function GET(req: NextRequest) {
     const applied = Number(rows[0]?.applied ?? 0);
     const failed = Number(rows[0]?.failed ?? 0);
     const ready = applied > 0 && failed === 0;
-    return NextResponse.json({ ok: ready, status: ready ? 'ready' : 'degraded', db: 'up', migrations: applied }, { status: ready ? 200 : 503 });
+    return NextResponse.json(
+      { ok: ready, status: ready ? 'ready' : 'degraded', db: 'up', migrations: applied },
+      { status: ready ? 200 : 503 },
+    );
   } catch {
     return NextResponse.json({ ok: false, status: 'degraded', db: 'down' }, { status: 503 });
   }
