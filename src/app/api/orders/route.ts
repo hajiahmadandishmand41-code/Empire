@@ -1,8 +1,9 @@
 import crypto from 'crypto';
 /**
- * Orders API — Phase 2 + Phase 3.
+ * Orders API.
  * Guest orders receive an order-scoped signed receipt cookie so public order
  * references are not sufficient to view or pay for another guest's order.
+ * The Idempotency-Key header prevents duplicate order creation on retries.
  */
 import type { NextRequest } from 'next/server';
 import { prisma, isDatabaseConfigured } from '@/lib/db';
@@ -22,6 +23,12 @@ class OrderCreationError extends Error {
   constructor(public code: string, message: string) {
     super(message);
   }
+}
+
+function idempotentReference(idempotencyKey: string, userId: string | null): string {
+  const scope = userId ?? 'guest';
+  const digest = crypto.createHash('sha256').update(`${scope}:${idempotencyKey}`).digest('hex').slice(0, 24).toUpperCase();
+  return `EMP-I-${digest}`;
 }
 
 export async function OPTIONS() {
@@ -46,11 +53,41 @@ export async function POST(req: NextRequest) {
       details: { issues: parsed.error.issues },
     });
   }
+
+  const idempotencyKey = req.headers.get('idempotency-key')?.trim() || null;
+  if (idempotencyKey && (idempotencyKey.length < 16 || idempotencyKey.length > 128)) {
+    return jsonError('invalid_idempotency_key', 'Idempotency-Key must be between 16 and 128 characters', { status: 422 });
+  }
+
   const draft = parsed.data;
   const currentUser = await getCurrentUser();
 
   try {
     if (!isDatabaseConfigured()) return jsonError('db_unavailable', 'Database is not configured', { status: 503 });
+
+    const reference = idempotencyKey
+      ? idempotentReference(idempotencyKey, currentUser?.id ?? null)
+      : `EMP-${Date.now().toString(36).toUpperCase()}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+
+    // A retry with the same idempotency key returns the original committed
+    // order and does not touch inventory again.
+    if (idempotencyKey) {
+      const existing = await prisma.order.findUnique({
+        where: { reference },
+        include: { items: true, address: true, shippingMethod: true },
+      });
+      if (existing) {
+        if (existing.userId && existing.userId !== currentUser?.id) {
+          return jsonError('forbidden', 'This idempotency key belongs to another order owner', { status: 403 });
+        }
+        const response = jsonOk(mapOrder(existing), { status: 200, meta: { source: 'idempotent-replay' } });
+        if (!existing.userId) {
+          response.cookies.set(guestReceiptCookieName(existing.id), createGuestReceiptToken(existing.id), guestReceiptCookieOptions());
+        }
+        response.headers.set('Idempotency-Key', idempotencyKey);
+        return response;
+      }
+    }
 
     let shippingCost = new Prisma.Decimal(0);
     let shippingMethodId: string | null = null;
@@ -59,9 +96,9 @@ export async function POST(req: NextRequest) {
         where: {
           isActive: true,
           OR: [
-            draft.shippingMethodId ? { id: draft.shippingMethodId } : undefined,
-            draft.shippingMethodKey ? { key: draft.shippingMethodKey } : undefined,
-          ].filter(Boolean) as never,
+            ...(draft.shippingMethodId ? [{ id: draft.shippingMethodId }] : []),
+            ...(draft.shippingMethodKey ? [{ key: draft.shippingMethodKey }] : []),
+          ],
         },
       });
       if (!sm) return jsonError('unknown_shipping_method', 'Shipping method not available', { status: 422 });
@@ -90,7 +127,6 @@ export async function POST(req: NextRequest) {
     const itemCount = draft.items.reduce((s, i) => s + i.quantity, 0);
     const shipping = draft.items.length > 0 ? shippingCost.toDecimalPlaces(2) : new Prisma.Decimal(0);
     const total = subtotal.add(shipping).toDecimalPlaces(2);
-    const reference = `EMP-${Date.now().toString(36).toUpperCase()}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
 
     const created = await prisma.$transaction(async (tx) => {
       let addressId: string | null = null;
@@ -153,15 +189,26 @@ export async function POST(req: NextRequest) {
     });
 
     const response = jsonOk(mapOrder(created), { status: 201, meta: { source: 'db' } });
-    if (!currentUser) {
-      response.cookies.set(guestReceiptCookieName(created.id), createGuestReceiptToken(created.id), guestReceiptCookieOptions());
-    }
+    if (idempotencyKey) response.headers.set('Idempotency-Key', idempotencyKey);
+    if (!currentUser) response.cookies.set(guestReceiptCookieName(created.id), createGuestReceiptToken(created.id), guestReceiptCookieOptions());
     return response;
   } catch (err) {
     if (err instanceof OrderCreationError) return jsonError(err.code, err.message, { status: err.code === 'out_of_stock' ? 409 : 422 });
     logger.error('orders.create_failed', {}, err);
     if (err && typeof err === 'object' && 'code' in err) {
       const code = (err as { code?: string }).code;
+      // Concurrent retries can race on the same deterministic reference. The
+      // unique reference constraint is authoritative; return the committed
+      // order instead of reporting a generic failure.
+      if (code === 'P2002' && idempotencyKey) {
+        const existing = await prisma.order.findUnique({ where: { reference }, include: { items: true, address: true, shippingMethod: true } });
+        if (existing && (!existing.userId || existing.userId === currentUser?.id)) {
+          const response = jsonOk(mapOrder(existing), { status: 200, meta: { source: 'idempotent-race-replay' } });
+          if (!existing.userId) response.cookies.set(guestReceiptCookieName(existing.id), createGuestReceiptToken(existing.id), guestReceiptCookieOptions());
+          response.headers.set('Idempotency-Key', idempotencyKey);
+          return response;
+        }
+      }
       if (code === 'P2002') return jsonError('conflict', 'Order could not be created due to a duplicate reference', { status: 409 });
       if (code === 'P2003') return jsonError('relation_conflict', 'Order references an invalid resource', { status: 409 });
     }
