@@ -13,61 +13,26 @@ import { vazirmatn, inter } from '@/lib/fonts';
 import '@/styles/globals.css';
 
 export const dynamic = 'force-dynamic';
-
 export const viewport = pwaViewport;
 
-interface LocaleLayoutProps {
-  children: ReactNode;
-  params: Promise<{ locale: string }>;
-}
+interface LocaleLayoutProps { children: ReactNode; params: Promise<{ locale: string }>; }
 
-export function generateStaticParams() {
-  return routing.locales.map((locale) => ({ locale }));
-}
+export function generateStaticParams() { return routing.locales.map((locale) => ({ locale })); }
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? '').replace(/\/$/, '');
-  return {
-    ...baseMetadata(locale as AppLocale),
-    alternates: {
-      canonical: `${siteUrl}/${locale}`,
-      languages: Object.fromEntries(routing.locales.map((l) => [l, `${siteUrl}/${l}`])),
-    },
-  };
+  return { ...(await baseMetadata(locale as AppLocale)), alternates: { canonical: `${siteUrl}/${locale}`, languages: Object.fromEntries(routing.locales.map((l) => [l, `${siteUrl}/${l}`])) } };
 }
 
-/** Apply an explicitly stored theme before first paint; missing preference is light. */
 const ANTI_FLICKER_SCRIPT = `(function(){try{var t=localStorage.getItem('empire-theme')||'light';var d=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){document.documentElement.classList.remove('dark');document.documentElement.setAttribute('data-theme','light');}})();`;
 
 export default async function LocaleLayout({ children, params }: LocaleLayoutProps) {
   const { locale } = await params;
   if (!routing.locales.includes(locale as AppLocale)) notFound();
-
   setRequestLocale(locale);
   const requestHeaders = await headers();
   const nonce = requestHeaders.get('x-nonce') ?? undefined;
   const [messages, t] = await Promise.all([getMessages(), getTranslations('common')]);
-
-  return (
-    <html {...htmlProps(locale as AppLocale)} className={`${vazirmatn.variable} ${inter.variable}`}>
-      <head>
-        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: ANTI_FLICKER_SCRIPT }} />
-      </head>
-      <body className="bg-background font-sans text-foreground">
-        <NextIntlClientProvider locale={locale} messages={messages}>
-          <ThemeProvider>
-            <DirectionProvider locale={locale as AppLocale}>
-              <a href="#main" className="skip-link">
-                {t('skipToContent')}
-              </a>
-              {children}
-              <PWAProvider />
-              <Toaster />
-            </DirectionProvider>
-          </ThemeProvider>
-        </NextIntlClientProvider>
-      </body>
-    </html>
-  );
+  return <html {...htmlProps(locale as AppLocale)} className={`${vazirmatn.variable} ${inter.variable}`}><head><script nonce={nonce} dangerouslySetInnerHTML={{ __html: ANTI_FLICKER_SCRIPT }} /></head><body className="bg-background font-sans text-foreground"><NextIntlClientProvider locale={locale} messages={messages}><ThemeProvider><DirectionProvider locale={locale as AppLocale}><a href="#main" className="skip-link">{t('skipToContent')}</a>{children}<PWAProvider /><Toaster /></DirectionProvider></ThemeProvider></NextIntlClientProvider></body></html>;
 }
