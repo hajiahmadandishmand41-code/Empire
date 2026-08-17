@@ -7,10 +7,9 @@
  *  - NEVER runs `migrate reset`, `db push --force-reset`, or any destructive command.
  *  - Prefer the explicitly configured direct/non-pooled URL for migrations.
  *  - If a direct URL is not configured, use the configured DATABASE_URL as-is.
- *    Modern Neon + Prisma versions support migrations through Neon PgBouncer,
- *    so the script must never guess or rewrite a hostname.
- *  - Add a bounded connection timeout so a Neon cold start gets enough time.
+ *  - Add a bounded connection timeout so a cold database gets enough time.
  *  - Never silently skip a migration when a database URL is configured.
+ *  - In Vercel production, SKIP_DB_MIGRATE=1 is a hard failure rather than a bypass.
  */
 import { spawnSync } from 'node:child_process';
 
@@ -51,16 +50,24 @@ function pickUrl() {
   return pickConfiguredUrl(DIRECT_KEYS) ?? pickConfiguredUrl(RUNTIME_KEYS);
 }
 
+function isVercelProduction() {
+  return process.env.VERCEL === '1' && process.env.VERCEL_ENV === 'production';
+}
+
 function main() {
   if (process.env.SKIP_DB_MIGRATE === '1') {
-    console.log('[migrate] SKIP_DB_MIGRATE=1 — skipping migrations.');
+    if (isVercelProduction()) {
+      console.error('[migrate] SKIP_DB_MIGRATE=1 is forbidden for Vercel production deployments.');
+      process.exit(1);
+    }
+    console.log('[migrate] SKIP_DB_MIGRATE=1 — skipping migrations outside Vercel production.');
     return;
   }
 
   const picked = pickUrl();
   if (!picked) {
     console.error(
-      '[migrate] No database URL configured. Set DATABASE_URL_UNPOOLED (preferred) or DATABASE_URL before running a production build.',
+      '[migrate] No database URL configured. Set DATABASE_URL_UNPOOLED (preferred) or DATABASE_URL before running production migrations.',
     );
     process.exit(1);
   }
