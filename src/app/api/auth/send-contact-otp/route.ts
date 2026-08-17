@@ -6,19 +6,17 @@ import { sendOtpToEmailAndPhone } from '@/lib/otp-delivery';
 import { clientKey, rateLimitAsync } from '@/lib/api/rate-limit';
 import { logger } from '@/lib/logger';
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 const SEND_LIMIT = { limit: 3, windowMs: 10 * 60_000 };
 
 export async function POST(req: NextRequest) {
   const { user, response } = await requireUserApi();
   if (response) return response;
 
-  const rl = await rateLimitAsync(
-    clientKey(req, `auth:send-contact-otp:${user.id}`),
-    SEND_LIMIT,
-  );
-  if (!rl.ok) {
-    return err('rate_limited', 'تلاش‌های زیاد. لطفاً بعداً دوباره امتحان کنید.', 429);
-  }
+  const rl = await rateLimitAsync(clientKey(req, `auth:send-contact-otp:${user.id}`), SEND_LIMIT);
+  if (!rl.ok) return err('rate_limited', 'تلاش‌های زیاد. لطفاً بعداً دوباره تلاش کنید.', 429);
 
   if (!user.email && !user.phone) {
     return err('NO_CONTACT', 'برای ارسال کد، ایمیل یا شماره تلفن لازم است.', 400);
@@ -26,9 +24,14 @@ export async function POST(req: NextRequest) {
 
   try {
     const otp = await createVerificationToken(user.id, 'phone_otp', 10);
-    await sendOtpToEmailAndPhone(otp, { email: user.email, phone: user.phone });
+    const delivery = await sendOtpToEmailAndPhone(otp, { email: user.email, phone: user.phone });
+    const both = delivery.email && delivery.sms;
     return ok({
-      message: 'کد تأیید به ایمیل و شماره تلفن شما ارسال شد.',
+      message: both
+        ? 'کد یکسان به ایمیل و شماره تلفن شما ارسال شد.'
+        : delivery.email
+          ? 'کد تأیید به ایمیل شما ارسال شد.'
+          : 'کد تأیید به شماره تلفن شما ارسال شد.',
       expiresInSeconds: 600,
     });
   } catch (error) {
