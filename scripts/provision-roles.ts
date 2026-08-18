@@ -25,6 +25,7 @@ async function upsertRoleUser(args: {
       passwordHash,
       role: args.role,
       isActive: true,
+      emailVerified: true,
       sellerStatus: args.role === Role.seller ? SellerStatus.approved : SellerStatus.none,
     },
     create: {
@@ -33,12 +34,13 @@ async function upsertRoleUser(args: {
       passwordHash,
       role: args.role,
       isActive: true,
+      emailVerified: true,
       sellerStatus: args.role === Role.seller ? SellerStatus.approved : SellerStatus.none,
     },
-    select: { id: true, email: true, role: true, isActive: true, sellerStatus: true },
+    select: { id: true, role: true, isActive: true, sellerStatus: true },
   });
 
-  console.log(`${args.role} provisioned: ${user.email}`);
+  console.log(`${user.role} account provisioned.`);
 }
 
 async function main() {
