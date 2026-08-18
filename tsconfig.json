@@ -29,8 +29,7 @@
     },
     "types": [
       "node"
-    ],
-    "skipLibCheck": true
+    ]
   },
   "include": [
     "next-env.d.ts",
