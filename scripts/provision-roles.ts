@@ -3,10 +3,12 @@ import { hashPassword } from '../src/lib/auth/password';
 
 const prisma = new PrismaClient();
 
-function required(name: string): string {
-  const value = process.env[name]?.trim();
-  if (!value) throw new Error(`Missing required environment variable: ${name}`);
-  return value;
+function required(primary: string, ...aliases: string[]): string {
+  for (const name of [primary, ...aliases]) {
+    const value = process.env[name]?.trim();
+    if (value) return value;
+  }
+  throw new Error(`Missing required environment variable: ${primary}`);
 }
 
 async function upsertRoleUser(args: {
@@ -41,17 +43,19 @@ async function upsertRoleUser(args: {
 
 async function main() {
   await upsertRoleUser({
-    email: required('EMPIRE_ADMIN_EMAIL'),
-    fullName: process.env.EMPIRE_ADMIN_NAME?.trim() || 'Empire Administrator',
+    email: required('EMPIRE_ADMIN_EMAIL', 'ADMIN_EMAIL'),
+    fullName:
+      process.env.EMPIRE_ADMIN_NAME?.trim() || process.env.ADMIN_NAME?.trim() || 'Empire Administrator',
     role: Role.admin,
-    password: required('EMPIRE_ADMIN_PASSWORD'),
+    password: required('EMPIRE_ADMIN_PASSWORD', 'ADMIN_PASSWORD'),
   });
 
   await upsertRoleUser({
-    email: required('EMPIRE_SELLER_EMAIL'),
-    fullName: process.env.EMPIRE_SELLER_NAME?.trim() || 'Empire Seller',
+    email: required('EMPIRE_SELLER_EMAIL', 'SELLER_EMAIL'),
+    fullName:
+      process.env.EMPIRE_SELLER_NAME?.trim() || process.env.SELLER_NAME?.trim() || 'Empire Seller',
     role: Role.seller,
-    password: required('EMPIRE_SELLER_PASSWORD'),
+    password: required('EMPIRE_SELLER_PASSWORD', 'SELLER_PASSWORD'),
   });
 }
 
