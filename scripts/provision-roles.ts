@@ -41,17 +41,17 @@ async function upsertRoleUser(args: {
 
 async function main() {
   await upsertRoleUser({
-    email: required('ADMIN_EMAIL'),
-    fullName: process.env.ADMIN_NAME?.trim() || 'Empire Administrator',
+    email: required('EMPIRE_ADMIN_EMAIL'),
+    fullName: process.env.EMPIRE_ADMIN_NAME?.trim() || 'Empire Administrator',
     role: Role.admin,
-    password: required('ADMIN_PASSWORD'),
+    password: required('EMPIRE_ADMIN_PASSWORD'),
   });
 
   await upsertRoleUser({
-    email: required('SELLER_EMAIL'),
-    fullName: process.env.SELLER_NAME?.trim() || 'Empire Seller',
+    email: required('EMPIRE_SELLER_EMAIL'),
+    fullName: process.env.EMPIRE_SELLER_NAME?.trim() || 'Empire Seller',
     role: Role.seller,
-    password: required('SELLER_PASSWORD'),
+    password: required('EMPIRE_SELLER_PASSWORD'),
   });
 }
 
