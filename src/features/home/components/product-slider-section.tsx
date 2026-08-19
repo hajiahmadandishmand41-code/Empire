@@ -3,22 +3,50 @@
 import * as React from 'react';
 import Image from 'next/image';
 import { Link } from '@/i18n/routing';
-import { ChevronLeft, ChevronRight, Package, ShoppingCart, Star } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Heart, Package, ShoppingCart, Star } from 'lucide-react';
 import { cn, formatPrice } from '@/lib/utils';
 
 export interface SliderProduct { id: string; name: string; slug: string; price: number; comparePrice?: number | null; images?: Array<{ url: string }>; badge?: string; rating?: number; reviewCount?: number; salesCount?: number; viewCount?: number; category?: { name: string }; sellerId?: string | null; sellerShopName?: string | null; sellerWhatsapp?: string; }
 interface ProductSliderSectionProps { title: string; subtitle?: string; viewAllHref?: string; accentColor?: string; products: SliderProduct[]; locale?: string; currency?: string; skeleton?: boolean; }
 
-export function SkeletonCard() { return <div className="w-[160px] flex-none overflow-hidden rounded-xl border border-border bg-card sm:w-[180px] md:w-[200px]"><div className="aspect-square animate-pulse bg-muted" /><div className="space-y-2 p-3"><div className="h-2 w-16 animate-pulse rounded bg-muted" /><div className="h-3 w-full animate-pulse rounded bg-muted" /><div className="h-3 w-3/4 animate-pulse rounded bg-muted" /><div className="h-7 w-20 animate-pulse rounded bg-muted" /></div></div>; }
+export function SkeletonCard() { return <div className="w-[160px] flex-none overflow-hidden rounded-2xl border border-border bg-card sm:w-[180px] md:w-[200px]"><div className="aspect-square animate-pulse bg-muted" /><div className="space-y-2 p-3"><div className="h-2 w-16 animate-pulse rounded bg-muted" /><div className="h-3 w-full animate-pulse rounded bg-muted" /><div className="h-3 w-3/4 animate-pulse rounded bg-muted" /><div className="h-7 w-20 animate-pulse rounded bg-muted" /></div></div>; }
 
 function SliderProductCard({ product, locale = 'fa', currency = 'AFN' }: { product: SliderProduct; locale?: string; currency?: string }) {
   const image = product.images?.[0]?.url;
   const discountPct = product.comparePrice && product.comparePrice > product.price ? Math.round(((product.comparePrice - product.price) / product.comparePrice) * 100) : 0;
   const buyLabel = locale === 'en' ? 'Buy' : locale === 'ps' ? 'پېرود' : 'خرید';
-  return <article className="group w-[160px] flex-none overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg sm:w-[180px] md:w-[200px]">
-    <Link href={`/shop/${product.slug}` as never} className="relative block aspect-square overflow-hidden bg-muted">{image ? <Image src={image} alt={product.name} fill sizes="200px" className="object-cover transition-transform duration-500 group-hover:scale-105" /> : <div className="flex h-full items-center justify-center"><Package className="h-10 w-10 text-muted-foreground/30" /></div>}{discountPct > 0 && <span className="absolute start-2 top-2 rounded-lg bg-rose-600 px-2 py-0.5 text-[10px] font-bold text-white">-{discountPct}٪</span>}</Link>
-    <div className="flex flex-col gap-1.5 p-3">{product.category && <p className="truncate text-[10px] font-bold uppercase text-rose-500">{product.category.name}</p>}<Link href={`/shop/${product.slug}` as never} className="line-clamp-2 text-xs font-extrabold leading-snug hover:text-rose-600">{product.name}</Link>{product.sellerShopName && <Link href={`/store/${product.sellerId}` as never} className="truncate text-[10px] text-muted-foreground hover:text-rose-600">{product.sellerShopName}</Link>}{(product.rating ?? 0) > 0 && <div className="flex items-center gap-0.5">{[0,1,2,3,4].map((i) => <Star key={i} className={cn('h-2.5 w-2.5', i < Math.round(product.rating!) ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground')} />)}</div>}<div className="mt-1 flex items-center justify-between border-t border-border/60 pt-2"><span className="text-xs font-extrabold text-foreground">{formatPrice(product.price, currency, locale)}</span><Link href={`/shop/${product.slug}` as never} className="flex h-7 items-center gap-1 rounded-lg bg-rose-600 px-2.5 text-[10px] font-bold text-white"><ShoppingCart className="h-3 w-3" />{buyLabel}</Link></div></div>
-  </article>;
+  const salesLabel = locale === 'en' ? 'sold' : locale === 'ps' ? 'پلور' : 'فروش';
+
+  return (
+    <article className="group w-[160px] flex-none overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-lg sm:w-[180px] md:w-[200px]">
+      <div className="relative">
+        <Link href={`/shop/${product.slug}` as never} className="relative block aspect-square overflow-hidden bg-muted">
+          {image ? <Image src={image} alt={product.name} fill sizes="200px" className="object-cover transition-transform duration-500 group-hover:scale-105" /> : <div className="flex h-full items-center justify-center"><Package className="h-10 w-10 text-muted-foreground/30" /></div>}
+          {discountPct > 0 && <span className="absolute start-2 top-2 rounded-lg bg-rose-600 px-2 py-0.5 text-[10px] font-bold text-white">-{discountPct}٪</span>}
+        </Link>
+        <Link href="/wishlist" aria-label={locale === 'en' ? 'Wishlist' : locale === 'ps' ? 'خوښې' : 'افزودن به علاقه‌مندی‌ها'} className="absolute end-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-white/70 bg-white/90 text-gray-700 shadow-sm backdrop-blur-sm transition hover:scale-105 dark:border-gray-700 dark:bg-gray-900/90 dark:text-gray-200">
+          <Heart className="h-4 w-4" aria-hidden />
+        </Link>
+      </div>
+
+      <div className="flex flex-col gap-1.5 p-3">
+        {product.category && <p className="truncate text-[10px] font-bold uppercase text-rose-500">{product.category.name}</p>}
+        <Link href={`/shop/${product.slug}` as never} className="line-clamp-2 text-xs font-extrabold leading-snug hover:text-rose-600">{product.name}</Link>
+        {product.sellerShopName && <Link href={`/store/${product.sellerId}` as never} className="truncate text-[10px] text-muted-foreground hover:text-rose-600">{product.sellerShopName}</Link>}
+        {(product.rating ?? 0) > 0 && <div className="flex items-center gap-1" aria-label={`${product.rating}/5`}>{[0,1,2,3,4].map((i) => <Star key={i} className={cn('h-2.5 w-2.5', i < Math.round(product.rating!) ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground')} />)}{product.reviewCount ? <span className="text-[9px] text-muted-foreground">({product.reviewCount})</span> : null}</div>}
+        <div className="mt-1 border-t border-border/60 pt-2">
+          {discountPct > 0 && product.comparePrice && <span className="block text-[10px] text-muted-foreground line-through">{formatPrice(product.comparePrice, currency, locale)}</span>}
+          <div className="flex items-end justify-between gap-2">
+            <div className="min-w-0">
+              <span className="block truncate text-sm font-black text-foreground">{formatPrice(product.price, currency, locale)}</span>
+              {product.salesCount ? <span className="text-[9px] text-muted-foreground">{product.salesCount.toLocaleString(locale === 'en' ? 'en-US' : 'fa-AF')} {salesLabel}</span> : null}
+            </div>
+            <Link href={`/shop/${product.slug}` as never} className="flex h-8 shrink-0 items-center gap-1 rounded-lg bg-rose-600 px-2.5 text-[10px] font-bold text-white"><ShoppingCart className="h-3 w-3" />{buyLabel}</Link>
+          </div>
+        </div>
+      </div>
+    </article>
+  );
 }
 
 export function ProductSliderSection({ title, subtitle, viewAllHref, accentColor = 'bg-rose-600', products, locale = 'fa', currency = 'AFN', skeleton = false }: ProductSliderSectionProps) {
