@@ -65,3 +65,15 @@ export async function PUT(req: NextRequest) {
     return jsonOk({ id: d.id });
   } catch (error) { console.error('[admin/homepage-advertisements.PUT]', error); return jsonError('update_failed', 'Failed to update advertisement', { status: 500 }); }
 }
+
+export async function DELETE(req: NextRequest) {
+  const guard = await requireAdminApi();
+  if (!guard.ok) return guard.response;
+  if (!isDatabaseConfigured()) return jsonError('db_unavailable', 'Database is not configured', { status: 503 });
+  try {
+    const id = new URL(req.url).searchParams.get('id');
+    if (!id) return jsonError('invalid_id', 'Advertisement id is required', { status: 400 });
+    await prisma.$executeRaw(Prisma.sql`DELETE FROM "HomepageAdvertisement" WHERE "id"=${id}`);
+    return jsonOk({ id });
+  } catch (error) { console.error('[admin/homepage-advertisements.DELETE]', error); return jsonError('delete_failed', 'Failed to delete advertisement', { status: 500 }); }
+}
