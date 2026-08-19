@@ -132,11 +132,13 @@ export interface SessionPayloadShape {
 
 export async function getSessionPayload(): Promise<SessionPayloadShape | null> {
   const payload = await readSessionPayload();
-  return payload
-    ? {
-        userId: payload.uid,
-        issuedAt: payload.iat,
-        issuedAtMs: payload.iatMs ?? payload.iat * 1000,
-      }
-    : null;
+  if (!payload) return null;
+
+  const issuedAtMs = payload.iatMs ?? payload.iat * 1000;
+
+  return {
+    userId: payload.uid,
+    issuedAt: payload.iat,
+    issuedAtMs,
+  };
 }
