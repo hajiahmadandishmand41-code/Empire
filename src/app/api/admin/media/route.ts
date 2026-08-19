@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { jsonError, jsonOk } from '@/lib/api/response';
 import { requireAdminApi } from '@/lib/auth/require-admin-api';
 import { createMediaAsset, deleteMediaAsset, listMediaAssets } from '@/features/admin/lib/control-store';
