@@ -11,16 +11,31 @@ export const getHomepageData = cache(async () => {
   }
 });
 
+/**
+ * Hero feed: prefer products explicitly promoted by admin, then fall back to
+ * the marketplace ranking so the Hero never renders empty just because no
+ * item has the legacy `hero` badge.
+ */
 export const getHeroProducts = cache(async (): Promise<ProductSummary[]> => {
+  const service = getProductService();
   try {
-    const result = await getProductService().listProducts({
+    const promoted = await service.listProducts({
       badge: 'hero',
       page: 1,
       pageSize: 2,
-      sort: 'newest',
+      sort: 'popular',
       isActive: true,
     });
-    return result.products.slice(0, 2);
+    if (promoted.products.length >= 2) return promoted.products.slice(0, 2);
+
+    const ranked = await service.listProducts({
+      page: 1,
+      pageSize: 2,
+      sort: 'recommended',
+      isActive: true,
+    });
+    const merged = [...promoted.products, ...ranked.products];
+    return merged.filter((product, index, all) => all.findIndex((item) => item.id === product.id) === index).slice(0, 2);
   } catch {
     return [];
   }
