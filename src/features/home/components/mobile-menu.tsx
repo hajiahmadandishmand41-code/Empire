@@ -30,12 +30,12 @@ export function MobileMenu({ locale = 'fa', onClose }: { locale?: string; onClos
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const cartCount = useHydratedCartCount();
+  const brand = locale === 'en' ? 'Eshop' : 'ایشاپ';
 
   function close() {
     onClose?.();
   }
 
-  // Prevent body scroll while menu is open + Escape key
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -45,21 +45,18 @@ export function MobileMenu({ locale = 'fa', onClose }: { locale?: string; onClos
       document.body.style.overflow = prev;
       document.removeEventListener('keydown', handleEscape);
     };
-    
   }, []);
 
-  // Close on route change
   useEffect(() => {
     close();
-    
   }, [pathname, searchParams]);
 
   const primary: Item[] = [
     { href: '/',                    label: t('home'),        icon: Home },
+    { href: '/categories',          label: t('categories'),  icon: Package },
     { href: '/shop',                label: t('shop'),        icon: Store },
-    { href: '/shop',                label: t('allProducts'), icon: Package },
     { href: '/shop?badge=sale',     label: 'پیشنهادات ویژه', icon: Tag },
-    { href: '/shop?focus=search',   label: t('search'),      icon: Search },
+    { href: '/search',              label: t('search'),      icon: Search },
     {
       href: '/cart',
       label: t('cart'),
@@ -69,20 +66,20 @@ export function MobileMenu({ locale = 'fa', onClose }: { locale?: string; onClos
   ];
 
   const categories: Item[] = [
-    { href: '/shop',                              label: tCat('all'),         icon: ShoppingBag },
-    { href: '/shop?categoryKey=digital',          label: tCat('mobile'),      icon: Smartphone },
-    { href: '/shop?categoryKey=digital',          label: tCat('computer'),    icon: Monitor },
-    { href: '/shop?categoryKey=electronics',      label: tCat('audio'),       icon: Headphones },
-    { href: '/shop?categoryKey=watches',          label: tCat('wearable'),    icon: Watch },
-    { href: '/shop?categoryKey=electronics',      label: tCat('camera'),      icon: Camera },
-    { href: '/shop?categoryKey=homeAppliances',   label: tCat('home'),        icon: Home },
-    { href: '/shop?categoryKey=clothing',         label: tCat('fashion'),     icon: Shirt },
-    { href: '/shop?categoryKey=sports',           label: tCat('sport'),       icon: Dumbbell },
-    { href: '/shop?categoryKey=beauty',           label: tCat('beauty'),      icon: Utensils },
-    { href: '/shop?categoryKey=digital',          label: tCat('traditional'), icon: Gem },
-    { href: '/shop?categoryKey=books',            label: tCat('books'),       icon: BookOpen },
-    { href: '/shop?categoryKey=baby',             label: tCat('baby'),        icon: Baby },
-    { href: '/shop?categoryKey=electronics',      label: tCat('accessories'), icon: Package },
+    { href: '/categories',           label: tCat('all'),         icon: ShoppingBag },
+    { href: '/category/digital',     label: tCat('mobile'),      icon: Smartphone },
+    { href: '/category/digital',     label: tCat('computer'),    icon: Monitor },
+    { href: '/category/electronics', label: tCat('audio'),       icon: Headphones },
+    { href: '/category/watches',     label: tCat('wearable'),    icon: Watch },
+    { href: '/category/electronics', label: tCat('camera'),      icon: Camera },
+    { href: '/category/homeAppliances', label: tCat('home'),     icon: HomeIcon },
+    { href: '/category/clothing',    label: tCat('fashion'),     icon: Shirt },
+    { href: '/category/sports',      label: tCat('sport'),       icon: Dumbbell },
+    { href: '/category/beauty',      label: tCat('beauty'),      icon: Utensils },
+    { href: '/traditional',          label: tCat('traditional'), icon: Gem },
+    { href: '/category/books',       label: tCat('books'),       icon: BookOpen },
+    { href: '/category/baby',        label: tCat('baby'),        icon: Baby },
+    { href: '/category/electronics', label: tCat('accessories'), icon: Package },
   ];
 
   const itemCls = cn(
@@ -120,7 +117,6 @@ export function MobileMenu({ locale = 'fa', onClose }: { locale?: string; onClos
   }
 
   return (
-    /* dir="ltr" forces the panel to slide in from the LEFT regardless of RTL locale */
     <div
       dir="ltr"
       className="fixed inset-0 z-50 flex"
@@ -128,17 +124,14 @@ export function MobileMenu({ locale = 'fa', onClose }: { locale?: string; onClos
       aria-modal="true"
       aria-label={t('menu')}
     >
-      {/* Panel — left side */}
       <aside className="relative flex w-[18rem] max-w-[85vw] flex-col bg-white dark:bg-gray-900 shadow-2xl">
-
-        {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 px-4 py-3">
           <Link href="/" onClick={close} className="flex items-center gap-2.5 group">
             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-rose-600 shadow-sm transition-all group-hover:bg-rose-700">
               <EmpireLogo size={22} variant="color" />
             </div>
             <span className="font-display text-[14px] font-extrabold text-gray-900 dark:text-white">
-              EmpireShop
+              {brand}
             </span>
           </Link>
           <button
@@ -151,10 +144,7 @@ export function MobileMenu({ locale = 'fa', onClose }: { locale?: string; onClos
           </button>
         </div>
 
-        {/* Navigation */}
         <nav dir="rtl" className="flex-1 overflow-y-auto px-3 py-3 space-y-4">
-
-          {/* Main navigation */}
           <div className="space-y-0.5">
             <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-600">
               ناوبری
@@ -162,24 +152,20 @@ export function MobileMenu({ locale = 'fa', onClose }: { locale?: string; onClos
             {primary.map(renderItem)}
           </div>
 
-          {/* All categories */}
           <div className="space-y-0.5 pt-1 border-t border-gray-100 dark:border-gray-800">
             <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-600">
               {t('categories')}
             </p>
             {categories.map(renderItem)}
           </div>
-
         </nav>
 
-        {/* Footer — Language + Theme */}
         <div dir="rtl" className="border-t border-gray-100 dark:border-gray-800 p-3 flex items-center justify-between gap-2">
           <LanguageSwitcher />
           <ThemeToggle variant="dropdown" lang={locale} />
         </div>
       </aside>
 
-      {/* Backdrop */}
       <div
         className="flex-1 bg-black/50 backdrop-blur-sm"
         aria-hidden="true"
