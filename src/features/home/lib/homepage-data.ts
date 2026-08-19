@@ -7,15 +7,22 @@ export const getHomepageData = cache(async () => {
   try {
     return await getProductService().getHomepageSections(12);
   } catch {
-    // A clean build may run before the deployment database has been migrated.
-    // The live app still uses the same service above once the catalog is ready.
-    return {
-      newest: [],
-      bestSelling: [],
-      mostViewed: [],
-      popular: [],
-      featured: [],
-    };
+    return { newest: [], bestSelling: [], mostViewed: [], popular: [], featured: [] };
+  }
+});
+
+export const getHeroProducts = cache(async (): Promise<ProductSummary[]> => {
+  try {
+    const result = await getProductService().listProducts({
+      badge: 'hero',
+      page: 1,
+      pageSize: 2,
+      sort: 'newest',
+      isActive: true,
+    });
+    return result.products.slice(0, 2);
+  } catch {
+    return [];
   }
 });
 
@@ -26,9 +33,7 @@ export function toSliderProduct(product: ProductSummary, badge?: string): Slider
     slug: product.slug,
     price: product.price,
     comparePrice: product.comparePrice,
-    images: product.images
-      .map((image) => ({ url: image.src ?? '' }))
-      .filter((image) => image.url),
+    images: product.images.map((image) => ({ url: image.src ?? '' })).filter((image) => image.url),
     badge: badge ?? product.badge,
     rating: product.averageRating,
     reviewCount: product.reviewCount,
