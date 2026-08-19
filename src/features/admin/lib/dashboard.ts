@@ -129,7 +129,10 @@ export async function getAdminDashboardMetrics() {
     pendingProducts,
     lowStock,
     sellers,
-    recentOrders: recentOrders.map((o) => ({ ...o, total: Number(o.total) })),
+    recentOrders: recentOrders.map((o) => {
+      const { total, ...order } = o;
+      return { ...order, total: Number(total) };
+    }),
     topProducts: topProducts.map((r) => ({
       name: r.name,
       units: Number(r.units),
