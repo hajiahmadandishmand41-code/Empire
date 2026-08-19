@@ -1,13 +1,13 @@
 {
-  "name": "Eshop — فروشگاه آنلاین افغانستان",
-  "short_name": "Eshop",
-  "description": "فروشگاه آنلاین افغانستان — خرید آسان، سریع و مطمئن",
+  "name": "ایشاپ — فروشگاه آنلاین افغانستان",
+  "short_name": "ایشاپ",
+  "description": "ایشاپ — فروشگاه آنلاین افغانستان؛ خرید آسان، سریع و مطمئن",
   "start_url": "/fa/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#DC1649",
-  "theme_color": "#DC1649",
+  "background_color": "#0b0d12",
+  "theme_color": "#0b0d12",
   "lang": "fa-AF",
   "dir": "rtl",
   "categories": ["shopping", "business", "lifestyle"],
@@ -22,10 +22,10 @@
   ],
   "shortcuts": [
     { "name": "فروشگاه", "short_name": "فروشگاه", "url": "/fa/shop", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "جستجو", "short_name": "جستجو", "url": "/fa/search", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
     { "name": "علاقه‌مندی‌ها", "short_name": "علاقه‌مندی", "url": "/fa/wishlist", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
     { "name": "سبد خرید", "short_name": "سبد", "url": "/fa/cart", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
-    { "name": "حساب من", "short_name": "حساب", "url": "/fa/profile", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
-    { "name": "محصولات وطنی", "short_name": "وطنی", "url": "/fa/traditional", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] }
+    { "name": "حساب من", "short_name": "حساب", "url": "/fa/profile", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] }
   ],
   "prefer_related_applications": false,
   "related_applications": []
