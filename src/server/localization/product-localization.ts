@@ -25,15 +25,20 @@ export async function getProductLocalizedText(
   productId: string,
   locale: CatalogLocale,
 ): Promise<ProductLocalizedText | null> {
-  const rows = await prisma.$queryRaw<ProductLocalizedText[]>(Prisma.sql`
-    SELECT "name", "shortDescription", "description", "locale"
-    FROM "ProductTranslation"
-    WHERE "productId" = ${productId}
-      AND "locale" IN (${locale}, 'fa')
-    ORDER BY CASE WHEN "locale" = ${locale} THEN 0 ELSE 1 END
-    LIMIT 1
-  `);
-  return rows[0] ?? null;
+  try {
+    const rows = await prisma.$queryRaw<ProductLocalizedText[]>(Prisma.sql`
+      SELECT "name", "shortDescription", "description", "locale"
+      FROM "ProductTranslation"
+      WHERE "productId" = ${productId}
+        AND "locale" IN (${locale}, 'fa')
+      ORDER BY CASE WHEN "locale" = ${locale} THEN 0 ELSE 1 END
+      LIMIT 1
+    `);
+    return rows[0] ?? null;
+  } catch (error) {
+    console.warn('[localization] product translations unavailable; using base product text', { productId, locale, error });
+    return null;
+  }
 }
 
 export async function getProductLocalizedTexts(
@@ -41,40 +46,50 @@ export async function getProductLocalizedTexts(
   locale: CatalogLocale,
 ): Promise<Map<string, ProductLocalizedText>> {
   if (productIds.length === 0) return new Map();
-  const rows = await prisma.$queryRaw<Array<ProductLocalizedText & { productId: string }>>(Prisma.sql`
-    SELECT "productId", "name", "shortDescription", "description", "locale"
-    FROM "ProductTranslation"
-    WHERE "productId" IN (${Prisma.join(productIds)})
-      AND "locale" IN (${locale}, 'fa')
-    ORDER BY "productId", CASE WHEN "locale" = ${locale} THEN 0 ELSE 1 END
-  `);
-  const result = new Map<string, ProductLocalizedText>();
-  for (const row of rows) {
-    if (!result.has(row.productId)) {
-      result.set(row.productId, {
-        name: row.name,
-        shortDescription: row.shortDescription,
-        description: row.description,
-        locale: normalizeCatalogLocale(row.locale),
-      });
+  try {
+    const rows = await prisma.$queryRaw<Array<ProductLocalizedText & { productId: string }>>(Prisma.sql`
+      SELECT "productId", "name", "shortDescription", "description", "locale"
+      FROM "ProductTranslation"
+      WHERE "productId" IN (${Prisma.join(productIds)})
+        AND "locale" IN (${locale}, 'fa')
+      ORDER BY "productId", CASE WHEN "locale" = ${locale} THEN 0 ELSE 1 END
+    `);
+    const result = new Map<string, ProductLocalizedText>();
+    for (const row of rows) {
+      if (!result.has(row.productId)) {
+        result.set(row.productId, {
+          name: row.name,
+          shortDescription: row.shortDescription,
+          description: row.description,
+          locale: normalizeCatalogLocale(row.locale),
+        });
+      }
     }
+    return result;
+  } catch (error) {
+    console.warn('[localization] product translations unavailable; using base product text', { locale, productCount: productIds.length, error });
+    return new Map();
   }
-  return result;
 }
 
 export async function getCategoryLocalizedText(
   categoryId: string,
   locale: CatalogLocale,
 ): Promise<CategoryLocalizedText | null> {
-  const rows = await prisma.$queryRaw<CategoryLocalizedText[]>(Prisma.sql`
-    SELECT "name", "locale"
-    FROM "CategoryTranslation"
-    WHERE "categoryId" = ${categoryId}
-      AND "locale" IN (${locale}, 'fa')
-    ORDER BY CASE WHEN "locale" = ${locale} THEN 0 ELSE 1 END
-    LIMIT 1
-  `);
-  return rows[0] ?? null;
+  try {
+    const rows = await prisma.$queryRaw<CategoryLocalizedText[]>(Prisma.sql`
+      SELECT "name", "locale"
+      FROM "CategoryTranslation"
+      WHERE "categoryId" = ${categoryId}
+        AND "locale" IN (${locale}, 'fa')
+      ORDER BY CASE WHEN "locale" = ${locale} THEN 0 ELSE 1 END
+      LIMIT 1
+    `);
+    return rows[0] ?? null;
+  } catch (error) {
+    console.warn('[localization] category translations unavailable; using base category text', { categoryId, locale, error });
+    return null;
+  }
 }
 
 export async function upsertProductLocalizedText(input: {

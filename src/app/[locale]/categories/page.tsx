@@ -35,21 +35,40 @@ function localizedTitle(key: string, name: string, locale: string): string {
   return fallback;
 }
 
+function fallbackCategories(): MarketplaceCategory[] {
+  return Object.entries(categoryCopy).map(([key, copy]) => ({
+    key,
+    slug: key,
+    name: copy.title,
+    productCount: 0,
+    title: copy.title,
+    image: copy.image,
+  }));
+}
+
 export default async function CategoriesPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   setRequestLocale(locale);
-  const raw = await getCategoryRepository().findAll(true);
-  const categories: MarketplaceCategory[] = raw.map((category) => ({
-    key: category.key,
-    slug: category.slug,
-    name: category.name,
-    productCount: category.productCount,
-    title: localizedTitle(category.key, category.name, locale),
-    image: categoryCopy[category.key]?.image ?? 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=900&q=82',
-  }));
 
+  let categories: MarketplaceCategory[];
+  try {
+    const raw = await getCategoryRepository().findAll(true);
+    categories = raw.map((category) => ({
+      key: category.key,
+      slug: category.slug,
+      name: category.name,
+      productCount: category.productCount,
+      title: localizedTitle(category.key, category.name, locale),
+      image: categoryCopy[category.key]?.image ?? 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=900&q=82',
+    }));
+  } catch (error) {
+    console.error('[categories-page] category catalog unavailable; using navigation fallback', error);
+    categories = fallbackCategories();
+  }
+
+  const brand = locale === 'en' ? 'Eshop' : 'ایشاپ';
   const title = locale === 'en' ? 'All categories' : locale === 'ps' ? 'ټولې کټګورۍ' : 'همه دسته‌بندی‌ها';
-  const subtitle = locale === 'en' ? 'Explore every Eshop category, compare products and move directly into the right marketplace shelf.' : locale === 'ps' ? 'د Eshop ټولې کټګورۍ وګورئ او مستقیم د اړوند بازار برخې ته لاړ شئ.' : 'همه دسته‌های Eshop را ببینید و مستقیم وارد قفسه محصولات مرتبط شوید.';
+  const subtitle = locale === 'en' ? `Explore every ${brand} category, compare products and move directly into the right marketplace shelf.` : locale === 'ps' ? `د ${brand} ټولې کټګورۍ وګورئ او مستقیم د اړوند بازار برخې ته لاړ شئ.` : `همه دسته‌های ${brand} را ببینید و مستقیم وارد قفسه محصولات مرتبط شوید.`;
   const placeholder = locale === 'en' ? 'Search categories…' : locale === 'ps' ? 'کټګورۍ ولټوئ…' : 'جستجوی دسته‌ها…';
   const allLabel = locale === 'en' ? 'All' : locale === 'ps' ? 'ټولې' : 'همه';
   const back = locale === 'en' ? 'Back to home' : locale === 'ps' ? 'بېرته کور ته' : 'بازگشت به خانه';

@@ -10,7 +10,7 @@ import type { ProductSummary } from '@/types';
 
 /**
  * Hero direction: B — Split Layout.
- * Chosen for EmpireShop because it keeps product proof visible, stays compact on mobile,
+ * Chosen for Eshop because it keeps product proof visible, stays compact on mobile,
  * and gives the marketplace a premium commerce feel without relying on a large hero video.
  */
 export function HomepageHeroCarousel({ products, locale = 'fa', currency = 'AFN' }: { products: ProductSummary[]; locale?: string; currency?: string }) {
@@ -18,11 +18,12 @@ export function HomepageHeroCarousel({ products, locale = 'fa', currency = 'AFN'
   const [index, setIndex] = React.useState(0);
   const [paused, setPaused] = React.useState(false);
   const [swipeStart, setSwipeStart] = React.useState<number | null>(null);
+  const brand = locale === 'en' ? 'Eshop' : 'ایشاپ';
   const labels = locale === 'en'
-    ? { eyebrow: 'Featured on EmpireShop', cta: 'View product', next: 'Next product', prev: 'Previous product', buy: 'Shop now', swipe: 'Swipe to explore', save: 'Save to wishlist', saved: 'Saved to wishlist' }
+    ? { eyebrow: 'Featured on Eshop', cta: 'View product', next: 'Next product', prev: 'Previous product', buy: 'Shop now', swipe: 'Swipe to explore', save: 'Save to wishlist', saved: 'Saved to wishlist' }
     : locale === 'ps'
-      ? { eyebrow: 'په EmpireShop کې ځانګړی', cta: 'محصول وګورئ', next: 'بل محصول', prev: 'مخکینی محصول', buy: 'اوس واخلئ', swipe: 'د لیدلو لپاره کش کړئ', save: 'خوښې ته اضافه', saved: 'له خوښو لرې کول' }
-      : { eyebrow: 'انتخاب ویژه EmpireShop', cta: 'مشاهده کالا', next: 'محصول بعدی', prev: 'محصول قبلی', buy: 'خرید کنید', swipe: 'برای دیدن بکشید', save: 'افزودن به علاقه‌مندی‌ها', saved: 'حذف از علاقه‌مندی‌ها' };
+      ? { eyebrow: 'په ایشاپ کې ځانګړی', cta: 'محصول وګورئ', next: 'بل محصول', prev: 'مخکینی محصول', buy: 'اوس واخلئ', swipe: 'د لیدلو لپاره کش کړئ', save: 'خوښې ته اضافه', saved: 'له خوښو لرې کول' }
+      : { eyebrow: 'انتخاب ویژه ایشاپ', cta: 'مشاهده کالا', next: 'محصول بعدی', prev: 'محصول قبلی', buy: 'خرید کنید', swipe: 'برای دیدن بکشید', save: 'افزودن به علاقه‌مندی‌ها', saved: 'حذف از علاقه‌مندی‌ها' };
 
   React.useEffect(() => {
     if (count < 2 || paused) return;
@@ -35,7 +36,7 @@ export function HomepageHeroCarousel({ products, locale = 'fa', currency = 'AFN'
       <section className="mx-auto max-w-screen-xl px-3 pt-3 sm:px-6 sm:pt-5">
         <div className="overflow-hidden rounded-[24px] border border-border bg-card px-5 py-8 shadow-premium sm:px-8">
           <div className="max-w-2xl">
-            <span className="inline-flex items-center gap-2 rounded-full bg-accent px-3 py-1 text-[10px] font-bold text-accent-foreground"><Sparkles className="h-3.5 w-3.5" />EmpireShop</span>
+            <span className="inline-flex items-center gap-2 rounded-full bg-accent px-3 py-1 text-[10px] font-bold text-accent-foreground"><Sparkles className="h-3.5 w-3.5" />{brand}</span>
             <h1 className="mt-3 text-2xl font-black tracking-tight text-foreground sm:text-4xl">{locale === 'en' ? 'A new marketplace experience for Afghanistan' : locale === 'ps' ? 'د افغانستان لپاره نوی بازار تجربه' : 'تجربه‌ای تازه برای خرید آنلاین افغانستان'}</h1>
             <p className="mt-3 max-w-xl text-sm leading-7 text-muted-foreground">{locale === 'en' ? 'Discover trusted products, local treasures and everyday essentials in one calm, fast marketplace.' : locale === 'ps' ? 'باوري محصولات او د افغانستان اصلي توکي په یوه چټک او ساده بازار کې ومومئ.' : 'محصولات قابل اعتماد، کالاهای روزمره و میراث اصیل افغانستان را در یک بازار آرام، سریع و حرفه‌ای پیدا کنید.'}</p>
             <Link href={'/shop' as never} className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground shadow-sm transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-md"><ShoppingBag className="h-4 w-4" />{labels.buy}<ChevronLeft className="h-4 w-4 rtl:rotate-180" /></Link>

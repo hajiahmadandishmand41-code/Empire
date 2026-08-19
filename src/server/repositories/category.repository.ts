@@ -79,9 +79,18 @@ export class PrismaCategoryRepository implements ICategoryRepository {
   }
 
   async findBySlug(slug: string): Promise<CategoryRow | null> {
-    const row = await this.prisma.category.findUnique({ where: { slug } });
+    const row = await this.prisma.category.findUnique({
+      where: { slug },
+      include: { _count: { select: { products: true } } },
+    });
     if (!row) return null;
-    return { id: row.id, key: row.key as CategoryKey, name: row.name, slug: row.slug };
+    return {
+      id: row.id,
+      key: row.key as CategoryKey,
+      name: row.name,
+      slug: row.slug,
+      productCount: (row as typeof row & { _count?: { products: number } })._count?.products,
+    };
   }
 
   async create(input: CreateCategoryInput): Promise<CategoryRow> {

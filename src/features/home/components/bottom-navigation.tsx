@@ -83,7 +83,7 @@ export function BottomNavigation() {
         <NavItem href="/cart" active={isCart} badge={cartCount} label={t('cart')}><ShoppingCart className="h-5 w-5" /></NavItem>
         <button type="button" onClick={() => user ? setAccountOpen(true) : userLoaded && router.push('/auth/login')} className={cn('relative flex flex-1 flex-col items-center gap-1 py-2.5 text-[10px] font-semibold', isAccount ? 'text-primary' : 'text-muted-foreground')} aria-label={user ? t('account') : h('login')}>
           <span className={cn('flex h-9 w-9 items-center justify-center rounded-xl', isAccount ? 'bg-accent' : '')}>{user ? <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">{user.fullName.charAt(0)}</span> : <User className="h-5 w-5" />}</span>
-          <span className="max-w-[64px] truncate">{user ? user.fullName.split(' ')[0] : userLoaded ? loginLabel : c('loading')}</span>
+          <span className="max-w-[64px] truncate">{user ? loginLabel : userLoaded ? loginLabel : c('loading')}</span>
         </button>
       </div>
       <div className="pb-safe" />

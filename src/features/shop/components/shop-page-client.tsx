@@ -10,7 +10,7 @@ import { ShopToolbar, type ShopCategoryOption } from './shop-toolbar';
 import { ShopFilters, type ShopFiltersValue } from './shop-filters';
 import type { ProductSummary, Category } from '@/types';
 
-interface ShopPageClientProps { locale: string; currency?: string; }
+interface ShopPageClientProps { locale: string; currency?: string; initialCategoryKey?: string; }
 const DEFAULT_FILTERS: ShopFiltersValue = { priceMin: '', priceMax: '', inStockOnly: false, sellerId: '', sort: 'recommended' };
 const PAGE_SIZE = 24;
 const DEBOUNCE_MS = 350;
@@ -30,10 +30,10 @@ function toApiSort(sort: ShopFiltersValue['sort']): string {
   }
 }
 
-export function ShopPageClient({ locale, currency = 'AFN' }: ShopPageClientProps) {
+export function ShopPageClient({ locale, currency = 'AFN', initialCategoryKey }: ShopPageClientProps) {
   const searchParams = useSearchParams();
   const initialQuery = searchParams.get('q') ?? '';
-  const initialCategory = searchParams.get('categoryKey') ?? searchParams.get('category');
+  const initialCategory = initialCategoryKey ?? searchParams.get('categoryKey') ?? searchParams.get('category');
   const initialSort = searchParams.get('sort');
   const initialBadge = searchParams.get('badge');
 
@@ -44,7 +44,6 @@ export function ShopPageClient({ locale, currency = 'AFN' }: ShopPageClientProps
     ...DEFAULT_FILTERS,
     sort: initialSort === 'priceAsc' ? 'price_asc' : initialSort === 'priceDesc' ? 'price_desc' : initialSort === 'popular' || initialSort === 'bestSelling' ? 'popular' : 'recommended',
   }));
-  const [products, setProducts] = React.useState<ProductSummary[]>([]);
   const [allProducts, setAllProducts] = React.useState<ProductSummary[]>([]);
   const [categories, setCategories] = React.useState<Category[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -60,7 +59,7 @@ export function ShopPageClient({ locale, currency = 'AFN' }: ShopPageClientProps
   React.useEffect(() => {
     setPage(1);
     setAllProducts([]);
-  }, [debouncedSearch, category, filters, initialBadge]);
+  }, [debouncedSearch, category, filters, initialBadge, initialCategoryKey]);
 
   React.useEffect(() => {
     fetch('/api/categories', { cache: 'no-store' })
@@ -91,18 +90,17 @@ export function ShopPageClient({ locale, currency = 'AFN' }: ShopPageClientProps
         const newProducts = unwrap<ProductSummary[]>(body, []);
         const bodyMeta = (body as { meta?: ApiMeta }).meta ?? null;
         setMeta(bodyMeta);
-        setProducts(newProducts);
         if (isLoadMore) setAllProducts((prev) => [...prev, ...newProducts]); else setAllProducts(newProducts);
       })
       .catch((error) => {
         if (error?.name !== 'AbortError') {
-          setProducts([]);
-          if (!isLoadMore) setAllProducts([]);
+          setAllProducts([]);
+          setMeta(null);
         }
       })
       .finally(() => { setLoading(false); setLoadingMore(false); });
     return () => controller.abort();
-  }, [debouncedSearch, category, filters, initialBadge, page]);
+  }, [debouncedSearch, category, filters, initialBadge, page, initialCategoryKey]);
 
   const categoryOptions = React.useMemo<ShopCategoryOption[]>(() => [
     { key: 'all', label: 'همه محصولات' },
@@ -110,8 +108,13 @@ export function ShopPageClient({ locale, currency = 'AFN' }: ShopPageClientProps
   ], [categories]);
 
   const clear = React.useCallback(() => {
-    setSearch(''); setDebouncedSearch(''); setCategory('all'); setFilters(DEFAULT_FILTERS); setPage(1); setAllProducts([]);
-  }, []);
+    setSearch('');
+    setDebouncedSearch('');
+    setCategory(initialCategoryKey ?? 'all');
+    setFilters(DEFAULT_FILTERS);
+    setPage(1);
+    setAllProducts([]);
+  }, [initialCategoryKey]);
   const hasMore = meta?.hasMore ?? false;
   const totalCount = meta?.total ?? allProducts.length;
 
