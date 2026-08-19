@@ -2,16 +2,11 @@
  * Seller Product Detail API
  *
  * PATCH  /api/seller/products/:id — Update a product
- * DELETE /api/seller/products/:id — Delete a product
- *
- * Architecture:
- *   - Ownership verification via ProductService.checkOwnership()
- *   - Business rules in ProductService (category validation on change)
- *   - inStock/badge auto-sync on stock/price changes
+ * DELETE /api/seller/products/:id — Delete a product (or safely deactivate when order history exists)
  */
 import type { NextRequest } from 'next/server';
 import { z } from 'zod';
-import { isDatabaseConfigured } from '@/lib/db';
+import { isDatabaseConfigured, prisma } from '@/lib/db';
 import { jsonError, jsonOk, jsonPreflight } from '@/lib/api/response';
 import { requireSellerApi } from '@/lib/auth/require-seller-api';
 import { getProductService } from '@/server/infrastructure/registry';
@@ -32,91 +27,50 @@ function serializeProduct<T extends object>(row: T) {
   return out;
 }
 
+const patchSchema = z.object({
+  name: z.string().trim().min(2).max(120).optional(),
+  shortDescription: z.string().trim().min(2).max(300).optional(),
+  price: z.number().positive().optional(),
+  compareAtPrice: z.number().positive().nullable().optional(),
+  inStock: z.boolean().optional(),
+  isActive: z.boolean().optional(),
+  stockQuantity: z.number().int().min(0).optional(),
+  description: z.string().optional().nullable(),
+  region: z.string().trim().min(1).optional(),
+  categoryId: z.string().trim().min(1).optional(),
+  whatsappNumber: z.string().trim().max(40).optional().nullable(),
+  videoUrl: z.string().trim().max(500).optional().nullable(),
+  isTraditional: z.boolean().optional(),
+  weightKg: z.number().min(0).optional().nullable(),
+  dimensionsJson: z.string().max(200).optional().nullable(),
+  tagsJson: z.string().max(500).optional().nullable(),
+  attributesJson: z.string().max(2000).optional().nullable(),
+  primaryImageIndex: z.number().int().min(0).optional(),
+}).strict();
 
-const patchSchema = z
-  .object({
-    name: z.string().trim().min(2).max(120).optional(),
-    shortDescription: z.string().trim().min(2).max(300).optional(),
-    price: z.number().positive().optional(),
-    compareAtPrice: z.number().positive().nullable().optional(),
-    inStock: z.boolean().optional(),
-    isActive: z.boolean().optional(),
-    stockQuantity: z.number().int().min(0).optional(),
-    description: z.string().optional().nullable(),
-    region: z.string().trim().min(1).optional(),
-    /**
-     * categoryId is optional on update — but if provided, it MUST exist.
-     * Validation is enforced in ProductService.updateProduct().
-     */
-    categoryId: z.string().trim().min(1).optional(),
-    whatsappNumber: z.string().trim().max(40).optional().nullable(),
-    videoUrl: z.string().trim().max(500).optional().nullable(),
-    isTraditional: z.boolean().optional(),
-    weightKg: z.number().min(0).optional().nullable(),
-    dimensionsJson: z.string().max(200).optional().nullable(),
-    tagsJson: z.string().max(500).optional().nullable(),
-    attributesJson: z.string().max(2000).optional().nullable(),
-    primaryImageIndex: z.number().int().min(0).optional(),
-  })
-  .strict();
-
-export async function OPTIONS() {
-  return jsonPreflight();
-}
+export async function OPTIONS() { return jsonPreflight(); }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const guard = await requireSellerApi();
   if (!guard.ok) return guard.response;
-
-  if (!isDatabaseConfigured()) {
-    return jsonError('db_unavailable', 'Database is not configured', { status: 503 });
-  }
+  if (!isDatabaseConfigured()) return jsonError('db_unavailable', 'Database is not configured', { status: 503 });
 
   let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return jsonError('invalid_json', 'Invalid JSON', { status: 400 });
-  }
-
+  try { body = await req.json(); } catch { return jsonError('invalid_json', 'Invalid JSON', { status: 400 }); }
   const parsed = patchSchema.safeParse(body);
-  if (!parsed.success) {
-    return jsonError('invalid_body', 'Invalid product patch', {
-      status: 422,
-      details: { issues: parsed.error.issues },
-    });
-  }
+  if (!parsed.success) return jsonError('invalid_body', 'Invalid product patch', { status: 422, details: { issues: parsed.error.issues } });
 
   try {
     const svc = getProductService();
-
-    // Verify ownership — sellers can only edit their own products; admins can edit any.
-    const ownership = await svc.checkOwnership(
-      id,
-      guard.user.id,
-      guard.user.role === 'admin',
-    );
-    if (ownership === 'not_found') {
-      return jsonError('not_found', 'Product not found', { status: 404 });
-    }
-    if (ownership === 'forbidden') {
-      return jsonError('forbidden', 'You do not own this product', { status: 403 });
-    }
-
+    const ownership = await svc.checkOwnership(id, guard.user.id, guard.user.role === 'admin');
+    if (ownership === 'not_found') return jsonError('not_found', 'Product not found', { status: 404 });
+    if (ownership === 'forbidden') return jsonError('forbidden', 'You do not own this product', { status: 403 });
     const updated = await svc.updateProduct(id, parsed.data);
-
-    logger.info('seller.product.updated', {
-      productId: id,
-      sellerId: guard.user.id,
-      fields: Object.keys(parsed.data),
-    });
-
+    logger.info('seller.product.updated', { productId: id, sellerId: guard.user.id, fields: Object.keys(parsed.data) });
     return jsonOk(serializeProduct(updated));
   } catch (err) {
-    if (err instanceof ProductServiceError) {
-      return jsonError(err.code, err.message, { status: err.httpStatus });
-    }
+    if (err instanceof ProductServiceError) return jsonError(err.code, err.message, { status: err.httpStatus });
     logger.error('seller.product.update_failed', { productId: id, sellerId: guard.user.id }, err);
     return mapErrorToResponse(err);
   }
@@ -126,31 +80,26 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   const { id } = await params;
   const guard = await requireSellerApi();
   if (!guard.ok) return guard.response;
-
-  if (!isDatabaseConfigured()) {
-    return jsonError('db_unavailable', 'Database is not configured', { status: 503 });
-  }
+  if (!isDatabaseConfigured()) return jsonError('db_unavailable', 'Database is not configured', { status: 503 });
 
   try {
     const svc = getProductService();
+    const ownership = await svc.checkOwnership(id, guard.user.id, guard.user.role === 'admin');
+    if (ownership === 'not_found') return jsonError('not_found', 'Product not found', { status: 404 });
+    if (ownership === 'forbidden') return jsonError('forbidden', 'You do not own this product', { status: 403 });
 
-    const ownership = await svc.checkOwnership(
-      id,
-      guard.user.id,
-      guard.user.role === 'admin',
-    );
-    if (ownership === 'not_found') {
-      return jsonError('not_found', 'Product not found', { status: 404 });
-    }
-    if (ownership === 'forbidden') {
-      return jsonError('forbidden', 'You do not own this product', { status: 403 });
+    // Never physically delete a product that participates in order history.
+    // Historical order items must remain queryable and immutable.
+    const orderItemCount = await prisma.orderItem.count({ where: { productId: id } });
+    if (orderItemCount > 0) {
+      await prisma.product.update({ where: { id }, data: { isActive: false, inStock: false } });
+      logger.info('seller.product.deactivated_after_orders', { productId: id, sellerId: guard.user.id, orderItemCount });
+      return jsonOk({ deleted: false, deactivated: true, preservedOrderHistory: true });
     }
 
     await svc.deleteProduct(id);
-
     logger.info('seller.product.deleted', { productId: id, sellerId: guard.user.id });
-
-    return jsonOk({ deleted: true });
+    return jsonOk({ deleted: true, deactivated: false });
   } catch (err) {
     logger.error('seller.product.delete_failed', { productId: id, sellerId: guard.user.id }, err);
     return mapErrorToResponse(err);
