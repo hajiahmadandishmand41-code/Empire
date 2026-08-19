@@ -11,7 +11,8 @@ import { AlertCircle, CheckCircle2, Eye, EyeOff, Loader2, Lock, Mail, User } fro
 import Link from 'next/link';
 
 type Mode = 'login' | 'register';
-type ApiResult = { ok: boolean; error?: { code?: string; message?: string } };
+type ApiUser = { id: string; fullName?: string | null; email?: string | null; phone?: string | null; role?: 'user' | 'seller' | 'admin' };
+type ApiResult = { ok: boolean; user?: ApiUser; error?: { code?: string; message?: string } };
 
 export function AuthForm({ mode }: { mode: Mode }) {
   const router = useRouter();
@@ -55,16 +56,37 @@ export function AuthForm({ mode }: { mode: Mode }) {
 
     setLoading(true);
     try {
-      const response = await fetch(mode === 'register' ? '/api/auth/register' : '/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(mode === 'register' ? { fullName: fullName.trim(), identifier: identifier.trim(), password, confirmPassword } : { identifier: identifier.trim(), password }) });
+      const response = await fetch(mode === 'register' ? '/api/auth/register' : '/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify(mode === 'register'
+          ? { fullName: fullName.trim(), identifier: identifier.trim(), password, confirmPassword }
+          : { identifier: identifier.trim(), password }),
+      });
       const data = await response.json() as ApiResult;
       if (!response.ok || !data.ok) {
         const code = data.error?.code ?? '';
-        const messages: Record<string, string> = { INVALID_CREDENTIALS: t('invalidCredentials'), USER_EXISTS: t('userExists'), TOO_MANY_REQUESTS: t('tooManyRequests'), VALIDATION_ERROR: t('validationError'), service_unavailable: t('serviceUnavailable') };
+        const messages: Record<string, string> = {
+          INVALID_CREDENTIALS: t('invalidCredentials'),
+          USER_EXISTS: t('userExists'),
+          TOO_MANY_REQUESTS: t('tooManyRequests'),
+          VALIDATION_ERROR: t('validationError'),
+          service_unavailable: t('serviceUnavailable'),
+        };
         setError(messages[code] ?? t('unknown'));
         return;
       }
+
       setSuccess(true);
-      router.replace(safeRedirect());
+      const destination = mode === 'register'
+        ? '/profile'
+        : data.user?.role === 'admin'
+          ? '/admin'
+          : data.user?.role === 'seller'
+            ? '/seller'
+            : safeRedirect();
+      router.replace(destination);
       router.refresh();
     } catch {
       setError(t('connection'));

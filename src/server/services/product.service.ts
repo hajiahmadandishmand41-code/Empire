@@ -1,16 +1,5 @@
 /**
  * Product Service — Business Logic Layer
- *
- * Orchestrates product use cases. All business rules live here:
- *   - Category required validation before create/update
- *   - Visibility rules (only real seller products shown on homepage)
- *   - Post-create side effects (auto-visible on homepage/category/seller pages)
- *   - In-memory re-ranking after DB fetch for search quality
- *   - View count increment on product detail fetch
- *
- * Services depend on IProductRepository, not Prisma directly.
- * This makes swapping the data source trivial and enables unit testing
- * by injecting a mock repository.
  */
 
 import type { IProductRepository, ProductListFilter, ProductRow } from '../repositories/product.repository';
@@ -20,10 +9,8 @@ import { mapProductSummary, mapProduct } from '@/lib/db-mappers';
 import { computeSearchScore } from '../algorithms/search-scoring';
 import { rankProducts, DEFAULT_RANKING_CONFIG } from '../algorithms/product-ranking';
 import type { Product, ProductSummary } from '@/types';
-import type { PaginatedResult } from '../repositories/base.repository';
 
 export interface ProductListOptions extends ProductListFilter {
-  /** If true, apply in-memory relevance re-ranking (used for search results). */
   rerank?: boolean;
 }
 
@@ -36,13 +23,8 @@ export interface ProductListResult {
   source: 'db';
 }
 
-/** Domain-level errors raised by the service. */
 export class ProductServiceError extends Error {
-  constructor(
-    public readonly code: string,
-    message: string,
-    public readonly httpStatus = 400,
-  ) {
+  constructor(public readonly code: string, message: string, public readonly httpStatus = 400) {
     super(message);
     this.name = 'ProductServiceError';
   }
@@ -63,54 +45,40 @@ export class ProductService {
     const paginated = await this.products.findMany({ ...opts, page, pageSize: candidatePageSize, isActive: true });
     const ids = paginated.items.map((r) => r.id);
     const ratings = await this.products.getRatings(ids);
-
     let summaries: ProductSummary[] = paginated.items.map((row) => {
       const rating = ratings.get(row.id);
-      return mapProductSummary(row as never, {
-        averageRating: rating?.average ?? 0,
-        reviewCount: rating?.count ?? 0,
-      });
+      return mapProductSummary(row as never, { averageRating: rating?.average ?? 0, reviewCount: rating?.count ?? 0 });
     });
-
     if (opts.q && opts.rerank !== false) {
       const scored = summaries
-        .map((s) => ({
-          product: s,
-          score: computeSearchScore(
-            { id: s.id, name: s.name, shortDescription: s.shortDescription, categoryName: s.categoryKey },
-            opts.q!,
-          ),
-        }))
+        .map((s) => ({ product: s, score: computeSearchScore({ id: s.id, name: s.name, shortDescription: s.shortDescription, categoryName: s.categoryKey }, opts.q!) }))
         .filter((x) => x.score > 0)
         .sort((a, b) => b.score - a.score);
       summaries = scored.map((x) => x.product);
     } else if (useSmartFeed && page === 1) {
-      summaries = rankProducts(
-        summaries.map((s) => ({
-          ...s,
-          averageRating: s.averageRating ?? 0,
-          reviewCount: s.reviewCount ?? 0,
-          salesCount: s.salesCount ?? 0,
-          viewCount: s.viewCount ?? 0,
-          compareAtPrice: s.comparePrice ?? null,
-          createdAt: s.createdAt ?? undefined,
-        })),
-        DEFAULT_RANKING_CONFIG,
-      ).slice(0, pageSize);
+      summaries = rankProducts(summaries.map((s) => ({
+        ...s,
+        averageRating: s.averageRating ?? 0,
+        reviewCount: s.reviewCount ?? 0,
+        salesCount: s.salesCount ?? 0,
+        viewCount: s.viewCount ?? 0,
+        compareAtPrice: s.comparePrice ?? null,
+        createdAt: s.createdAt ?? undefined,
+      })), DEFAULT_RANKING_CONFIG).slice(0, pageSize);
     }
-
-    return {
-      products: summaries,
-      total: paginated.total,
-      page: paginated.page,
-      pageSize,
-      hasMore: page === 1 && useSmartFeed ? paginated.total > pageSize : paginated.hasMore,
-      source: 'db',
-    };
+    return { products: summaries, total: paginated.total, page: paginated.page, pageSize, hasMore: page === 1 && useSmartFeed ? paginated.total > pageSize : paginated.hasMore, source: 'db' };
   }
 
   async getProductBySlug(slug: string): Promise<Product | null> {
     const row = await this.products.findBySlug(slug);
+    if (!row) return null;
+    void this.products.incrementViewCount(row.id).catch(() => undefined);
+    const agg = await this.reviews.summarize(row.id);
+    return mapProduct(row as never, { averageRating: agg.average, reviewCount: agg.count });
+  }
+
+  async getProductById(id: string): Promise<Product | null> {
+    const row = await this.products.findById(id);
     if (!row) return null;
     void this.products.incrementViewCount(row.id).catch(() => undefined);
     const agg = await this.reviews.summarize(row.id);
@@ -124,35 +92,14 @@ export class ProductService {
     return related.map((r) => mapProductSummary(r as never));
   }
 
-  async createProduct(input: {
-    slug: string; name: string; shortDescription: string; price: number; compareAtPrice?: number | null;
-    categoryId: string; sellerId: string; region: string; currency?: string; inStock?: boolean;
-    isActive?: boolean; stockQuantity?: number; description?: string | null; whatsappNumber?: string | null;
-    videoUrl?: string | null; isTraditional?: boolean; weightKg?: number | null; dimensionsJson?: string | null;
-    tagsJson?: string | null; attributesJson?: string | null; primaryImageIndex?: number;
-  }) {
+  async createProduct(input: { slug: string; name: string; shortDescription: string; price: number; compareAtPrice?: number | null; categoryId: string; sellerId: string; region: string; currency?: string; inStock?: boolean; isActive?: boolean; stockQuantity?: number; description?: string | null; whatsappNumber?: string | null; videoUrl?: string | null; isTraditional?: boolean; weightKg?: number | null; dimensionsJson?: string | null; tagsJson?: string | null; attributesJson?: string | null; primaryImageIndex?: number; }) {
     const category = await this.categories.findById(input.categoryId);
     if (!category) throw new ProductServiceError('category_not_found', 'دسته‌بندی انتخاب‌شده وجود ندارد. لطفاً یک دسته‌بندی معتبر انتخاب کنید.', 422);
-    try {
-      return await this.products.create(input);
-    } catch (err: unknown) {
-      const e = err as { code?: string };
-      if (e.code === 'P2002') throw new ProductServiceError('slug_exists', 'محصولی با این شناسه (slug) قبلاً ثبت شده است. لطفاً شناسه دیگری انتخاب کنید.', 409);
-      throw err;
-    }
+    try { return await this.products.create(input); } catch (err: unknown) { const e = err as { code?: string }; if (e.code === 'P2002') throw new ProductServiceError('slug_exists', 'محصولی با این شناسه (slug) قبلاً ثبت شده است. لطفاً شناسه دیگری انتخاب کنید.', 409); throw err; }
   }
 
-  async updateProduct(id: string, input: {
-    name?: string; shortDescription?: string; price?: number; compareAtPrice?: number | null; categoryId?: string;
-    region?: string; currency?: string; inStock?: boolean; isActive?: boolean; stockQuantity?: number;
-    description?: string | null; whatsappNumber?: string | null; videoUrl?: string | null; isTraditional?: boolean;
-    weightKg?: number | null; dimensionsJson?: string | null; tagsJson?: string | null; attributesJson?: string | null;
-    primaryImageIndex?: number;
-  }) {
-    if (input.categoryId) {
-      const category = await this.categories.findById(input.categoryId);
-      if (!category) throw new ProductServiceError('category_not_found', 'دسته‌بندی انتخاب‌شده وجود ندارد.', 422);
-    }
+  async updateProduct(id: string, input: { name?: string; shortDescription?: string; price?: number; compareAtPrice?: number | null; categoryId?: string; region?: string; currency?: string; inStock?: boolean; isActive?: boolean; stockQuantity?: number; description?: string | null; whatsappNumber?: string | null; videoUrl?: string | null; isTraditional?: boolean; weightKg?: number | null; dimensionsJson?: string | null; tagsJson?: string | null; attributesJson?: string | null; primaryImageIndex?: number; }) {
+    if (input.categoryId) { const category = await this.categories.findById(input.categoryId); if (!category) throw new ProductServiceError('category_not_found', 'دسته‌بندی انتخاب‌شده وجود ندارد.', 422); }
     return this.products.update(id, input);
   }
 
@@ -165,9 +112,7 @@ export class ProductService {
     return product.sellerId === userId ? 'ok' : 'forbidden';
   }
 
-  async getHomepageSections(sectionSize = 8): Promise<{
-    newest: ProductSummary[]; bestSelling: ProductSummary[]; mostViewed: ProductSummary[]; popular: ProductSummary[]; featured: ProductSummary[];
-  }> {
+  async getHomepageSections(sectionSize = 8): Promise<{ newest: ProductSummary[]; bestSelling: ProductSummary[]; mostViewed: ProductSummary[]; popular: ProductSummary[]; featured: ProductSummary[]; }> {
     const baseFilter: ProductListFilter = { isActive: true, pageSize: sectionSize };
     const [newResult, bestResult, viewedResult, popularResult, featuredResult] = await Promise.all([
       this.products.findMany({ ...baseFilter, sort: 'newest', page: 1 }),
@@ -178,13 +123,7 @@ export class ProductService {
     ]);
     const allIds = [...newResult.items, ...bestResult.items, ...viewedResult.items, ...popularResult.items, ...featuredResult.items].map((r) => r.id);
     const ratings = await this.products.getRatings([...new Set(allIds)]);
-    const toSummaries = (rows: ProductRow[]): ProductSummary[] => rows.map((row) => {
-      const rating = ratings.get(row.id);
-      return mapProductSummary(row as never, { averageRating: rating?.average ?? 0, reviewCount: rating?.count ?? 0 });
-    });
-    return {
-      newest: toSummaries(newResult.items), bestSelling: toSummaries(bestResult.items), mostViewed: toSummaries(viewedResult.items),
-      popular: toSummaries(popularResult.items), featured: toSummaries(featuredResult.items),
-    };
+    const toSummaries = (rows: ProductRow[]): ProductSummary[] => rows.map((row) => { const rating = ratings.get(row.id); return mapProductSummary(row as never, { averageRating: rating?.average ?? 0, reviewCount: rating?.count ?? 0 }); });
+    return { newest: toSummaries(newResult.items), bestSelling: toSummaries(bestResult.items), mostViewed: toSummaries(viewedResult.items), popular: toSummaries(popularResult.items), featured: toSummaries(featuredResult.items) };
   }
 }
