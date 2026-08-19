@@ -44,38 +44,54 @@ export async function GET(req: NextRequest) {
   try {
     const result = await getSearchService().search({ q, ...filters });
     const storeQuery = q.trim();
-    const stores = await prisma.user.findMany({
-      where: {
-        role: 'seller',
-        sellerStatus: 'approved',
-        isActive: true,
-        OR: [
-          { sellerShopName: { contains: storeQuery, mode: 'insensitive' } },
-          { fullName: { contains: storeQuery, mode: 'insensitive' } },
-        ],
-      },
-      select: {
-        id: true,
-        fullName: true,
-        sellerShopName: true,
-        sellerBio: true,
-        sellerLogoUrl: true,
-        sellerCity: true,
-        _count: { select: { products: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 8,
-    });
+    let storeResults: Array<{
+      id: string;
+      name: string;
+      bio: string | null;
+      logoUrl: string | null;
+      city: string | null;
+      productCount: number;
+      href: string;
+    }> = [];
 
-    const storeResults = stores.map((store) => ({
-      id: store.id,
-      name: store.sellerShopName ?? store.fullName ?? 'Eshop Seller',
-      bio: store.sellerBio,
-      logoUrl: store.sellerLogoUrl,
-      city: store.sellerCity,
-      productCount: store._count.products,
-      href: `/store/${store.id}`,
-    }));
+    try {
+      const stores = await prisma.user.findMany({
+        where: {
+          role: 'seller',
+          sellerStatus: 'approved',
+          isActive: true,
+          OR: [
+            { sellerShopName: { contains: storeQuery, mode: 'insensitive' } },
+            { fullName: { contains: storeQuery, mode: 'insensitive' } },
+          ],
+        },
+        select: {
+          id: true,
+          fullName: true,
+          sellerShopName: true,
+          sellerBio: true,
+          sellerLogoUrl: true,
+          sellerCity: true,
+          _count: { select: { products: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 8,
+      });
+
+      storeResults = stores.map((store) => ({
+        id: store.id,
+        name: store.sellerShopName ?? store.fullName ?? 'Eshop Seller',
+        bio: store.sellerBio,
+        logoUrl: store.sellerLogoUrl,
+        city: store.sellerCity,
+        productCount: store._count.products,
+        href: `/store/${store.id}`,
+      }));
+    } catch (error) {
+      // Store lookup is an optional part of global search. Never let a seller-schema
+      // mismatch prevent the product search from returning real results.
+      console.warn('[api/search] store lookup unavailable; returning product results only', error);
+    }
 
     try {
       await prisma.$executeRawUnsafe(
