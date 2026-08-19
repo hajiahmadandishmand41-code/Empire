@@ -7,6 +7,7 @@ import { BestSellersSection } from '@/features/home/components/bestsellers-secti
 import { NewArrivalsSection } from '@/features/home/components/new-arrivals-section';
 import { BecomeSellerBanner } from '@/features/home/components/become-seller-banner';
 import { TrustSection } from '@/features/home/components/trust-section';
+import { TraditionalHomeBanner } from '@/features/traditional/components/traditional-home-banner';
 import { SiteHeader } from '@/features/home/components/site-header';
 import { SiteFooter } from '@/features/home/components/site-footer';
 import { BottomNavigation } from '@/features/home/components/bottom-navigation';
@@ -21,8 +22,8 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
     <div className="min-h-dvh bg-background">
       <SiteHeader />
       <main id="main" className="min-h-dvh pb-16 md:pb-0">
-        {/* Phase 1: compact, fast, conversion-first. Add more discovery sections only after this core is stable. */}
         <HomepageHeroCarousel products={heroProducts} locale={locale} currency="AFN" />
+        <TraditionalHomeBanner locale={locale} />
         <Suspense fallback={<div className="h-24 animate-pulse bg-muted/40" />}>
           <CategoriesSection />
         </Suspense>
