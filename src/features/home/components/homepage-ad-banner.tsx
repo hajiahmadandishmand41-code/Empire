@@ -34,6 +34,7 @@ export async function HomepageAdBanner({ locale }: Props) {
       <section className="mx-auto max-w-screen-xl px-3 pt-3 sm:px-6 sm:pt-4" aria-label="Advertisement">
         <Link href={href} className="group relative block overflow-hidden rounded-2xl border border-primary/15 bg-gradient-to-r from-primary via-rose-600 to-purple-600 shadow-premium">
           {imageUrl && <div className="absolute inset-0 bg-cover bg-center opacity-25 transition-transform duration-700 group-hover:scale-105" style={{ backgroundImage: `url(${imageUrl})` }} aria-hidden="true" />}
+          <div className="absolute -inset-y-4 -start-1/2 w-1/3 rotate-[18deg] bg-white/15 blur-2xl animate-[shimmer_5s_linear_infinite]" aria-hidden="true" />
           <div className="absolute inset-0 bg-gradient-to-r from-black/20 via-transparent to-black/20" aria-hidden="true" />
           <div className="relative flex min-h-[110px] items-center justify-between gap-5 px-5 py-5 sm:min-h-[132px] sm:px-8">
             <div className="min-w-0 text-white">
