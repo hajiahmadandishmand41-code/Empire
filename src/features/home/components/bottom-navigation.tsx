@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useEffect, useState } from 'react';
-import { Home, LayoutGrid, ShoppingCart, User, X, ClipboardList, Heart, MapPin, Settings, Phone, Info, LogOut, ShieldCheck, Briefcase } from 'lucide-react';
+import { Home, LayoutGrid, Search, ShoppingCart, User, X, ClipboardList, Heart, MapPin, Settings, Phone, Info, LogOut, ShieldCheck, Briefcase } from 'lucide-react';
 import { usePathname, useRouter, Link } from '@/i18n/routing';
 import { useLocale, useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
@@ -47,7 +47,7 @@ export function BottomNavigation() {
 
   const isHome = pathname === '/';
   const isCategories = pathname.includes('/categories');
-  const isWishlist = pathname.includes('/wishlist');
+  const isSearch = pathname.includes('/search');
   const isCart = pathname === '/cart';
   const isAccount = pathname.includes('/profile') || pathname.includes('/orders') || pathname.includes('/settings') || pathname.includes('/seller') || pathname.includes('/admin');
 
@@ -72,14 +72,15 @@ export function BottomNavigation() {
   }
 
   const wishlistLabel = locale === 'en' ? 'Wishlist' : locale === 'ps' ? 'خوښې' : 'علاقه‌مندی‌ها';
+  const searchLabel = locale === 'en' ? 'Search' : locale === 'ps' ? 'لټون' : 'جستجو';
   const loginLabel = locale === 'en' ? 'Sign in' : locale === 'ps' ? 'ننوتل' : 'ورود';
 
   return <>
-    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/95 shadow-[0_-6px_24px_hsl(var(--foreground)/.06)] backdrop-blur-xl md:hidden" aria-label={t('account')}>
+    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/95 shadow-[0_-6px_24px_hsl(var(--foreground)/.06)] backdrop-blur-xl md:hidden" aria-label="Mobile navigation">
       <div className="mx-auto flex max-w-md items-stretch px-1">
         <NavItem href="/" active={isHome} label={t('home')}><Home className="h-5 w-5" /></NavItem>
         <NavItem href="/categories" active={isCategories} label={t('categories')}><LayoutGrid className="h-5 w-5" /></NavItem>
-        <NavItem href="/wishlist" active={isWishlist} label={wishlistLabel}><Heart className="h-5 w-5" /></NavItem>
+        <NavItem href="/search" active={isSearch} label={searchLabel}><Search className="h-5 w-5" /></NavItem>
         <NavItem href="/cart" active={isCart} badge={cartCount} label={t('cart')}><ShoppingCart className="h-5 w-5" /></NavItem>
         <button type="button" onClick={() => user ? setAccountOpen(true) : userLoaded && router.push('/auth/login')} className={cn('relative flex flex-1 flex-col items-center gap-1 py-2.5 text-[10px] font-semibold', isAccount ? 'text-primary' : 'text-muted-foreground')} aria-label={user ? t('account') : h('login')}>
           <span className={cn('flex h-9 w-9 items-center justify-center rounded-xl', isAccount ? 'bg-accent' : '')}>{user ? <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">{user.fullName.charAt(0)}</span> : <User className="h-5 w-5" />}</span>
