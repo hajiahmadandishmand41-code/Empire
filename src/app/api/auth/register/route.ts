@@ -2,7 +2,7 @@ import type { NextRequest } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { prisma, isDatabaseConfigured } from '@/lib/db';
 import { jsonOk, jsonError, jsonPreflight } from '@/lib/api/response';
-import { setSessionCookie } from '@/lib/auth/session';
+import { hasValidAuthSecret, setSessionCookie } from '@/lib/auth/session';
 import { registerSchema, parseIdentifier } from '@/lib/auth/schemas';
 import { clientKey, rateLimitAsync, RATE_PRESETS } from '@/lib/api/rate-limit';
 import { logger } from '@/lib/logger';
@@ -35,6 +35,17 @@ export async function POST(req: NextRequest) {
   if (!isDatabaseConfigured()) {
     logger.error('auth.register.no_database', {
       message: 'A supported production database URL is not configured.',
+      nodeEnv: process.env.NODE_ENV,
+    });
+    return databaseUnavailable();
+  }
+
+  // Do this before creating a user. Without a valid signing secret,
+  // setSessionCookie() would fail after the DB write and leave a real account
+  // that cannot complete registration/login.
+  if (!hasValidAuthSecret()) {
+    logger.error('auth.register.invalid_session_config', {
+      message: 'A valid AUTH_SECRET/NEXTAUTH_SECRET/SESSION_SECRET is required before creating accounts.',
       nodeEnv: process.env.NODE_ENV,
     });
     return databaseUnavailable();
@@ -79,7 +90,20 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    await setSessionCookie(user.id);
+    try {
+      await setSessionCookie(user.id);
+    } catch (error) {
+      // Best-effort rollback of the just-created account. This protects
+      // against a runtime session configuration failure between the preflight
+      // check and cookie creation.
+      try {
+        await prisma.user.delete({ where: { id: user.id } });
+      } catch (rollbackError) {
+        logger.error('auth.register.rollback_failed', {}, rollbackError);
+      }
+      logger.error('auth.register.session_failed', { code: 'SESSION_SETUP_FAILED' }, error);
+      return databaseUnavailable();
+    }
 
     return jsonOk({ user }, { status: 201 });
   } catch (error) {
