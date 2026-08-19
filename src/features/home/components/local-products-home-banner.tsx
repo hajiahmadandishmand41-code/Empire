@@ -27,7 +27,7 @@ export function LocalProductsHomeBanner() {
             <p className="max-w-2xl text-xs leading-6 text-white/80 sm:text-sm">{t('subtitle')}</p>
           </div>
           <Link
-            href="/shop?categoryKey=traditional" as never
+            href="/traditional"
             className="group inline-flex shrink-0 items-center gap-2 rounded-2xl bg-white px-4 py-2.5 text-sm font-bold text-emerald-800 shadow-lg shadow-black/20 transition-all hover:-translate-y-0.5 hover:bg-emerald-50 active:scale-95 sm:px-5"
           >
             <ShoppingBag className="h-4 w-4 transition-transform group-hover:scale-110" aria-hidden />
