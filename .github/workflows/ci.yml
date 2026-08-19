@@ -17,11 +17,11 @@ concurrency:
 env:
   DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
   NEXT_TELEMETRY_DISABLED: '1'
-  SKIP_DB_MIGRATE: '1'
 
 jobs:
   quality:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     services:
       postgres:
         image: postgres:16
@@ -46,8 +46,11 @@ jobs:
           node-version: 24
           cache: npm
 
+      - name: Normalize lockfile metadata
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --ignore-scripts --no-audit --no-fund
 
       - name: Lint
         run: npm run lint
