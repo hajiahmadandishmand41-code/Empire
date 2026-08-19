@@ -3,6 +3,7 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { SiteHeader } from '@/features/home/components/site-header';
 import { SiteFooter } from '@/features/home/components/site-footer';
 import { ProductDetail } from '@/features/product/components/product-detail';
+import { RecentlyViewedTracker } from '@/features/product/components/recently-viewed-tracker';
 import type { Metadata } from 'next';
 import { getProductService } from '@/server/infrastructure/registry';
 
@@ -37,5 +38,43 @@ export default async function ProductPage({ params }: { params: Promise<{ locale
   const product = await service.getProductBySlug(slug);
   if (!product) notFound();
   const related = await service.getRelatedProducts(slug, 4);
-  return <><SiteHeader /><main id="main" className="min-h-dvh bg-background"><ProductDetail product={product} related={related} locale={locale} currency="AFN" /></main><SiteFooter /></>;
+  const productUrl = `${SITE_URL}/${locale}/shop/${slug}`;
+  const productSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: product.name,
+    description: product.shortDescription ?? product.name,
+    image: product.images.map((image) => image.src).filter(Boolean),
+    sku: product.slug,
+    brand: { '@type': 'Brand', name: product.sellerShopName ?? 'EmpireShop' },
+    offers: {
+      '@type': 'Offer',
+      url: productUrl,
+      priceCurrency: 'AFN',
+      price: String(product.price),
+      availability: product.inStock ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+      seller: { '@type': 'Organization', name: product.sellerShopName ?? 'EmpireShop' },
+    },
+    ...(product.reviewCount > 0
+      ? {
+          aggregateRating: {
+            '@type': 'AggregateRating',
+            ratingValue: String(product.averageRating),
+            reviewCount: String(product.reviewCount),
+          },
+        }
+      : {}),
+  };
+
+  return (
+    <>
+      <SiteHeader />
+      <main id="main" className="min-h-dvh bg-background">
+        <RecentlyViewedTracker slug={product.slug} categoryKey={product.categoryKey} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(productSchema).replace(/</g, '\\u003c') }} />
+        <ProductDetail product={product} related={related} locale={locale} currency="AFN" />
+      </main>
+      <SiteFooter />
+    </>
+  );
 }
