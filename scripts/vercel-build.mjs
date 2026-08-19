@@ -38,6 +38,13 @@ const isVercelProduction = process.env.VERCEL === '1' && process.env.VERCEL_ENV 
 run('npx', ['prisma', 'generate'], 'Generating Prisma Client');
 
 if (isVercelProduction) {
+  const authSecret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET ?? process.env.SESSION_SECRET ?? '';
+  if (authSecret.trim().length < 32) {
+    console.error('[vercel-build] AUTH_SECRET/NEXTAUTH_SECRET/SESSION_SECRET must be at least 32 characters in production.');
+    console.error('[vercel-build] Refusing to run production database migrations or role provisioning.');
+    process.exit(1);
+  }
+
   run('npm', ['run', 'db:deploy'], 'Applying Prisma migrations');
 
   if (process.env.EMPIRE_PROVISION_ROLES_ON_DEPLOY === 'true') {
