@@ -29,6 +29,11 @@ function getSecret(): string {
   return secret;
 }
 
+export function hasValidAuthSecret(): boolean {
+  const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || process.env.SESSION_SECRET;
+  return Boolean(secret?.trim() && secret.trim().length >= 32);
+}
+
 function b64url(value: Buffer | string): string {
   return Buffer.from(value).toString('base64url');
 }
