@@ -1,18 +1,10 @@
 #!/usr/bin/env node
 /**
  * Vercel build orchestrator.
- *
- * Prisma Client must be generated before any Prisma CLI/script invocation
- * because Vercel may restore cached node_modules without regenerating it.
- *
- * Preview/local builds never mutate a database. Production Vercel builds
- * apply forward-only Prisma migrations before compiling the app.
- *
- * Role provisioning is intentionally opt-in through
- * EMPIRE_PROVISION_ROLES_ON_DEPLOY=true so normal deployments cannot
- * unexpectedly reset privileged-account passwords.
  */
 import { spawnSync } from 'node:child_process';
+
+process.env.PRISMA_HIDE_UPDATE_MESSAGE = '1';
 
 function run(command, args, label) {
   console.log(`[vercel-build] ${label}`);
@@ -33,8 +25,6 @@ function run(command, args, label) {
 
 const isVercelProduction = process.env.VERCEL === '1' && process.env.VERCEL_ENV === 'production';
 
-// Required before db:deploy and db:provision-roles. This prevents Prisma's
-// Vercel dependency-cache initialization error.
 run('npx', ['prisma', 'generate'], 'Generating Prisma Client');
 
 if (isVercelProduction) {

@@ -9,6 +9,7 @@ const PROTECTED_SEGMENTS = ['/profile', '/admin', '/seller'] as const;
 const SESSION_COOKIE = 'empire_session';
 const API_RATE_LIMIT = Number(process.env.API_RATE_LIMIT ?? 300);
 const API_RATE_WINDOW_MS = Number(process.env.API_RATE_WINDOW_MS ?? 60_000);
+const PUBLIC_SELLER_STORE_RESERVED = new Set(['products', 'orders', 'inventory', 'customers', 'discounts', 'reviews', 'wallet', 'reports', 'notifications', 'settings', 'storefront']);
 
 function stripLocale(pathname: string): { locale: string | null; rest: string } {
   const parts = pathname.split('/').filter(Boolean);
@@ -21,6 +22,11 @@ function stripLocale(pathname: string): { locale: string | null; rest: string } 
 
 function isProtected(rest: string): boolean {
   return PROTECTED_SEGMENTS.some((seg) => rest === seg || rest.startsWith(seg + '/'));
+}
+
+function isPublicSellerStorefront(rest: string): boolean {
+  const parts = rest.split('/').filter(Boolean);
+  return parts.length === 2 && parts[0] === 'seller' && !PUBLIC_SELLER_STORE_RESERVED.has(parts[1]);
 }
 
 function withSecurityHeaders(res: NextResponse, nonce?: string): NextResponse {
@@ -60,11 +66,6 @@ export async function proxy(req: NextRequest) {
   const requestHeaders = new Headers(req.headers);
   requestHeaders.set('x-nonce', nonce);
 
-  // Next.js reads the CSP nonce from the incoming request while rendering the
-  // App Router. Sending CSP only on the response is too late: the browser gets
-  // a strict nonce-based policy, but Next cannot attach that nonce to its
-  // framework/Flight scripts. That leaves the SSR splash mounted forever when
-  // the browser correctly blocks those scripts under CSP.
   const csp = securityHeaders({ nonce })['Content-Security-Policy'];
   requestHeaders.set('Content-Security-Policy', csp);
 
@@ -103,6 +104,17 @@ export async function proxy(req: NextRequest) {
   }
 
   const { locale, rest } = stripLocale(pathname);
+
+  // `/seller/[slug]` is a public seller storefront, while the Seller Center
+  // remains protected. Rewrite the storefront to an unprotected route tree so
+  // the parent Seller Center layout cannot force a login on public visitors.
+  if (locale && isPublicSellerStorefront(rest)) {
+    const parts = rest.split('/').filter(Boolean);
+    const target = req.nextUrl.clone();
+    target.pathname = `/${locale}/store/${parts[1]}`;
+    return withSecurityHeaders(NextResponse.rewrite(target), nonce);
+  }
+
   if (isProtected(rest) && !req.cookies.get(SESSION_COOKIE)?.value) {
     const target = req.nextUrl.clone();
     target.pathname = `/${locale ?? routing.defaultLocale}/auth/login`;

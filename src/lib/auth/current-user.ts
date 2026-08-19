@@ -14,20 +14,15 @@ export interface CurrentUser {
   phoneVerified?: boolean;
   isActive?: boolean;
   sellerStatus?: string;
+  sellerShopName?: string | null;
 }
 
-/**
- * Loads the authenticated database user and invalidates sessions issued
- * before the last account mutation. Authentication never falls back to an
- * in-memory or demo user store.
- */
 export async function getCurrentUser(): Promise<CurrentUser | null> {
   const session = await getSessionPayload();
   if (!session || !isDatabaseConfigured()) return null;
 
   const user = await prisma.user.findUnique({ where: { id: session.userId } });
   if (!user || !user.isActive) return null;
-
   if (user.updatedAt.getTime() > session.issuedAtMs) return null;
 
   return {
@@ -41,5 +36,6 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
     phoneVerified: user.phoneVerified,
     isActive: user.isActive,
     sellerStatus: user.sellerStatus,
+    sellerShopName: user.sellerShopName,
   };
 }

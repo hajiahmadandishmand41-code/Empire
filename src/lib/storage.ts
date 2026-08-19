@@ -14,7 +14,9 @@ function sign(params: Record<string,string>, secret: string) {
 export async function uploadPersistent(file: File, folder: string) {
   if (!isPersistentStorageConfigured) throw new Error('PERSISTENT_STORAGE_NOT_CONFIGURED');
   const timestamp = Math.floor(Date.now()/1000).toString();
-  const folderName = `${process.env.CLOUDINARY_UPLOAD_FOLDER ?? 'empire-shop'}/${folder}`;
+  // Existing uploads remain valid. New media uses the Eshop namespace unless
+  // CLOUDINARY_UPLOAD_FOLDER is explicitly configured for backward compatibility.
+  const folderName = `${process.env.CLOUDINARY_UPLOAD_FOLDER ?? 'eshop'}/${folder}`;
   const signature = sign({ folder: folderName, timestamp }, apiSecret!);
   const form = new FormData();
   form.append('file', file);

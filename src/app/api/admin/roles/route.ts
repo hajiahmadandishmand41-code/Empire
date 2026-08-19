@@ -1,0 +1,10 @@
+import { NextRequest } from 'next/server';
+import { z } from 'zod';
+import { prisma } from '@/lib/db';
+import { jsonError, jsonOk } from '@/lib/api/response';
+import { requireAdminApi } from '@/lib/auth/require-admin-api';
+import { DEFAULT_PERMISSIONS, upsertAdminAccess, type AdminAccessRole } from '@/features/admin/lib/control-store';
+
+const schema = z.object({ userId: z.string().min(1), accessRole: z.enum(['super_admin','admin','moderator','support']), permissions: z.array(z.string()).optional() });
+export async function GET() { const guard=await requireAdminApi('audit.view'); if(!guard.ok) return guard.response; try { const rows=await prisma.$queryRawUnsafe<Array<Record<string,unknown>>>(`SELECT u.id,u."fullName",u.email,u.role,COALESCE(a."accessRole",'admin') AS "accessRole",COALESCE(a."permissionsJson",'[]'::jsonb) AS "permissionsJson" FROM "User" u LEFT JOIN "AdminAccessControl" a ON a."userId"=u.id WHERE u.role='admin' ORDER BY u."fullName" ASC`); return jsonOk(rows); } catch { return jsonError('db_unavailable','Roles are unavailable',{status:503}); } }
+export async function PUT(req:NextRequest){ const guard=await requireAdminApi('users.manage'); if(!guard.ok) return guard.response; const p=schema.safeParse(await req.json().catch(()=>null)); if(!p.success) return jsonError('invalid_body','Invalid access role payload',{status:422}); if(p.data.userId===guard.user.id && p.data.accessRole!=='super_admin') return jsonError('protected_admin','You cannot demote your own admin access',{status:403}); try { await upsertAdminAccess(p.data.userId,p.data.accessRole as AdminAccessRole,p.data.permissions??DEFAULT_PERMISSIONS[p.data.accessRole as AdminAccessRole]); return jsonOk({saved:true}); } catch { return jsonError('save_failed','Failed to save role',{status:500}); } }

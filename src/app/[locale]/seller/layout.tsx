@@ -15,7 +15,7 @@ export default async function SellerLayout({ params, children }: Props) {
   const user = await requireSeller({ locale });
   return (
     <>
-      <SellerShell locale={locale} userName={user.fullName}>
+      <SellerShell locale={locale} userName={user.fullName} storeName={user.sellerShopName ?? undefined}>
         {children}
       </SellerShell>
       <SonnerToaster position="top-center" richColors />
