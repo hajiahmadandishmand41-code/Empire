@@ -3,19 +3,15 @@
 import Image from 'next/image';
 import { ChevronDown, Search, SlidersHorizontal } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { Link } from '@/i18n/routing';
+import { Link, useRouter } from '@/i18n/routing';
 
 export type MarketplaceCategory = { key: string; slug: string; name: string; productCount?: number; title: string; image: string };
 type Props = { categories: MarketplaceCategory[]; locale: string; placeholder: string; allLabel: string };
 
 export function CategoriesMarketplace({ categories, locale, placeholder, allLabel }: Props) {
-  const [query, setQuery] = useState('');
+  const router = useRouter();
   const [active, setActive] = useState('all');
-  const visible = useMemo(() => categories.filter((category) => {
-    const q = query.trim().toLocaleLowerCase(locale);
-    const hay = `${category.name} ${category.title}`.toLocaleLowerCase(locale);
-    return (!q || hay.includes(q)) && (active === 'all' || category.key === active);
-  }), [active, categories, locale, query]);
+  const visible = useMemo(() => categories.filter((category) => active === 'all' || category.key === active), [active, categories]);
   const selected = categories.find((category) => category.key === active);
 
   const labels = locale === 'en'
@@ -23,6 +19,12 @@ export function CategoriesMarketplace({ categories, locale, placeholder, allLabe
     : locale === 'ps'
       ? { main: 'اصلي وېشنيزې', explore: 'د بازار د برخې له مخې', all: 'ټولې وېشنيزې', items: 'برخې', products: 'محصولات', empty: 'هېڅ وېشنيزه ونه موندل شوه', back: 'وېشنيزه وګورئ' }
       : { main: 'دسته‌های اصلی', explore: 'کشف بر اساس قفسه', all: 'همه دسته‌ها', items: 'بخش', products: 'محصول', empty: 'دسته‌ای پیدا نشد', back: 'مشاهده دسته' };
+
+  function submitSearch(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const query = new FormData(event.currentTarget).get('q')?.toString().trim() ?? '';
+    router.push(query ? { pathname: '/search', query: { q: query } } : '/search');
+  }
 
   return <div className="grid gap-5 lg:grid-cols-[220px_minmax(0,1fr)]">
     <aside className="lg:sticky lg:top-24 lg:self-start">
@@ -36,9 +38,9 @@ export function CategoriesMarketplace({ categories, locale, placeholder, allLabe
     </aside>
 
     <div className="min-w-0 space-y-5">
-      <div className="rounded-2xl border border-border bg-card p-3 shadow-sm">
-        <div className="relative"><Search className="pointer-events-none absolute start-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={placeholder} aria-label={placeholder} className="h-11 w-full rounded-xl border border-border bg-muted/40 ps-10 pe-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15" /></div>
-      </div>
+      <form role="search" onSubmit={submitSearch} className="rounded-2xl border border-border bg-card p-3 shadow-sm">
+        <div className="relative"><Search className="pointer-events-none absolute start-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><input name="q" placeholder={placeholder} aria-label={placeholder} className="h-11 w-full rounded-xl border border-border bg-muted/40 ps-10 pe-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15" /><button type="submit" aria-label={locale === 'en' ? 'Search' : locale === 'ps' ? 'لټون' : 'جستجو'} className="absolute end-1.5 top-1.5 bottom-1.5 rounded-lg bg-primary px-3 text-xs font-bold text-primary-foreground">{locale === 'en' ? 'Search' : locale === 'ps' ? 'لټون' : 'جستجو'}</button></div>
+      </form>
 
       <div className="flex items-end justify-between gap-3"><div><p className="text-xs font-bold text-primary">{labels.explore}</p><h2 className="mt-1 text-xl font-black">{selected?.title ?? labels.all}</h2></div><span className="text-xs text-muted-foreground">{visible.length} {labels.items}</span></div>
 
