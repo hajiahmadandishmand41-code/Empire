@@ -10,7 +10,6 @@ import { ShopPageClient } from '@/features/shop';
 import { getCategoryRepository } from '@/server/infrastructure/registry';
 
 type Props = { params: Promise<{ locale: string; slug: string }> };
-
 type FallbackCategory = { key: string; name: string; slug: string; productCount: number };
 
 const fallbackCategories: Record<string, FallbackCategory> = {
@@ -26,6 +25,10 @@ const fallbackCategories: Record<string, FallbackCategory> = {
   watches: { key: 'watches', name: 'ساعت و اکسسوری', slug: 'watches', productCount: 0 },
 };
 
+function fallbackFor(slug: string): FallbackCategory {
+  return fallbackCategories[slug] ?? { key: slug, name: slug.replace(/[-_]+/g, ' '), slug, productCount: 0 };
+}
+
 async function getCategory(slug: string) {
   try {
     return await getCategoryRepository().findBySlug(slug);
@@ -39,17 +42,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { locale, slug } = await params;
   const category = (await getCategory(slug)) ?? fallbackCategories[slug];
   if (!category) return { title: locale === 'en' ? 'Category | Eshop' : 'دسته‌بندی | ایشاپ' };
-  const name = category.name;
-  const title = locale === 'en' ? `${name} | Eshop` : locale === 'ps' ? `${name} | Eshop` : `${name} | ایشاپ`;
-  const description = locale === 'en' ? `Browse ${name} products on Eshop.` : locale === 'ps' ? `د ${name} محصولات په Eshop کې وګورئ.` : `محصولات دسته «${name}» را در ایشاپ ببینید.`;
+  const title = locale === 'en' ? `${category.name} | Eshop` : locale === 'ps' ? `${category.name} | Eshop` : `${category.name} | ایشاپ`;
+  const description = locale === 'en' ? `Browse ${category.name} products on Eshop.` : locale === 'ps' ? `د ${category.name} محصولات په Eshop کې وګورئ.` : `محصولات دسته «${category.name}» را در ایشاپ ببینید.`;
   return { title, description, robots: { index: true, follow: true } };
 }
 
 export default async function CategoryPage({ params }: Props) {
   const { locale, slug } = await params;
   setRequestLocale(locale);
-  const category = (await getCategory(slug)) ?? fallbackCategories[slug];
-  if (!category) notFound();
+  const category = (await getCategory(slug)) ?? fallbackFor(slug);
   const t = await getTranslations({ locale, namespace: 'nav' });
   const count = Number(category.productCount ?? 0);
   return (
@@ -75,9 +76,7 @@ export default async function CategoryPage({ params }: Props) {
             </div>
           </div>
         </section>
-        <section className="mx-auto max-w-screen-xl px-3 sm:px-6">
-          <ShopPageClient locale={locale} currency="AFN" initialCategoryKey={category.key} />
-        </section>
+        <section className="mx-auto max-w-screen-xl px-3 sm:px-6"><ShopPageClient locale={locale} currency="AFN" initialCategoryKey={category.key} /></section>
       </main>
       <SiteFooter />
       <BottomNavigation />
