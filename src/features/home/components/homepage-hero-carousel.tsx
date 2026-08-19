@@ -38,7 +38,7 @@ export function HomepageHeroCarousel({ products, locale = 'fa', currency = 'AFN'
             <span className="inline-flex items-center gap-2 rounded-full bg-accent px-3 py-1 text-[10px] font-bold text-accent-foreground"><Sparkles className="h-3.5 w-3.5" />EmpireShop</span>
             <h1 className="mt-3 text-2xl font-black tracking-tight text-foreground sm:text-4xl">{locale === 'en' ? 'A new marketplace experience for Afghanistan' : locale === 'ps' ? 'د افغانستان لپاره نوی بازار تجربه' : 'تجربه‌ای تازه برای خرید آنلاین افغانستان'}</h1>
             <p className="mt-3 max-w-xl text-sm leading-7 text-muted-foreground">{locale === 'en' ? 'Discover trusted products, local treasures and everyday essentials in one calm, fast marketplace.' : locale === 'ps' ? 'باوري محصولات او د افغانستان اصلي توکي په یوه چټک او ساده بازار کې ومومئ.' : 'محصولات قابل اعتماد، کالاهای روزمره و میراث اصیل افغانستان را در یک بازار آرام، سریع و حرفه‌ای پیدا کنید.'}</p>
-            <Link href="/shop" className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground shadow-sm transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-md"><ShoppingBag className="h-4 w-4" />{labels.buy}<ChevronLeft className="h-4 w-4 rtl:rotate-180" /></Link>
+            <Link href={'/shop' as never} className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground shadow-sm transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-md"><ShoppingBag className="h-4 w-4" />{labels.buy}<ChevronLeft className="h-4 w-4 rtl:rotate-180" /></Link>
           </div>
         </div>
       </section>
