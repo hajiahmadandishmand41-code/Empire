@@ -4,101 +4,11 @@ import { Search, SlidersHorizontal } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link } from '@/i18n/routing';
 
-export type MarketplaceCategory = {
-  key: string;
-  slug: string;
-  name: string;
-  productCount?: number;
-  title: string;
-  image: string;
-};
+export type MarketplaceCategory = { key:string;slug:string;name:string;productCount?:number;title:string;image:string };
+type Props={categories:MarketplaceCategory[];locale:string;placeholder:string;allLabel:string};
 
-type Props = {
-  categories: MarketplaceCategory[];
-  locale: string;
-  placeholder: string;
-  allLabel: string;
-};
-
-export function CategoriesMarketplace({ categories, locale, placeholder, allLabel }: Props) {
-  const [query, setQuery] = useState('');
-  const [active, setActive] = useState('all');
-
-  const filtered = useMemo(() => {
-    const needle = query.trim().toLocaleLowerCase(locale);
-    return categories.filter((category) => {
-      const matchesTab = active === 'all' || category.key === active;
-      const haystack = `${category.name} ${category.title}`.toLocaleLowerCase(locale);
-      return matchesTab && (!needle || haystack.includes(needle));
-    });
-  }, [active, categories, locale, query]);
-
-  return (
-    <div className="space-y-5">
-      <div className="sticky top-[7rem] z-20 flex flex-col gap-3 rounded-2xl border border-border bg-card/95 p-3 shadow-premium backdrop-blur-xl md:flex-row md:items-center">
-        <div className="relative min-w-0 flex-1">
-          <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder={placeholder}
-            aria-label={placeholder}
-            className="h-11 w-full rounded-xl border border-border bg-background ps-10 pe-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15"
-          />
-        </div>
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0">
-          <button
-            type="button"
-            onClick={() => setActive('all')}
-            className={`inline-flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold transition ${active === 'all' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground hover:bg-accent'}`}
-          >
-            <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden />
-            {allLabel}
-          </button>
-          {categories.slice(0, 8).map((category) => (
-            <button
-              type="button"
-              key={category.key}
-              onClick={() => setActive(category.key)}
-              className={`shrink-0 rounded-xl px-3 py-2 text-xs font-bold transition ${active === category.key ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground hover:bg-accent'}`}
-            >
-              {category.title}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {filtered.length === 0 ? (
-        <div className="rounded-3xl border border-dashed border-border bg-card px-6 py-16 text-center">
-          <p className="text-lg font-black text-foreground">{locale === 'en' ? 'No categories found' : locale === 'ps' ? 'هېڅ کټګوري ونه موندل شوه' : 'دسته‌ای پیدا نشد'}</p>
-          <p className="mt-2 text-sm text-muted-foreground">{locale === 'en' ? 'Try another search term.' : locale === 'ps' ? 'بل د لټون ټکی وکاروئ.' : 'عبارت دیگری را جستجو کنید.'}</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-          {filtered.map((category) => (
-            <Link
-              key={category.key}
-              href={`/category/${category.slug}`}
-              className="group overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition duration-300 hover:-translate-y-1 hover:border-primary/25 hover:shadow-premium"
-            >
-              <div className="relative aspect-[1.15] overflow-hidden bg-muted">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={category.image}
-                  alt={category.title}
-                  loading="lazy"
-                  className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-                />
-                <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/65 to-transparent" />
-                <div className="absolute inset-x-3 bottom-3 text-white">
-                  <h2 className="line-clamp-2 text-sm font-black drop-shadow sm:text-base">{category.title}</h2>
-                  <p className="mt-1 text-[11px] font-semibold text-white/80">{category.productCount ?? 0} {locale === 'en' ? 'products' : locale === 'ps' ? 'محصولات' : 'محصول'}</p>
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+export function CategoriesMarketplace({categories,locale,placeholder,allLabel}:Props){
+  const [query,setQuery]=useState('');const [active,setActive]=useState('all');
+  const filtered=useMemo(()=>{const needle=query.trim().toLocaleLowerCase(locale);return categories.filter(category=>{const matchesTab=active==='all'||category.key===active;const haystack=`${category.name} ${category.title}`.toLocaleLowerCase(locale);return matchesTab&&(!needle||haystack.includes(needle));});},[active,categories,locale,query]);
+  return <div className="space-y-5"><div className="sticky top-[7rem] z-20 flex flex-col gap-3 rounded-2xl border border-border bg-card/95 p-3 shadow-premium backdrop-blur-xl md:flex-row md:items-center"><div className="relative min-w-0 flex-1"><Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden/><input value={query} onChange={event=>setQuery(event.target.value)} placeholder={placeholder} aria-label={placeholder} className="h-11 w-full rounded-xl border border-border bg-background ps-10 pe-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15"/></div><div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0"><button type="button" onClick={()=>setActive('all')} className={`inline-flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold transition ${active==='all'?'bg-primary text-primary-foreground':'bg-secondary text-secondary-foreground hover:bg-accent'}`}><SlidersHorizontal className="h-3.5 w-3.5" aria-hidden/>{allLabel}</button>{categories.slice(0,8).map(category=><button type="button" key={category.key} onClick={()=>setActive(category.key)} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-bold transition ${active===category.key?'bg-primary text-primary-foreground':'bg-secondary text-secondary-foreground hover:bg-accent'}`}>{category.title}</button>)}</div></div>{filtered.length===0?<div className="rounded-3xl border border-dashed border-border bg-card px-6 py-16 text-center"><p className="text-lg font-black text-foreground">{locale==='en'?'No categories found':locale==='ps'?'هېڅ کټګوري ونه موندل شوه':'دسته‌ای پیدا نشد'}</p><p className="mt-2 text-sm text-muted-foreground">{locale==='en'?'Try another search term.':locale==='ps'?'بل د لټون ټکی وکاروئ.':'عبارت دیگری را جستجو کنید.'}</p></div>:<div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">{filtered.map(category=><Link key={category.key} href={`/category/${category.slug}`} className="group overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition duration-300 hover:-translate-y-1 hover:border-primary/25 hover:shadow-premium"><div className="relative aspect-[1.15] overflow-hidden bg-muted"><img src={category.image} alt={category.title} loading="lazy" className="h-full w-full object-cover transition duration-500 group-hover:scale-105"/><div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/65 to-transparent"/><div className="absolute inset-x-3 bottom-3 text-white"><h2 className="line-clamp-2 text-sm font-black drop-shadow sm:text-base">{category.title}</h2><p className="mt-1 text-[11px] font-semibold text-white/80">{category.productCount??0} {locale==='en'?'products':locale==='ps'?'محصولات':'محصول'}</p></div></div></Link>)}</div>}</div>;
 }
