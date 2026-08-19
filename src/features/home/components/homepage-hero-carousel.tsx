@@ -18,7 +18,6 @@ export function HomepageHeroCarousel({ products, locale = 'fa', currency = 'AFN'
   const [index, setIndex] = React.useState(0);
   const [paused, setPaused] = React.useState(false);
   const [swipeStart, setSwipeStart] = React.useState<number | null>(null);
-
   const labels = locale === 'en'
     ? { eyebrow: 'Featured on EmpireShop', cta: 'View product', next: 'Next product', prev: 'Previous product', buy: 'Shop now', swipe: 'Swipe to explore', save: 'Save to wishlist', saved: 'Saved to wishlist' }
     : locale === 'ps'
@@ -48,6 +47,7 @@ export function HomepageHeroCarousel({ products, locale = 'fa', currency = 'AFN'
 
   const product = products[index] ?? products[0];
   const image = product.images?.[0]?.src ?? null;
+  const rating = product.averageRating ?? 0;
   const discount = product.comparePrice && product.comparePrice > product.price ? Math.round(((product.comparePrice - product.price) / product.comparePrice) * 100) : 0;
 
   function onPointerDown(event: React.PointerEvent<HTMLDivElement>) { setSwipeStart(event.clientX); }
@@ -68,7 +68,7 @@ export function HomepageHeroCarousel({ products, locale = 'fa', currency = 'AFN'
             <div key={product.id} className="hero-copy-in mt-4 max-w-2xl">
               <p className="text-xs font-semibold text-primary">{product.sellerShopName ?? (locale === 'en' ? 'Trusted seller' : locale === 'ps' ? 'باوري پلورونکی' : 'فروشنده معتبر')}</p>
               <h1 className="mt-2 text-3xl font-black leading-[1.22] tracking-tight text-foreground sm:text-4xl lg:text-[46px]">{product.name}</h1>
-              <div className="mt-3 flex items-center gap-3 text-xs text-muted-foreground">{product.averageRating > 0 && <span className="inline-flex items-center gap-1"><Star className="h-3.5 w-3.5 fill-price-warning text-price-warning" />{product.averageRating.toFixed(1)}</span>}{product.sellerShopName && <span className="truncate">{product.sellerShopName}</span>}</div>
+              <div className="mt-3 flex items-center gap-3 text-xs text-muted-foreground">{rating > 0 && <span className="inline-flex items-center gap-1"><Star className="h-3.5 w-3.5 fill-price-warning text-price-warning" />{rating.toFixed(1)}</span>}{product.sellerShopName && <span className="truncate">{product.sellerShopName}</span>}</div>
             </div>
             <div className="mt-5 flex items-end gap-3"><span className="text-2xl font-black text-price-current sm:text-3xl">{formatPrice(product.price, currency, locale)}</span>{product.comparePrice && product.comparePrice > product.price && <span className="text-sm text-muted-foreground line-through">{formatPrice(product.comparePrice, currency, locale)}</span>}</div>
             <div className="mt-5 flex flex-wrap items-center gap-2.5">
@@ -81,7 +81,7 @@ export function HomepageHeroCarousel({ products, locale = 'fa', currency = 'AFN'
             <Link href={`/shop/${product.slug}` as never} className="hero-image-reveal relative block aspect-[1.08/1] w-full max-w-[520px] overflow-hidden rounded-[22px] border border-white/70 bg-white shadow-sm dark:border-border dark:bg-card">
               {image ? <Image src={image} alt={product.name} fill priority={index === 0} sizes="(max-width: 1024px) 94vw, 52vw" className="object-cover transition-transform duration-700 ease-out group-hover:scale-[1.018]" /> : <div className="flex h-full items-center justify-center"><Sparkles className="h-16 w-16 text-primary/40" /></div>}
               <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent" aria-hidden />
-              <span className="absolute start-3 top-3 inline-flex items-center gap-1 rounded-full border border-white/70 bg-white/85 px-2.5 py-1 text-[10px] font-bold text-foreground shadow-sm backdrop-blur-sm dark:border-border dark:bg-card/85"><Star className="h-3 w-3 fill-price-warning text-price-warning" />{product.averageRating > 0 ? product.averageRating.toFixed(1) : '—'}</span>
+              <span className="absolute start-3 top-3 inline-flex items-center gap-1 rounded-full border border-white/70 bg-white/85 px-2.5 py-1 text-[10px] font-bold text-foreground shadow-sm backdrop-blur-sm dark:border-border dark:bg-card/85"><Star className="h-3 w-3 fill-price-warning text-price-warning" />{rating > 0 ? rating.toFixed(1) : '—'}</span>
             </Link>
           </div>
         </div>
