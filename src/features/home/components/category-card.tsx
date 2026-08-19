@@ -1,4 +1,4 @@
-import { getTranslations, getLocale } from 'next-intl/server';
+import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
 import type { CategoryItem } from '../data/categories';
@@ -9,15 +9,12 @@ interface CategoryCardProps { item: CategoryItem; }
 
 export async function CategoryCard({ item }: CategoryCardProps) {
   const { key, Icon, accent } = item;
-  const [t, locale] = await Promise.all([
-    getTranslations('home.categories.items'),
-    getLocale(),
-  ]);
+  const t = await getTranslations('home.categories.items');
   const title = t(`${key}.title` as Parameters<typeof t>[0]);
 
   return (
     <Link
-      href={`/${locale}/shop?categoryKey=${key}` as never}
+      href={`/shop?categoryKey=${key}` as never}
       className={cn(
         'group flex flex-col items-center gap-2 rounded-2xl border p-3 text-center shadow-sm category-card',
         'border-border/60 bg-card hover:border-rose-200 hover:bg-rose-50/40 hover:shadow-rose-100/60',
