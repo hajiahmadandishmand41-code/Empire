@@ -1,7 +1,7 @@
 {
-  "name": "Empire Shop — فروشگاه آنلاین افغانستان",
-  "short_name": "EmpireShop",
-  "description": "بزرگ‌ترین فروشگاه آنلاین افغانستان — خرید آسان، سریع و مطمئن",
+  "name": "Eshop — فروشگاه آنلاین افغانستان",
+  "short_name": "Eshop",
+  "description": "فروشگاه آنلاین افغانستان — خرید آسان، سریع و مطمئن",
   "start_url": "/fa/",
   "scope": "/",
   "display": "standalone",
@@ -25,7 +25,7 @@
     { "name": "علاقه‌مندی‌ها", "short_name": "علاقه‌مندی", "url": "/fa/wishlist", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
     { "name": "سبد خرید", "short_name": "سبد", "url": "/fa/cart", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
     { "name": "حساب من", "short_name": "حساب", "url": "/fa/profile", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
-    { "name": "محصولات سنتی", "short_name": "سنتی", "url": "/fa/traditional", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] }
+    { "name": "محصولات وطنی", "short_name": "وطنی", "url": "/fa/traditional", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] }
   ],
   "prefer_related_applications": false,
   "related_applications": []
