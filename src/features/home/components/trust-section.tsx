@@ -1,4 +1,4 @@
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 import { ShieldCheck, Truck, RotateCcw, CreditCard, Award } from 'lucide-react';
 import { Container } from '@/components/layout/container';
 
@@ -21,18 +21,21 @@ const fallback: Record<(typeof items)[number]['key'], { label: string; sub: stri
 export async function TrustSection() {
   const [t, locale] = await Promise.all([
     getTranslations('home.trustSection').catch(() => null),
-    getTranslations('common').catch(() => null),
+    getLocale(),
   ]);
 
+  const heading = locale === 'en' ? 'Shop with confidence' : locale === 'ps' ? 'په ډاډه زړه پیرود وکړئ' : 'خرید با خیال راحت';
+  const subheading = locale === 'en' ? 'Trust, speed and clarity in every order' : locale === 'ps' ? 'په هره سپارښتنه کې باور، چټکتیا او روڼتیا' : 'اعتماد، سرعت و شفافیت در هر سفارش';
+
   return (
-    <section aria-label="اعتماد و مزایا" className="border-b border-border bg-card py-7 sm:py-9">
+    <section aria-label={heading} className="border-b border-border bg-card py-7 sm:py-9">
       <Container size="xl">
         <div className="mb-4 flex items-end justify-between gap-3">
           <div>
             <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-primary">EmpireShop</p>
-            <h2 className="mt-1 text-base font-black tracking-tight text-foreground sm:text-lg">{locale ? 'خرید با خیال راحت' : 'Shop with confidence'}</h2>
+            <h2 className="mt-1 text-base font-black tracking-tight text-foreground sm:text-lg">{heading}</h2>
           </div>
-          <p className="hidden text-xs text-muted-foreground sm:block">اعتماد، سرعت و شفافیت در هر سفارش</p>
+          <p className="hidden text-xs text-muted-foreground sm:block">{subheading}</p>
         </div>
 
         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-5 sm:gap-3">
