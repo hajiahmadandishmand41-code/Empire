@@ -6,6 +6,7 @@ import { DataTable, type Column } from '@/features/admin/components/data-table';
 import { SearchForm } from '@/features/admin/components/search-form';
 import { Pagination } from '@/features/admin/components/pagination';
 import { DeleteIconButton, EditIconButton } from '@/features/admin/components/action-buttons';
+import { HomepageFeatureToggle } from '@/features/admin/components/homepage-feature-toggle';
 import { listAdminProducts } from '@/features/admin/lib/queries';
 import type { AdminProductRow } from '@/features/admin/lib/mock-data';
 import { formatDate, formatMoney } from '@/features/admin/lib/format';
@@ -30,6 +31,7 @@ export default async function AdminProductsPage({ params, searchParams }: Props)
     { key: 'region', header: t('region'), cell: (r) => r.region },
     { key: 'price', header: t('price'), cell: (r) => <span className="font-semibold text-navy-800">{formatMoney(r.price, r.currency)}</span> },
     { key: 'stock', header: t('stock'), cell: (r) => <span className={r.inStock ? 'inline-flex items-center rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-700' : 'inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground'}>{r.inStock ? t('available') : t('unavailable')}</span> },
+    { key: 'featured', header: '', headerClassName: 'w-10', className: 'text-center', cell: (r) => <HomepageFeatureToggle id={r.id} active={Boolean(r.isHero)} /> },
     { key: 'created', header: t('created'), cell: (r) => formatDate(r.createdAt) },
     { key: 'actions', header: '', headerClassName: 'w-24', className: 'text-end', cell: (r) => <div className="flex items-center justify-end gap-2"><EditIconButton href={`/${locale}/admin/products/${r.id}`} label={ta('edit')} /><DeleteIconButton endpoint={`/api/admin/products/${r.id}`} confirmMessage={ta('confirmDelete')} labels={{ deleted: ta('deleted'), failed: ta('deleteFailed'), network: ta('network'), aria: ta('delete') }} /></div> },
   ];
