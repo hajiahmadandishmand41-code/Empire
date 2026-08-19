@@ -31,7 +31,7 @@ export default async function AdminProductsPage({ params, searchParams }: Props)
     { key: 'price', header: t('price'), cell: (r) => <span className="font-semibold text-navy-800">{formatMoney(r.price, r.currency)}</span> },
     { key: 'stock', header: t('stock'), cell: (r) => <span className={r.inStock ? 'inline-flex items-center rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-700' : 'inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground'}>{r.inStock ? t('available') : t('unavailable')}</span> },
     { key: 'created', header: t('created'), cell: (r) => formatDate(r.createdAt) },
-    { key: 'actions', header: '', headerClassName: 'w-24', className: 'text-end', cell: (r) => <div className="flex items-center justify-end gap-2"><EditIconButton /><DeleteIconButton endpoint={`/api/admin/products/${r.id}`} confirmMessage={ta('confirmDelete')} /></div> },
+    { key: 'actions', header: '', headerClassName: 'w-24', className: 'text-end', cell: (r) => <div className="flex items-center justify-end gap-2"><EditIconButton href={`/${locale}/admin/products/${r.id}`} label={ta('edit')} /><DeleteIconButton endpoint={`/api/admin/products/${r.id}`} confirmMessage={ta('confirmDelete')} labels={{ deleted: ta('deleted'), failed: ta('deleteFailed'), network: ta('network'), aria: ta('delete') }} /></div> },
   ];
 
   return <div className="space-y-4">
