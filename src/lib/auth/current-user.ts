@@ -14,6 +14,7 @@ export interface CurrentUser {
   phoneVerified?: boolean;
   isActive?: boolean;
   sellerStatus?: string;
+  sellerShopName?: string | null;
 }
 
 /**
@@ -41,5 +42,6 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
     phoneVerified: user.phoneVerified,
     isActive: user.isActive,
     sellerStatus: user.sellerStatus,
+    sellerShopName: user.sellerShopName,
   };
 }
