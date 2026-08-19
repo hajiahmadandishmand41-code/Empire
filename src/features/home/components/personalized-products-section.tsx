@@ -1,7 +1,6 @@
 'use client';
 
 import * as React from 'react';
-import { Sparkles } from 'lucide-react';
 import { ProductSliderSection } from './product-slider-section';
 import type { SliderProduct } from './product-slider-section';
 
@@ -42,8 +41,7 @@ export function PersonalizedProductsSection({
   const personalized = recentCategories.size
     ? products.filter((product) => product.category?.name && recentCategories.has(product.category.name)).slice(0, 8)
     : [];
-  const fallback = products.slice(0, 8);
-  const selected = personalized.length >= 3 ? personalized : fallback;
+  const selected = personalized.length >= 3 ? personalized : products.slice(0, 8);
 
   if (selected.length === 0) return null;
 
@@ -61,25 +59,14 @@ export function PersonalizedProductsSection({
         : 'یک شروع هوشمند بر اساس محصولات محبوب';
 
   return (
-    <section className="border-b border-border bg-muted/20 py-6 sm:py-8" aria-label={title}>
-      <div className="mx-auto max-w-screen-xl px-3 sm:px-6">
-        <div className="mb-4 flex items-center gap-2.5">
-          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
-            <Sparkles className="h-4 w-4" aria-hidden="true" />
-          </span>
-          <div>
-            <h2 className="text-sm font-black tracking-tight sm:text-base">{title}</h2>
-            <p className="mt-0.5 text-[11px] text-muted-foreground">{subtitle}</p>
-          </div>
-        </div>
-        <ProductSliderSection
-          title=""
-          products={selected}
-          locale={locale}
-          currency={currency}
-        />
-      </div>
-    </section>
+    <ProductSliderSection
+      title={title}
+      subtitle={subtitle}
+      products={selected}
+      locale={locale}
+      currency={currency}
+      accentColor="bg-violet-500"
+    />
   );
 }
 
