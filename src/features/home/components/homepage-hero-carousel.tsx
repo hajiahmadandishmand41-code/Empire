@@ -4,8 +4,19 @@ import * as React from 'react';
 import Image from 'next/image';
 import { Link } from '@/i18n/routing';
 import { ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
-import type { BannerRow } from '@/server/services/banner.service';
 import { cn } from '@/lib/utils';
+
+type CampaignBanner = {
+  id: string;
+  title: string | null;
+  subtitle: string | null;
+  ctaLabel: string | null;
+  href: string | null;
+  desktopImageUrl: string;
+  mobileImageUrl: string | null;
+  autoSlide: boolean;
+  durationMs: number;
+};
 
 function bannerCopy(locale: string) {
   if (locale === 'en') return { aria: 'Featured campaigns', next: 'Next campaign', previous: 'Previous campaign', swipe: 'Swipe to explore', emptyTitle: 'Discover what is worth buying today', emptyText: 'Fresh offers, trusted sellers and practical products in one calm marketplace.', cta: 'Explore the marketplace' };
@@ -13,7 +24,7 @@ function bannerCopy(locale: string) {
   return { aria: 'کمپین‌های ویژه', next: 'کمپین بعدی', previous: 'کمپین قبلی', swipe: 'برای دیدن بکشید', emptyTitle: 'امروز چه چیزی ارزش خرید دارد؟', emptyText: 'پیشنهادهای تازه، فروشندگان معتبر و محصولات کاربردی در یک بازار سریع و آرام.', cta: 'ورود به فروشگاه' };
 }
 
-export function HomepageHeroCarousel({ banners = [], locale = 'fa' }: { banners?: BannerRow[]; locale?: string }) {
+export function HomepageHeroCarousel({ banners = [], locale = 'fa' }: { banners?: CampaignBanner[]; locale?: string }) {
   const labels = bannerCopy(locale);
   const count = banners.length;
   const [index, setIndex] = React.useState(0);
@@ -66,7 +77,6 @@ export function HomepageHeroCarousel({ banners = [], locale = 'fa' }: { banners?
   }
 
   const banner = banners[index] ?? banners[0];
-  const transition = reduceMotion ? '' : 'transition-opacity duration-500 ease-out';
 
   return (
     <section className="mx-auto max-w-screen-xl px-3 pt-3 sm:px-6 sm:pt-5" aria-label={labels.aria}>
@@ -87,9 +97,7 @@ export function HomepageHeroCarousel({ banners = [], locale = 'fa' }: { banners?
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-black/0" aria-hidden="true" />
           <div key={banner.id} className={cn('absolute inset-x-0 bottom-0 p-5 sm:p-8 lg:p-10', !reduceMotion && 'hero-copy-in')} dir={locale === 'en' ? 'ltr' : 'rtl'}>
             <div className="max-w-2xl text-white">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1.5 text-[10px] font-extrabold backdrop-blur-sm"><Sparkles className="h-3 w-3" />ایشاپ</span>
-              </div>
+              <div className="flex flex-wrap items-center gap-2"><span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1.5 text-[10px] font-extrabold backdrop-blur-sm"><Sparkles className="h-3 w-3" />ایشاپ</span></div>
               {banner.title ? <h1 className="mt-3 text-2xl font-black leading-tight sm:text-4xl lg:text-5xl">{banner.title}</h1> : null}
               {banner.subtitle ? <p className="mt-2 max-w-xl text-xs leading-6 text-white/85 sm:text-sm sm:leading-7">{banner.subtitle}</p> : null}
               {banner.ctaLabel && banner.href ? <Link href={banner.href as never} className={cn('mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl bg-white px-5 py-2.5 text-sm font-extrabold text-slate-900 shadow-sm', !reduceMotion && 'transition-transform duration-200 hover:-translate-y-0.5')}>{banner.ctaLabel}<ChevronLeft className="h-4 w-4 rtl:rotate-180" /></Link> : null}
