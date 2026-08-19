@@ -19,7 +19,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
 
   const [homepageData, heroBanners] = await Promise.all([
     getHomepageData(),
-    listActiveBanners('HOME_HERO', 6),
+    listActiveBanners('HOME_HERO', 6).catch(() => []),
   ]);
 
   const newest = homepageData.newest.map((product) => toSliderProduct(product, 'new'));
@@ -33,50 +33,16 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
       <SiteHeader />
       <main id="main" className="min-h-dvh pb-16 md:pb-0">
         <HomepageHeroCarousel banners={heroBanners} locale={locale} />
+        <Suspense fallback={<div className="h-24 animate-pulse bg-muted/40" />}><CategoriesSection /></Suspense>
 
-        <Suspense fallback={<div className="h-24 animate-pulse bg-muted/40" />}>
-          <CategoriesSection />
-        </Suspense>
-
-        <ProductSliderSection
-          title={locale === 'en' ? 'Special offers' : locale === 'ps' ? 'ځانګړي وړاندیزونه' : 'پیشنهادهای ویژه'}
-          subtitle={locale === 'en' ? 'Limited-time products worth checking today' : locale === 'ps' ? 'د نن ورځې محدود او ارزښتناک وړاندیزونه' : 'محصولات محدود و ارزشمند امروز'}
-          viewAllHref="/shop?badge=sale"
-          products={featured}
-          locale={locale}
-        />
-
-        <ProductSliderSection
-          title={locale === 'en' ? 'Best sellers' : locale === 'ps' ? 'تر ټولو ډېر پلورل شوي' : 'پرفروش‌ترین‌ها'}
-          viewAllHref="/shop?sort=bestSelling"
-          products={bestSelling}
-          locale={locale}
-          accentColor="bg-amber-500"
-        />
-
+        <ProductSliderSection title={locale === 'en' ? 'Special offers' : locale === 'ps' ? 'ځانګړي وړاندیزونه' : 'پیشنهادهای ویژه'} subtitle={locale === 'en' ? 'Limited-time products worth checking today' : locale === 'ps' ? 'د نن ورځې محدود او ارزښتناک وړاندیزونه' : 'محصولات محدود و ارزشمند امروز'} viewAllHref="/shop?badge=sale" products={featured} locale={locale} />
+        <ProductSliderSection title={locale === 'en' ? 'Best sellers' : locale === 'ps' ? 'تر ټولو ډېر پلورل شوي' : 'پرفروش‌ترین‌ها'} viewAllHref="/shop?sort=bestSelling" products={bestSelling} locale={locale} accentColor="bg-amber-500" />
         <DynamicBannerStrip locale={locale} placement="HOME_PROMO_1" />
-
-        <ProductSliderSection
-          title={locale === 'en' ? 'New arrivals' : locale === 'ps' ? 'نوي محصولات' : 'جدیدترین‌ها'}
-          viewAllHref="/shop?sort=newest"
-          products={newest}
-          locale={locale}
-          accentColor="bg-sky-500"
-        />
-
-        <ProductSliderSection
-          title={locale === 'en' ? 'Popular products' : locale === 'ps' ? 'مشهور محصولات' : 'محبوب‌ترین محصولات'}
-          viewAllHref="/shop?sort=popular"
-          products={popular}
-          locale={locale}
-          accentColor="bg-fuchsia-500"
-        />
-
+        <ProductSliderSection title={locale === 'en' ? 'New arrivals' : locale === 'ps' ? 'نوي محصولات' : 'جدیدترین‌ها'} viewAllHref="/shop?sort=newest" products={newest} locale={locale} accentColor="bg-sky-500" />
+        <ProductSliderSection title={locale === 'en' ? 'Popular products' : locale === 'ps' ? 'مشهور محصولات' : 'محبوب‌ترین محصولات'} viewAllHref="/shop?sort=popular" products={popular} locale={locale} accentColor="bg-fuchsia-500" />
         <DynamicBannerStrip locale={locale} placement="HOME_PROMO_2" />
-
         <PersonalizedProductsSection products={recentPool} locale={locale} />
         <RecentlyViewedSection products={recentPool} locale={locale} />
-
         <DynamicBannerStrip locale={locale} placement="HOME_MID" />
         <BecomeSellerBanner locale={locale} />
         <Suspense><TrustSection /></Suspense>
