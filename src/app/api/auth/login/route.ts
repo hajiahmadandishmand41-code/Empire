@@ -3,7 +3,7 @@ import { Prisma } from '@prisma/client';
 import { prisma, isDatabaseConfigured } from '@/lib/db';
 import { jsonOk, jsonError, jsonPreflight } from '@/lib/api/response';
 import { verifyPassword } from '@/lib/auth/password';
-import { setSessionCookie } from '@/lib/auth/session';
+import { hasValidAuthSecret, setSessionCookie } from '@/lib/auth/session';
 import { loginSchema, parseIdentifier } from '@/lib/auth/schemas';
 import { clientKey, rateLimitAsync, RATE_PRESETS } from '@/lib/api/rate-limit';
 import { logger } from '@/lib/logger';
@@ -36,6 +36,14 @@ export async function POST(req: NextRequest) {
   if (!isDatabaseConfigured()) {
     logger.error('auth.login.no_database', {
       message: 'A supported production database URL is not configured.',
+      nodeEnv: process.env.NODE_ENV,
+    });
+    return databaseUnavailable();
+  }
+
+  if (!hasValidAuthSecret()) {
+    logger.error('auth.login.invalid_session_config', {
+      message: 'A valid AUTH_SECRET/NEXTAUTH_SECRET/SESSION_SECRET is required for password login.',
       nodeEnv: process.env.NODE_ENV,
     });
     return databaseUnavailable();
