@@ -38,5 +38,7 @@ export function toSliderProduct(product: ProductSummary, badge?: string): Slider
     sellerId: product.sellerId,
     sellerShopName: product.sellerShopName,
     sellerWhatsapp: product.sellerWhatsapp ?? undefined,
+    region: product.region,
+    inStock: product.inStock,
   };
 }
