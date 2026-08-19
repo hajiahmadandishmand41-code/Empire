@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import { Suspense } from 'react';
 import { setRequestLocale } from 'next-intl/server';
 import { SiteHeader } from '@/features/home/components/site-header';
 import { SiteFooter } from '@/features/home/components/site-footer';
@@ -8,14 +7,12 @@ import { TraditionalPageContent } from '@/features/traditional/components/tradit
 
 const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? '').replace(/\/$/, '');
 
-interface Props {
-  params: Promise<{ locale: string }>;
-}
+type Props = { params: Promise<{ locale: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { locale } = await params;
-  const title = 'محصولات سنتی افغانستان | Empire Shop';
-  const description = 'قالین، زعفران، صنایع دستی، میوه خشک، لباس محلی و سایر محصولات اصیل افغانستان';
+  const title = locale === 'en' ? 'Afghan Local Products | Eshop' : locale === 'ps' ? 'د افغانستان کورني محصولات | Eshop' : 'محصولات وطنی افغانستان | Eshop';
+  const description = locale === 'en' ? 'Discover local Afghan products from trusted sellers.' : locale === 'ps' ? 'د باوري پلورونکو څخه د افغانستان کورني محصولات ومومئ.' : 'محصولات وطنی افغانستان را از فروشندگان معتبر کشف کنید.';
   return {
     title,
     description,
@@ -27,26 +24,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         en: `${SITE_URL}/en/traditional`,
       },
     },
-    openGraph: { title, description, type: 'website', url: `${SITE_URL}/${locale}/traditional` },
-    twitter: { card: 'summary_large_image', title, description },
   };
 }
 
 export default async function TraditionalPage({ params }: Props) {
   const { locale } = await params;
   setRequestLocale(locale);
-
   return (
     <>
       <SiteHeader />
-      <main id="main" className="min-h-dvh pb-20 md:pb-8 bg-background">
-        <Suspense fallback={
-          <div className="flex h-64 items-center justify-center">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" aria-label="در حال بارگذاری..." />
-          </div>
-        }>
-          <TraditionalPageContent locale={locale} />
-        </Suspense>
+      <main id="main" className="min-h-dvh bg-background pb-16 md:pb-0">
+        <TraditionalPageContent locale={locale} />
       </main>
       <SiteFooter />
       <BottomNavigation />

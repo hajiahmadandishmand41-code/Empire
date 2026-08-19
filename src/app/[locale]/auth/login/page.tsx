@@ -22,7 +22,11 @@ export default function LoginPage() {
   const searchParams = useSearchParams();
   const redirect = searchParams.get('redirect');
   const safeRedirect = redirect && redirect.startsWith('/') && !redirect.startsWith('//') ? redirect : '/';
-  const copy = locale === 'en' ? { title: 'Sign in to EmpireShop', subtitle: 'Welcome back. Sign in to continue.', google: 'Continue with Google', divider: 'or continue with password', secure: 'Secure sign-in', otp: 'Sign in with a one-time code' } : locale === 'ps' ? { title: 'EmpireShop ته ننوتل', subtitle: 'بیا ښه راغلاست. د دوام لپاره ننوتل وکړئ.', google: 'له Google سره ننوتل', divider: 'یا د پټنوم له لارې', secure: 'خوندي ننوتل', otp: 'د یو ځل کوډ سره ننوتل' } : { title: 'ورود به EmpireShop', subtitle: 'خوش آمدید. برای ادامه وارد حساب خود شوید.', google: 'ورود با Google', divider: 'یا با رمز عبور', secure: 'ورود امن', otp: 'ورود با کد یک‌بارمصرف' };
+  const copy = locale === 'en'
+    ? { title: 'Sign in to Eshop', subtitle: 'Welcome back. Sign in to continue.', google: 'Continue with Google', divider: 'or continue with password', secure: 'Secure sign-in' }
+    : locale === 'ps'
+      ? { title: 'Eshop ته ننوتل', subtitle: 'بیا ښه راغلاست. د دوام لپاره ننوتل وکړئ.', google: 'له Google سره ننوتل', divider: 'یا د پټنوم له لارې', secure: 'خوندي ننوتل' }
+      : { title: 'ورود به Eshop', subtitle: 'خوش آمدید. برای ادامه وارد حساب خود شوید.', google: 'ورود با Google', divider: 'یا با رمز عبور', secure: 'ورود امن' };
 
   return (
     <main id="main" className="flex min-h-[calc(100dvh-8rem)] items-center justify-center px-4 py-8 sm:py-12">
@@ -44,7 +48,8 @@ export default function LoginPage() {
         </section>
 
         <div className="mt-4 flex items-center justify-center gap-1.5 text-xs text-muted-foreground"><ShieldCheck className="h-3.5 w-3.5 text-emerald-500" aria-hidden="true" /><span>{copy.secure}</span></div>
-        <p className="mt-3 text-center text-xs text-muted-foreground"><Link href={`/${locale}/auth/otp-login?redirect=${encodeURIComponent(safeRedirect)}`} className="hover:text-primary hover:underline">{copy.otp}</Link></p>
+        <p className="mt-3 text-center text-[11px] text-muted-foreground">{locale === 'en' ? 'Password sign-in only. One-time-code login is unavailable.' : locale === 'ps' ? 'یوازې د پټنوم له لارې ننوتل. د یو ځل کوډ ننوتل نشته.' : 'ورود فقط با رمز عبور انجام می‌شود؛ ورود با کد یک‌بارمصرف حذف شده است.'}</p>
+        <p className="mt-2 text-center text-xs text-muted-foreground"><Link href={`/${locale}/auth/register`} className="font-semibold text-primary hover:underline">{locale === 'en' ? 'Create a new account' : locale === 'ps' ? 'نوی حساب جوړ کړئ' : 'ایجاد حساب جدید'}</Link></p>
       </div>
     </main>
   );
