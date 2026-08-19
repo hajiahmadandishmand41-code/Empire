@@ -39,6 +39,8 @@ export default async function ProductPage({ params }: { params: Promise<{ locale
   if (!product) notFound();
   const related = await service.getRelatedProducts(slug, 4);
   const productUrl = `${SITE_URL}/${locale}/shop/${slug}`;
+  const reviewCount = product.reviewCount ?? 0;
+  const averageRating = product.averageRating ?? 0;
   const productSchema = {
     '@context': 'https://schema.org',
     '@type': 'Product',
@@ -55,12 +57,12 @@ export default async function ProductPage({ params }: { params: Promise<{ locale
       availability: product.inStock ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
       seller: { '@type': 'Organization', name: product.sellerShopName ?? 'EmpireShop' },
     },
-    ...(product.reviewCount > 0
+    ...(reviewCount > 0
       ? {
           aggregateRating: {
             '@type': 'AggregateRating',
-            ratingValue: String(product.averageRating),
-            reviewCount: String(product.reviewCount),
+            ratingValue: String(averageRating),
+            reviewCount: String(reviewCount),
           },
         }
       : {}),
