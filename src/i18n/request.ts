@@ -9,6 +9,7 @@ import faMetadata from '../../messages/fa/metadata.json';
 import faSiteUi from '../../messages/fa/site-ui.json';
 import faTraditional from '../../messages/fa/traditional.json';
 import faAdmin from '../../messages/fa/admin.json';
+import faAdminFinance from '../../messages/fa/admin-finance.json';
 import enAuthForm from '../../messages/en/auth-form.json';
 import enResetPassword from '../../messages/en/reset-password.json';
 import enSearchUi from '../../messages/en/search-ui.json';
@@ -17,6 +18,7 @@ import enMetadata from '../../messages/en/metadata.json';
 import enSiteUi from '../../messages/en/site-ui.json';
 import enTraditional from '../../messages/en/traditional.json';
 import enAdmin from '../../messages/en/admin.json';
+import enAdminFinance from '../../messages/en/admin-finance.json';
 import psAuthForm from '../../messages/ps/auth-form.json';
 import psResetPassword from '../../messages/ps/reset-password.json';
 import psSearchUi from '../../messages/ps/search-ui.json';
@@ -25,6 +27,7 @@ import psMetadata from '../../messages/ps/metadata.json';
 import psSiteUi from '../../messages/ps/site-ui.json';
 import psTraditional from '../../messages/ps/traditional.json';
 import psAdmin from '../../messages/ps/admin.json';
+import psAdminFinance from '../../messages/ps/admin-finance.json';
 
 type Messages = Record<string, unknown>;
 
@@ -44,9 +47,9 @@ function mergeMessages(...sources: Messages[]): Messages {
 }
 
 const modulesByLocale: Record<AppLocale, Messages[]> = {
-  fa: [faAuthForm, faResetPassword, faSearchUi, faAccountNav, faMetadata, faSiteUi, faTraditional, faAdmin],
-  en: [enAuthForm, enResetPassword, enSearchUi, enAccountNav, enMetadata, enSiteUi, enTraditional, enAdmin],
-  ps: [psAuthForm, psResetPassword, psSearchUi, psAccountNav, psMetadata, psSiteUi, psTraditional, psAdmin],
+  fa: [faAuthForm, faResetPassword, faSearchUi, faAccountNav, faMetadata, faSiteUi, faTraditional, faAdmin, faAdminFinance],
+  en: [enAuthForm, enResetPassword, enSearchUi, enAccountNav, enMetadata, enSiteUi, enTraditional, enAdmin, enAdminFinance],
+  ps: [psAuthForm, psResetPassword, psSearchUi, psAccountNav, psMetadata, psSiteUi, psTraditional, psAdmin, psAdminFinance],
 };
 
 export default getRequestConfig(async ({ requestLocale }) => {
