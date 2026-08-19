@@ -4,6 +4,7 @@ import { Link } from '@/i18n/routing';
 import { Container } from '@/components/layout/container';
 import { EmpireLogo } from '@/components/empire-logo';
 import { NewsletterForm } from './newsletter-form';
+import { site } from '@/config/site';
 
 function FooterLink({ label, href }: { label: string; href: string }) {
   return <li><Link href={href} className="group flex items-center gap-1.5 rounded text-xs text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><ChevronLeft className="h-3 w-3 shrink-0 -ms-4 text-primary opacity-0 transition-all group-hover:ms-0 group-hover:opacity-100 rtl:rotate-180" aria-hidden="true" />{label}</Link></li>;
@@ -16,21 +17,16 @@ export function SiteFooter() {
   const t = useTranslations('siteFooter');
   const year = new Date().getFullYear();
   const navLinks = [
-    { label: t('home'), href: '/' },
-    { label: t('shop'), href: '/shop' },
-    { label: t('allCategories'), href: '/categories' },
-    { label: t('newProducts'), href: '/shop?sort=newest' },
-    { label: t('specialOffers'), href: '/shop?badge=sale' },
-    { label: t('bestSelling'), href: '/shop?sort=bestSelling' },
+    { label: t('home'), href: '/' }, { label: t('shop'), href: '/shop' }, { label: t('allCategories'), href: '/categories' },
+    { label: t('newProducts'), href: '/shop?sort=newest' }, { label: t('specialOffers'), href: '/shop?badge=sale' }, { label: t('bestSelling'), href: '/shop?sort=bestSelling' },
   ];
   const supportLinks = [
-    { label: t('buyingGuide'), href: '/faq' }, { label: t('trackOrder'), href: '/orders' },
-    { label: t('returns'), href: '/returns' }, { label: t('warranty'), href: '/warranty' },
-    { label: t('faq'), href: '/faq' }, { label: t('support'), href: '/contact' },
+    { label: t('buyingGuide'), href: '/faq' }, { label: t('trackOrder'), href: '/orders' }, { label: t('returns'), href: '/returns' },
+    { label: t('warranty'), href: '/warranty' }, { label: t('faq'), href: '/faq' }, { label: t('support'), href: '/contact' },
   ];
   const accountLinks = [
-    { label: t('login'), href: '/auth/login' }, { label: t('register'), href: '/auth/register' },
-    { label: t('account'), href: '/profile' }, { label: t('myOrders'), href: '/orders' }, { label: t('wishlist'), href: '/wishlist' },
+    { label: t('login'), href: '/auth/login' }, { label: t('register'), href: '/auth/register' }, { label: t('account'), href: '/profile' },
+    { label: t('myOrders'), href: '/orders' }, { label: t('wishlist'), href: '/wishlist' },
   ];
   const trustItems = [
     { icon: ShieldCheck, label: t('trustSecure'), sub: t('trustSecureSub'), iconBg: 'bg-emerald-500/15', iconColor: 'text-emerald-400' },
@@ -45,8 +41,7 @@ export function SiteFooter() {
     { icon: Youtube, href: '#', label: 'YouTube', className: 'hover:border-red-500 hover:bg-red-500/10 hover:text-red-400' },
   ];
   const legalLinks = [
-    { label: t('terms'), href: '/terms' }, { label: t('privacy'), href: '/terms' },
-    { label: t('contact'), href: '/contact' }, { label: t('returnRules'), href: '/returns' },
+    { label: t('terms'), href: '/terms' }, { label: t('privacy'), href: '/terms' }, { label: t('contact'), href: '/contact' }, { label: t('returnRules'), href: '/returns' },
   ];
 
   return <footer className="border-t border-border bg-card" role="contentinfo">
@@ -54,15 +49,15 @@ export function SiteFooter() {
     <Container size="xl" className="py-12">
       <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-5">
         <div className="space-y-5 lg:col-span-2">
-          <Link href="/" className="group flex w-fit items-center gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label={`${t('brandSubline')} — ${t('home')}`}><div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary ring-1 ring-primary/20 shadow-sm shadow-primary/20 transition-transform group-hover:scale-[1.02]" aria-hidden="true"><EmpireLogo size={30} variant="color" /></div><div><span className="block font-display text-base font-extrabold tracking-tight text-foreground">EmpireShop</span><span className="-mt-0.5 block text-[10px] tracking-wide text-muted-foreground">{t('brandSubline')}</span></div></Link>
+          <Link href="/" className="group flex w-fit items-center gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label={`${site.name} — ${t('home')}`}><div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary ring-1 ring-primary/20 shadow-sm shadow-primary/20 transition-transform group-hover:scale-[1.02]" aria-hidden="true"><EmpireLogo size={30} variant="color" /></div><div><span className="block font-display text-base font-extrabold tracking-tight text-foreground">{site.name}</span><span className="-mt-0.5 block text-[10px] tracking-wide text-muted-foreground">{t('brandSubline')}</span></div></Link>
           <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">{t('brandDescription')}</p>
-          <address className="not-italic space-y-2.5"><a href="tel:+93798228441" dir="ltr" className="group flex items-center gap-2.5 rounded text-muted-foreground hover:text-foreground"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10"><Phone className="h-3.5 w-3.5 text-primary" aria-hidden="true" /></span><span className="text-xs">+93 798 228 441</span></a><a href="mailto:support@empireshop.af" className="group flex items-center gap-2.5 rounded text-muted-foreground hover:text-foreground"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10"><Mail className="h-3.5 w-3.5 text-primary" aria-hidden="true" /></span><span className="text-xs">support@empireshop.af</span></a><div className="flex items-start gap-2.5"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10"><MapPin className="h-3.5 w-3.5 text-primary" aria-hidden="true" /></span><span className="mt-0.5 text-xs text-muted-foreground">{t('cityCountry')}</span></div><div className="flex items-center gap-2.5"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/10"><Headphones className="h-3.5 w-3.5 text-emerald-500" aria-hidden="true" /></span><span className="text-xs text-muted-foreground">{t('support247')}</span></div></address>
+          <address className="not-italic space-y-2.5"><a href="tel:+93798228441" dir="ltr" className="group flex items-center gap-2.5 rounded text-muted-foreground hover:text-foreground"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10"><Phone className="h-3.5 w-3.5 text-primary" aria-hidden="true" /></span><span className="text-xs">+93 798 228 441</span></a><a href="mailto:support@eshiop.af" className="group flex items-center gap-2.5 rounded text-muted-foreground hover:text-foreground"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10"><Mail className="h-3.5 w-3.5 text-primary" aria-hidden="true" /></span><span className="text-xs">support@eshop.af</span></a><div className="flex items-start gap-2.5"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10"><MapPin className="h-3.5 w-3.5 text-primary" aria-hidden="true" /></span><span className="mt-0.5 text-xs text-muted-foreground">{t('cityCountry')}</span></div><div className="flex items-center gap-2.5"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/10"><Headphones className="h-3.5 w-3.5 text-emerald-500" aria-hidden="true" /></span><span className="text-xs text-muted-foreground">{t('support247')}</span></div></address>
           <div className="flex items-center gap-2" role="list" aria-label={t('socials')}>{socials.map(({ icon: Icon, href, label, className }) => <a key={label} href={href} aria-label={label} role="listitem" className={`flex h-9 w-9 items-center justify-center rounded-xl border border-border text-muted-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${className}`}><Icon className="h-4 w-4" aria-hidden="true" /></a>)}</div>
         </div>
         <FooterNav title={t('mainPages')} links={navLinks} /><FooterNav title={t('supportHeading')} links={supportLinks} /><FooterNav title={t('accountHeading')} links={accountLinks} />
         <div className="space-y-3 rounded-xl border border-border bg-muted/40 p-4"><div><p className="mb-0.5 text-xs font-bold text-foreground">{t('newsletterTitle')}</p><p className="text-[11px] text-muted-foreground">{t('newsletterDescription')}</p></div><NewsletterForm /></div>
       </div>
     </Container>
-    <div className="border-t border-border/60"><Container size="xl" className="py-4"><div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-between"><p className="text-[11px] text-muted-foreground">&copy; {year} EmpireShop. {t('copyright')}</p><nav aria-label={t('legalHeading')}><div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">{legalLinks.map(({ label, href }, index) => <span key={`${href}-${label}`} className="flex items-center gap-4"><Link href={href} className="rounded text-[11px] text-muted-foreground hover:text-foreground">{label}</Link>{index < legalLinks.length - 1 && <span aria-hidden="true" className="text-xs text-border">·</span>}</span>)}</div></nav></div></Container></div>
+    <div className="border-t border-border/60"><Container size="xl" className="py-4"><div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-between"><p className="text-[11px] text-muted-foreground">&copy; {year} {site.name}. {t('copyright')}</p><nav aria-label={t('legalHeading')}><div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">{legalLinks.map(({ label, href }, index) => <span key={`${href}-${label}`} className="flex items-center gap-4"><Link href={href} className="rounded text-[11px] text-muted-foreground hover:text-foreground">{label}</Link>{index < legalLinks.length - 1 && <span aria-hidden="true" className="text-xs text-border">·</span>}</span>)}</div></nav></div></Container></div>
   </footer>;
 }
