@@ -1,9 +1,15 @@
 /**
  * Admin mock data — Phase 10.
+ *
+ * Provides realistic fallback data for the admin panel when the DB is
+ * empty or `DATABASE_URL` is not configured. Mirrors the shape of the
+ * DB-backed queries so consumer components stay identical.
  */
 import { shopProducts } from '@/features/shop/data/products';
 
-export interface AdminStats { users: number; products: number; orders: number; categories: number; revenue: number; currency: string; }
+export interface AdminStats {
+  users: number; products: number; orders: number; categories: number; revenue: number; currency: string;
+}
 export interface AdminOrderRow { id: string; reference: string; status: string; paymentMethod: string; total: number; currency: string; itemCount: number; customerName: string; createdAt: string; }
 export interface AdminUserRow { id: string; fullName: string; email: string | null; phone: string | null; role: 'customer' | 'seller' | 'admin'; isActive: boolean; createdAt: string; orderCount: number; }
 export interface AdminProductRow { id: string; slug: string; name: string; price: number; currency: string; categoryName: string; region: string; inStock: boolean; isHero?: boolean; createdAt: string; }
@@ -11,17 +17,20 @@ export interface AdminCategoryRow { id: string; key: string; name: string; slug:
 export interface SalesByDay { date: string; count: number; revenue: number; }
 export interface TopProduct { slug: string; name: string; units: number; revenue: number; }
 const NOW = Date.now();
-export const mockStats: AdminStats = { users: 128, products: shopProducts.length, orders: 47, categories: 10, revenue: 284500, currency: 'AFN' };
-export const mockProducts: AdminProductRow[] = shopProducts.map((p, index) => ({ id: p.id ?? `mock-product-${index}`, slug: p.slug, name: p.name, price: p.price, currency: 'AFN', categoryName: p.categoryKey, region: p.region ?? 'افغانستان', inStock: p.inStock ?? true, isHero: false, createdAt: new Date(NOW - index * 86400000).toISOString() }));
-export const mockCategories: AdminCategoryRow[] = [];
-export const mockOrders: AdminOrderRow[] = [];
-export const mockUsers: AdminUserRow[] = [];
-export function mockSalesByDay(days: number): SalesByDay[] { return Array.from({ length: days }, (_, i) => ({ date: new Date(NOW - (days - i - 1) * 86400000).toISOString().slice(0, 10), count: 0, revenue: 0 })); }
-export function mockTopProducts(limit = 5): TopProduct[] { return mockProducts.slice(0, limit).map((p) => ({ slug: p.slug, name: p.name, units: 0, revenue: 0 })); }
-export const mockSellers = [] as any[];
-export const mockTransactions = [] as any[];
-export function mockRevenueSummary(days: number) { return { gross: 0, paid: 0, pending: 0, refunded: 0, currency: 'AFN', orderCount: 0, paidOrderCount: 0, averageOrderValue: 0, byDay: mockSalesByDay(days), byMethod: [], }; }
-export interface AdminRevenueSummary { gross: number; paid: number; pending: number; refunded: number; currency: string; orderCount: number; paidOrderCount: number; averageOrderValue: number; byDay: SalesByDay[]; byMethod: Array<{ method: string; amount: number; count: number }>; }
-export type AdminSellerRow = any;
-export type AdminTransactionRow = any;
-export type SellerStatus = 'none' | 'pending' | 'approved' | 'rejected';
+export const mockStats: AdminStats = { users: 128, products: shopProducts.length, orders: 47, categories: 6, revenue: 8_320, currency: 'AFN' };
+export const mockProducts: AdminProductRow[] = shopProducts.map((p, i) => ({ id: p.slug, slug: p.slug, name: p.name, price: p.price, currency: 'AFN', categoryName: p.categoryKey, region: p.region, inStock: true, isHero: false, createdAt: new Date(NOW - i * 86400000).toISOString() }));
+export const mockCategories: AdminCategoryRow[] = Array.from(new Map(shopProducts.map((p) => [p.categoryKey, { id: p.categoryKey, key: p.categoryKey, name: p.categoryKey, slug: p.categoryKey, productCount: shopProducts.filter((x) => x.categoryKey === p.categoryKey).length }])).values());
+const MOCK_STATUSES = ['pending','confirmed','processing','shipped','delivered','cancelled'] as const;
+const MOCK_CUSTOMER_NAMES = ['Ahmad Karimi','Zainab Noori','Yousuf Rahimi','Fatima Ahmadi','Bilal Sharif','Nadia Hakimi'] as const;
+const MOCK_USER_NAMES = ['Ahmad Karimi','Zainab Noori','Yousuf Rahimi','Fatima Ahmadi','Bilal Sharif','Nadia Hakimi','Reza Wahidi','Sara Amiri','Kabir Jan','Marwa Sadat'] as const;
+export const mockOrders: AdminOrderRow[] = Array.from({ length: 12 }, (_, i) => { const total = 40 + i * 17; return { id:`mock-ord-${i+1}`, reference:`ORD-2026-${String(1000+i).padStart(4,'0')}`, status:MOCK_STATUSES[i%MOCK_STATUSES.length]!, paymentMethod:i%2===0?'cod':'bank_transfer', total, currency:'AFN', itemCount:1+(i%4), customerName:MOCK_CUSTOMER_NAMES[i%MOCK_CUSTOMER_NAMES.length]!, createdAt:new Date(NOW-i*3600_000*6).toISOString() }; });
+export const mockUsers: AdminUserRow[] = [{ id:'mock-usr-1', fullName:'Admin User', email:'admin@empire.shop', phone:null, role:'admin', isActive:true, createdAt:new Date(NOW-30*86400000).toISOString(), orderCount:0 }, ...Array.from({length:10},(_,i)=>({id:`mock-usr-${i+2}`,fullName:MOCK_USER_NAMES[i]!,email:`user${i+2}@empire.shop`,phone:`+9370000000${i+1}`,role:(i===1?'seller':'customer') as 'customer'|'seller'|'admin',isActive:i!==7,createdAt:new Date(NOW-(i+2)*86400000).toISOString(),orderCount:(i*3)%7}))];
+export function mockSalesByDay(days=14):SalesByDay[]{return Array.from({length:days},(_,i)=>{const d=new Date(NOW-(days-1-i)*86400000);const count=2+((i*7)%8);return{date:d.toISOString().slice(0,10),count,revenue:count*(30+((i*11)%40))};});}
+export function mockTopProducts(limit=5):TopProduct[]{return shopProducts.slice(0,limit).map((p,i)=>({slug:p.slug,name:p.name,units:40-i*6,revenue:(40-i*6)*p.price}));}
+export type SellerStatus='none'|'pending'|'approved'|'rejected';
+export interface AdminSellerRow{id:string;fullName:string;email:string|null;phone:string|null;shopName:string|null;bio:string|null;sellerStatus:SellerStatus;isActive:boolean;productCount:number;createdAt:string;}
+export interface AdminTransactionRow{id:string;reference:string;orderId:string;orderReference:string;provider:string;method:string;status:string;amount:number;currency:string;paidAt:string|null;createdAt:string;}
+export interface AdminRevenueSummary{gross:number;paid:number;pending:number;refunded:number;currency:string;orderCount:number;paidOrderCount:number;averageOrderValue:number;byDay:SalesByDay[];byMethod:{method:string;amount:number;count:number}[];}
+export const mockSellers:AdminSellerRow[]=[{id:'mock-slr-1',fullName:'Yousuf Rahimi',email:'yousuf@empire.shop',phone:'+937000001',shopName:'Rahimi Handicrafts',bio:'صنایع دستی هرات',sellerStatus:'approved',isActive:true,productCount:12,createdAt:new Date(NOW-20*86400000).toISOString()},{id:'mock-slr-2',fullName:'Nadia Hakimi',email:'nadia@empire.shop',phone:'+937000002',shopName:'Kabul Saffron Co.',bio:'صادرکننده زعفران',sellerStatus:'pending',isActive:true,productCount:0,createdAt:new Date(NOW-3*86400000).toISOString()},{id:'mock-slr-3',fullName:'Bilal Sharif',email:'bilal@empire.shop',phone:'+937000003',shopName:'Sharif Textiles',bio:null,sellerStatus:'rejected',isActive:true,productCount:0,createdAt:new Date(NOW-10*86400000).toISOString()}];
+export const mockTransactions:AdminTransactionRow[]=Array.from({length:14},(_,i)=>{const statuses=['paid','pending','failed','refunded'] as const;const status=statuses[i%statuses.length]!;const method=i%3===0?'bank_transfer':i%3===1?'cod':'atoma_pay';const amount=50+i*13;return{id:`mock-tx-${i+1}`,reference:`TXN-2026-${String(2000+i).padStart(4,'0')}`,orderId:`mock-ord-${i%12+1}`,orderReference:`ORD-2026-${String(1000+i%12).padStart(4,'0')}`,provider:method==='atoma_pay'?'atoma':'internal',method,status,amount,currency:'AFN',paidAt:status==='paid'?new Date(NOW-i*3600_000*4).toISOString():null,createdAt:new Date(NOW-i*3600_000*5).toISOString()};});
+export function mockRevenueSummary(days=14):AdminRevenueSummary{const byDay=mockSalesByDay(days),gross=byDay.reduce((s,d)=>s+d.revenue,0),paid=Math.round(gross*.72),pending=Math.round(gross*.18),refunded=Math.round(gross*.05),orderCount=byDay.reduce((s,d)=>s+d.count,0),paidOrderCount=Math.round(orderCount*.7);return{gross,paid,pending,refunded,currency:'AFN',orderCount,paidOrderCount,averageOrderValue:paidOrderCount?Math.round(paid/paidOrderCount):0,byDay,byMethod:[{method:'cod',amount:Math.round(paid*.4),count:Math.round(paidOrderCount*.4)},{method:'bank_transfer',amount:Math.round(paid*.35),count:Math.round(paidOrderCount*.35)},{method:'atoma_pay',amount:Math.round(paid*.2),count:Math.round(paidOrderCount*.2)},{method:'whatsapp',amount:Math.round(paid*.05),count:Math.round(paidOrderCount*.05)}]};}
