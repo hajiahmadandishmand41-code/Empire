@@ -5,10 +5,10 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
-  LayoutDashboard, Package, FolderTree, ShoppingBag, Users, Store,
-  CreditCard, BarChart3, Wallet, Truck, Menu, LogOut, Bell, Settings,
-  Home, X, ChevronRight, Shield, Sparkles, Megaphone, PanelsTopLeft,
-  Images, Star, Search, UserCog, ClipboardList,
+  LayoutDashboard, Package, FolderTree, ShoppingBag, Users,
+  Store, CreditCard, BarChart3, Wallet, Truck, Menu,
+  LogOut, Bell, Settings, Home, X, ChevronRight, Shield, Sparkles,
+  Megaphone, PanelsTopLeft, Images, Star, Search, UserCog, ClipboardList,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
@@ -24,12 +24,11 @@ function NavGroup({ label, children }: { label: string; children: React.ReactNod
 
 function SidebarContent({ items, isActive, userName, locale, onNavigate }: { items: NavItem[]; isActive: (href: string) => boolean; userName: string; locale: string; onNavigate?: () => void }) {
   const t = useTranslations('admin');
-  const groups = ['main','management','finance','system'] as const;
-  const labels = { main: t('groups.main'), management: t('groups.management'), finance: t('groups.finance'), system: locale === 'en' ? 'System' : 'سیستم' };
+  const mainItems = items.filter((i) => i.group === 'main'); const mgmtItems = items.filter((i) => i.group === 'management'); const financeItems = items.filter((i) => i.group === 'finance'); const systemItems = items.filter((i) => i.group === 'system');
   return <div className="flex h-full flex-col border-e border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950">
     <div className="border-b border-gray-100 px-4 py-4 dark:border-gray-800/80"><Link href={`/${locale}`} onClick={onNavigate} className="group flex items-center gap-2.5"><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 shadow-md shadow-indigo-500/25 transition-transform group-hover:scale-105"><Shield className="h-5 w-5 text-white" aria-hidden /></div><div className="flex flex-col"><p className="text-sm font-extrabold leading-none tracking-tight text-gray-900 dark:text-white">Eshop</p><p className="mt-0.5 text-[10px] font-bold uppercase tracking-wide text-indigo-500 dark:text-indigo-400">{t('brand')}</p></div></Link></div>
     <div className="border-b border-gray-100 px-4 py-3 dark:border-gray-800/80"><div className="flex items-center gap-2.5 rounded-xl border border-indigo-100 bg-indigo-50 px-3 py-2.5 dark:border-indigo-900/40 dark:bg-indigo-950/30"><div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-indigo-400 to-indigo-600 text-xs font-bold text-white shadow-sm ring-2 ring-indigo-200 dark:ring-indigo-800">{userName.charAt(0).toUpperCase()}</div><div className="min-w-0"><p className="truncate text-xs font-bold text-gray-900 dark:text-gray-100">{userName}</p><div className="mt-0.5 flex items-center gap-1"><span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" aria-hidden /><p className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400">{t('role')}</p></div></div></div></div>
-    <nav className="flex-1 overflow-y-auto px-3 py-2 panel-scrollbar" aria-label={t('brand')}>{groups.map((group) => { const groupItems = items.filter((i) => i.group === group); if (!groupItems.length) return null; return <NavGroup key={group} label={labels[group]}>{groupItems.map((item) => <NavLink key={item.href} item={item} active={isActive(item.href)} onClick={onNavigate} />)}</NavGroup>; })}</nav>
+    <nav className="flex-1 overflow-y-auto px-3 py-2 panel-scrollbar" aria-label={t('brand')}><NavGroup label={t('groups.main')}>{mainItems.map((item) => <NavLink key={item.href} item={item} active={isActive(item.href)} onClick={onNavigate} />)}</NavGroup>{mgmtItems.length > 0 && <NavGroup label={t('groups.management')}>{mgmtItems.map((item) => <NavLink key={item.href} item={item} active={isActive(item.href)} onClick={onNavigate} />)}</NavGroup>}{financeItems.length > 0 && <NavGroup label={t('groups.finance')}>{financeItems.map((item) => <NavLink key={item.href} item={item} active={isActive(item.href)} onClick={onNavigate} />)}</NavGroup>}{systemItems.length > 0 && <NavGroup label={locale === 'en' ? 'System' : 'سیستم'}>{systemItems.map((item) => <NavLink key={item.href} item={item} active={isActive(item.href)} onClick={onNavigate} />)}</NavGroup>}</nav>
     <div className="space-y-0.5 border-t border-gray-100 px-3 py-3 dark:border-gray-800/80"><Link href={`/${locale}`} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800/80 dark:hover:text-gray-100"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-800"><Home className="h-3.5 w-3.5" aria-hidden /></span>{t('nav.backToSite')}</Link><Link href="/api/auth/logout" className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-red-500 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-red-50 dark:bg-red-950/30"><LogOut className="h-3.5 w-3.5" aria-hidden /></span>{t('nav.logout')}</Link></div>
   </div>;
 }
@@ -41,13 +40,13 @@ export function AdminShell({ locale, userName, children }: AdminShellProps) {
     { href: `${base}/products`, label: t('nav.products'), icon: Package, group: 'main' },
     { href: `${base}/categories`, label: t('nav.categories'), icon: FolderTree, group: 'main' },
     { href: `${base}/orders`, label: t('nav.orders'), icon: ShoppingBag, group: 'main' },
+    { href: `${base}/marketplace`, label: locale === 'en' ? 'Marketplace' : 'Marketplace Eshop', icon: Sparkles, group: 'management' },
     { href: `${base}/sellers`, label: t('nav.sellers'), icon: Store, group: 'management' },
     { href: `${base}/users`, label: t('nav.users'), icon: Users, group: 'management' },
-    { href: `${base}/marketplace`, label: locale === 'en' ? 'Marketplace Controls' : 'کنترل Marketplace', icon: Sparkles, group: 'management' },
-    { href: `${base}/banners`, label: locale === 'en' ? 'Banners & Ads' : 'بنر و تبلیغات', icon: Megaphone, group: 'management' },
+    { href: `${base}/banners`, label: locale === 'en' ? 'Banners' : 'بنرها', icon: Megaphone, group: 'management' },
     { href: `${base}/homepage`, label: locale === 'en' ? 'Homepage Builder' : 'سازنده صفحه اصلی', icon: PanelsTopLeft, group: 'management' },
-    { href: `${base}/reviews`, label: locale === 'en' ? 'Review Moderation' : 'مدیریت نظرات', icon: Star, group: 'management' },
-    { href: `${base}/media`, label: locale === 'en' ? 'Media Library' : 'کتابخانه رسانه', icon: Images, group: 'management' },
+    { href: `${base}/reviews`, label: locale === 'en' ? 'Reviews' : 'نظرات', icon: Star, group: 'management' },
+    { href: `${base}/media`, label: locale === 'en' ? 'Media Library' : 'رسانه‌ها', icon: Images, group: 'management' },
     { href: `${base}/search`, label: locale === 'en' ? 'Search Management' : 'مدیریت جستجو', icon: Search, group: 'management' },
     { href: `${base}/shipping-methods`, label: t('nav.shipping'), icon: Truck, group: 'finance' },
     { href: `${base}/payments`, label: t('nav.payments'), icon: CreditCard, group: 'finance' },
