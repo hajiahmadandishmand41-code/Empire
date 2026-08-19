@@ -17,6 +17,11 @@ concurrency:
 env:
   DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
   NEXT_TELEMETRY_DISABLED: '1'
+  PRISMA_HIDE_UPDATE_MESSAGE: '1'
+  AUTH_SECRET: ci-only-not-for-production
+  NEXTAUTH_SECRET: ci-only-not-for-production
+  SESSION_SECRET: ci-only-not-for-production
+  NEXT_PUBLIC_SITE_URL: https://ci.example.test
 
 jobs:
   quality:
