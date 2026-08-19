@@ -3,10 +3,12 @@
 import * as React from 'react';
 import Image from 'next/image';
 import { Link } from '@/i18n/routing';
-import { ChevronLeft, ChevronRight, Heart, Package, ShoppingCart, Star } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Heart, Package, ShoppingCart, Plus, Star } from 'lucide-react';
 import { cn, formatPrice } from '@/lib/utils';
+import { useCartStore } from '@/features/cart/store/cart-store';
+import type { CategoryKey } from '@/types';
 
-export interface SliderProduct { id: string; name: string; slug: string; price: number; comparePrice?: number | null; images?: Array<{ url: string }>; badge?: string; rating?: number; reviewCount?: number; salesCount?: number; viewCount?: number; category?: { name: string }; sellerId?: string | null; sellerShopName?: string | null; sellerWhatsapp?: string; }
+export interface SliderProduct { id: string; name: string; slug: string; price: number; comparePrice?: number | null; images?: Array<{ url: string }>; badge?: string; rating?: number; reviewCount?: number; salesCount?: number; viewCount?: number; categoryKey?: CategoryKey; category?: { name: string }; sellerId?: string | null; sellerShopName?: string | null; sellerWhatsapp?: string; region?: string; inStock?: boolean; }
 interface ProductSliderSectionProps { title: string; subtitle?: string; viewAllHref?: string; accentColor?: string; products: SliderProduct[]; locale?: string; currency?: string; skeleton?: boolean; }
 
 export function SkeletonCard() {
@@ -17,12 +19,30 @@ function SliderProductCard({ product, locale = 'fa', currency = 'AFN' }: { produ
   const image = product.images?.[0]?.url;
   const discountPct = product.comparePrice && product.comparePrice > product.price ? Math.round(((product.comparePrice - product.price) / product.comparePrice) * 100) : 0;
   const salesLabel = locale === 'en' ? 'sold' : locale === 'ps' ? 'پلور' : 'فروش';
+  const [adding, setAdding] = React.useState(false);
+  const canQuickAdd = Boolean(product.categoryKey && product.region);
+
+  function quickAdd() {
+    if (!canQuickAdd || adding) return;
+    setAdding(true);
+    useCartStore.getState().addItem({
+      slug: product.slug,
+      name: product.name,
+      price: product.price,
+      region: product.region ?? 'افغانستان',
+      categoryKey: product.categoryKey!,
+      images: (product.images ?? []).map((item) => ({ src: item.url, alt: product.name })),
+      quantity: 1,
+    });
+    window.setTimeout(() => setAdding(false), 500);
+  }
 
   return <article className="card-luxury group w-[168px] flex-none overflow-hidden rounded-2xl border border-border/80 bg-card sm:w-[188px] md:w-[204px]">
     <div className="relative">
       <Link href={`/shop/${product.slug}` as never} className="relative block aspect-square overflow-hidden bg-muted">
         {image ? <Image src={image} alt={product.name} fill sizes="(max-width: 640px) 168px, (max-width: 1024px) 188px, 204px" loading="lazy" className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.025]" /> : <div className="flex h-full items-center justify-center"><Package className="h-10 w-10 text-muted-foreground/30" /></div>}
         {discountPct > 0 && <span className="absolute start-2 top-2 rounded-full bg-price-sale px-2 py-1 text-[10px] font-bold text-white shadow-sm">-{discountPct}٪</span>}
+        {product.inStock === false && <span className="absolute inset-x-2 bottom-2 rounded-lg bg-black/65 px-2 py-1 text-center text-[9px] font-bold text-white">{locale === 'en' ? 'Out of stock' : locale === 'ps' ? 'په ذخیره کې نشته' : 'ناموجود'}</span>}
       </Link>
       <Link href="/wishlist" aria-label={locale === 'en' ? 'Wishlist' : locale === 'ps' ? 'خوښې' : 'افزودن به علاقه‌مندی‌ها'} className="absolute end-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-white/70 bg-white/90 text-gray-700 shadow-sm backdrop-blur-sm transition-[transform,color,background-color] duration-150 hover:scale-105 hover:text-primary dark:border-border dark:bg-gray-900/90 dark:text-gray-200"><Heart className="h-4 w-4" aria-hidden /></Link>
     </div>
@@ -34,7 +54,9 @@ function SliderProductCard({ product, locale = 'fa', currency = 'AFN' }: { produ
       {(product.rating ?? 0) > 0 && <div className="flex items-center gap-1" aria-label={`${product.rating}/5`}>{[0,1,2,3,4].map((i) => <Star key={i} className={cn('h-2.5 w-2.5', i < Math.round(product.rating!) ? 'fill-price-warning text-price-warning' : 'text-muted-foreground/30')} aria-hidden="true" />)}{product.reviewCount ? <span className="text-[9px] text-muted-foreground">({product.reviewCount})</span> : null}</div>}
       <div className="mt-1 border-t border-border/60 pt-2.5">
         {discountPct > 0 && product.comparePrice && <span className="block text-[10px] text-muted-foreground line-through">{formatPrice(product.comparePrice, currency, locale)}</span>}
-        <div className="flex items-end justify-between gap-2"><div className="min-w-0"><span className="block truncate text-sm font-black text-price-current">{formatPrice(product.price, currency, locale)}</span>{product.salesCount ? <span className="text-[9px] text-muted-foreground">{product.salesCount.toLocaleString(locale === 'en' ? 'en-US' : 'fa-AF')} {salesLabel}</span> : null}</div><Link href={`/shop/${product.slug}` as never} className="flex h-8 shrink-0 items-center gap-1 rounded-lg bg-primary px-2.5 text-[10px] font-bold text-primary-foreground shadow-sm transition-[transform,box-shadow] duration-150 hover:-translate-y-0.5 hover:shadow-md"><ShoppingCart className="h-3 w-3" />{locale === 'en' ? 'View' : locale === 'ps' ? 'کتل' : 'مشاهده'}</Link></div>
+        <div className="flex items-end justify-between gap-2"><div className="min-w-0"><span className="block truncate text-sm font-black text-price-current">{formatPrice(product.price, currency, locale)}</span>{product.salesCount ? <span className="text-[9px] text-muted-foreground">{product.salesCount.toLocaleString(locale === 'en' ? 'en-US' : 'fa-AF')} {salesLabel}</span> : null}</div>
+          {canQuickAdd && product.inStock !== false ? <button type="button" onClick={quickAdd} aria-label={locale === 'en' ? 'Quick add' : locale === 'ps' ? 'چټک اضافه' : 'افزودن سریع'} className="flex h-8 shrink-0 items-center gap-1 rounded-lg bg-primary px-2.5 text-[10px] font-bold text-primary-foreground shadow-sm transition-[transform,box-shadow] duration-150 hover:-translate-y-0.5 hover:shadow-md disabled:opacity-70" disabled={adding}>{adding ? '✓' : <><Plus className="h-3 w-3" />{locale === 'en' ? 'Add' : locale === 'ps' ? 'اضافه' : 'افزودن'}</>}</button> : <Link href={`/shop/${product.slug}` as never} className="flex h-8 shrink-0 items-center gap-1 rounded-lg bg-primary px-2.5 text-[10px] font-bold text-primary-foreground shadow-sm"><ShoppingCart className="h-3 w-3" />{locale === 'en' ? 'View' : locale === 'ps' ? 'کتل' : 'مشاهده'}</Link>}
+        </div>
       </div>
     </div>
   </article>;
