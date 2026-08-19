@@ -1,7 +1,7 @@
 import { getLocale, getTranslations } from 'next-intl/server';
 import { CartBadge } from '@/features/cart';
 import { HeaderAuthActions } from '@/features/auth';
-import { Tag, Truck, LayoutGrid, PhoneCall } from 'lucide-react';
+import { Tag, Truck, LayoutGrid } from 'lucide-react';
 import { Link } from '@/i18n/routing';
 import { LanguageSwitcher } from './language-switcher';
 import { HeaderCategoryNav } from './header-category-nav';
@@ -27,7 +27,7 @@ export async function SiteHeader() {
             <span className="mx-8 inline-flex items-center gap-1.5"><Tag className="h-3.5 w-3.5 text-amber-200" aria-hidden="true" />{topMessage}</span>
           </div>
         </div>
-        <style jsx>{`@keyframes marquee{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}`}</style>
+        <style>{`@keyframes marquee{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}`}</style>
       </div>
 
       <div className="site-header border-b border-border bg-card/95 backdrop-blur">
