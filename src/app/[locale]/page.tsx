@@ -1,6 +1,7 @@
 import { Suspense } from 'react';
 import { setRequestLocale } from 'next-intl/server';
 import { HomepageHeroCarousel } from '@/features/home/components/homepage-hero-carousel';
+import { HomepageAdBanner } from '@/features/home/components/homepage-ad-banner';
 import { CategoriesSection } from '@/features/home/components/categories-section';
 import { SpecialOffersSection } from '@/features/home/components/special-offers-section';
 import { BestSellersSection } from '@/features/home/components/bestsellers-section';
@@ -21,6 +22,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   return (
     <div className="min-h-dvh bg-background">
       <SiteHeader />
+      <HomepageAdBanner locale={locale} />
       <main id="main" className="min-h-dvh pb-16 md:pb-0">
         <HomepageHeroCarousel products={heroProducts} locale={locale} currency="AFN" />
         <TraditionalHomeBanner locale={locale} />
