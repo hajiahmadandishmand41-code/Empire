@@ -6,6 +6,7 @@ import { AuthForm } from '@/features/auth';
 
 export default function RegisterPage() {
   const locale = useLocale();
+  const brand = locale === 'en' ? 'Eshop' : 'ایشاپ';
 
   return (
     <main id="main" className="flex min-h-[calc(100dvh-8rem)] items-center justify-center px-4 py-8 sm:py-12">
@@ -16,7 +17,7 @@ export default function RegisterPage() {
               <User className="h-6 w-6 text-primary" />
             </div>
             <h1 id="register-title" className="text-xl font-extrabold tracking-tight text-foreground sm:text-2xl">
-              {locale === 'en' ? 'Create your EmpireShop account' : locale === 'ps' ? 'خپل EmpireShop حساب جوړ کړئ' : 'ایجاد حساب در EmpireShop'}
+              {locale === 'en' ? `Create your ${brand} account` : locale === 'ps' ? `خپل ${brand} حساب جوړ کړئ` : `ایجاد حساب در ${brand}`}
             </h1>
             <p className="mt-1.5 text-sm text-muted-foreground">
               {locale === 'en' ? 'Create a secure account to shop faster and track your orders.' : locale === 'ps' ? 'خوندي حساب جوړ کړئ، چټک پیرود وکړئ او خپل سپارښتنې تعقیب کړئ.' : 'حساب امن بسازید، سریع‌تر خرید کنید و سفارش‌های خود را پیگیری کنید.'}
