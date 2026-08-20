@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import { setRequestLocale } from 'next-intl/server';
-import { LayoutGrid, Store, Sparkles } from 'lucide-react';
+import { Compass, LayoutGrid, Store, Sparkles, Tag, PackagePlus } from 'lucide-react';
 import { HomepageHeroCarousel } from '@/features/home/components/homepage-hero-carousel';
 import { DynamicBannerStrip } from '@/features/home/components/dynamic-banner-strip';
 import { TraditionalProductsBanner } from '@/features/home/components/traditional-products-banner';
@@ -19,7 +19,7 @@ import { Link } from '@/i18n/routing';
 type Locale = 'fa' | 'ps' | 'en';
 
 type ProductSectionProps = {
-  section: 'featured' | 'bestSelling' | 'newest' | 'popular';
+  section: 'featured' | 'bestSelling' | 'newest';
   locale: Locale;
   title: Record<Locale, string>;
   subtitle?: Record<Locale, string>;
@@ -29,7 +29,7 @@ type ProductSectionProps = {
 };
 
 function SectionSkeleton() {
-  return <div className="mx-auto my-6 h-64 max-w-screen-xl animate-pulse rounded-3xl bg-muted/40 sm:my-8" aria-hidden />;
+  return <div className="mx-auto my-5 h-56 max-w-screen-xl animate-pulse rounded-3xl bg-muted/40 sm:my-7" aria-hidden />;
 }
 
 async function HomeProductSection({ section, locale, title, subtitle, href, badge, accentColor }: ProductSectionProps) {
@@ -44,10 +44,38 @@ async function LowerRecommendationSections({ locale }: { locale: Locale }) {
   const seen = new Set<string>();
   const uniquePool = [...data.featured, ...data.bestSelling, ...data.popular, ...data.newest]
     .filter((product) => !seen.has(product.id) && seen.add(product.id))
-    .slice(0, 24)
+    .slice(0, 20)
     .map((product) => toSliderProduct(product));
   if (uniquePool.length === 0) return null;
   return <><PersonalizedProductsSection products={uniquePool} locale={locale} /><RecentlyViewedSection products={uniquePool} locale={locale} /></>;
+}
+
+function HomeDiscoveryLinks({ locale }: { locale: Locale }) {
+  const labels = locale === 'en'
+    ? { discover: 'Explore', deals: 'Deals', new: 'New arrivals', stores: 'Stores', local: 'Local products' }
+    : locale === 'ps'
+      ? { discover: 'کشف', deals: 'ځانګړي وړاندیزونه', new: 'نوي محصولات', stores: 'پلورنځي', local: 'کورني محصولات' }
+      : { discover: 'کشف کنید', deals: 'پیشنهادها', new: 'جدیدترین‌ها', stores: 'فروشگاه‌ها', local: 'محصولات وطنی' };
+
+  const items = [
+    { href: '/discover', label: labels.discover, icon: Compass, tone: 'bg-primary/10 text-primary' },
+    { href: '/shop?badge=sale', label: labels.deals, icon: Tag, tone: 'bg-amber-500/10 text-amber-600 dark:text-amber-400' },
+    { href: '/shop?sort=newest', label: labels.new, icon: PackagePlus, tone: 'bg-sky-500/10 text-sky-600 dark:text-sky-400' },
+    { href: '/stores', label: labels.stores, icon: Store, tone: 'bg-violet-500/10 text-violet-600 dark:text-violet-400' },
+  ];
+
+  return (
+    <section aria-label={locale === 'en' ? 'Explore marketplace' : locale === 'ps' ? 'بازار وپلټئ' : 'کشف بازار'} className="border-b border-border bg-card">
+      <div className="mx-auto grid max-w-screen-xl grid-cols-2 gap-2.5 px-3 py-3 sm:grid-cols-4 sm:gap-3 sm:px-6 sm:py-4">
+        {items.map(({ href, label, icon: Icon, tone }) => (
+          <Link key={href} href={href as never} className="group flex min-h-16 items-center gap-2.5 rounded-2xl border border-border bg-background px-3 py-2.5 transition-[border-color,transform,box-shadow,background-color] duration-200 hover:-translate-y-0.5 hover:border-primary/25 hover:bg-primary/[0.03] hover:shadow-sm sm:min-h-20 sm:justify-center sm:px-4">
+            <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${tone}`}><Icon className="h-4.5 w-4.5" aria-hidden /></span>
+            <span className="text-[11px] font-extrabold leading-4 text-foreground sm:text-xs">{label}</span>
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
 }
 
 export default async function HomePage({ params }: { params: Promise<{ locale: string }> }) {
@@ -56,52 +84,55 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   setRequestLocale(locale);
 
   const heroBanners = await listActiveBanners('HOME_HERO', 6).catch(() => []);
-  const quickLinks = locale === 'en'
-    ? { categories: 'Browse categories', stores: 'Explore stores', traditional: 'Local & traditional' }
-    : locale === 'ps'
-      ? { categories: 'کټګورۍ وګورئ', stores: 'پلورنځي وګورئ', traditional: 'کورني او دودیز محصولات' }
-      : { categories: 'دسته‌بندی‌ها', stores: 'فروشگاه‌ها', traditional: 'محصولات وطنی و سنتی' };
 
   return (
     <div className="min-h-dvh bg-background">
       <SiteHeader />
       <main id="main" className="min-h-dvh pb-16 md:pb-0">
         <HomepageHeroCarousel banners={heroBanners} locale={locale} />
+        <HomeDiscoveryLinks locale={locale} />
 
-        <section aria-label={locale === 'en' ? 'Marketplace shortcuts' : locale === 'ps' ? 'د بازار لنډې لارې' : 'مسیرهای اصلی بازار'} className="border-b border-border bg-card">
-          <div className="mx-auto grid max-w-screen-xl grid-cols-3 gap-2 px-3 py-3 sm:gap-3 sm:px-6 sm:py-4">
-            <Link href="/categories" className="group flex min-h-16 items-center justify-center gap-2 rounded-2xl border border-border bg-background px-2 py-2.5 text-center text-[11px] font-extrabold text-foreground transition hover:border-primary/30 hover:bg-primary/5 sm:min-h-20 sm:text-xs">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary sm:h-10 sm:w-10"><LayoutGrid className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden /></span>
-              <span className="leading-4">{quickLinks.categories}</span>
-            </Link>
-            <Link href="/stores" className="group flex min-h-16 items-center justify-center gap-2 rounded-2xl border border-border bg-background px-2 py-2.5 text-center text-[11px] font-extrabold text-foreground transition hover:border-primary/30 hover:bg-primary/5 sm:min-h-20 sm:text-xs">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary sm:h-10 sm:w-10"><Store className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden /></span>
-              <span className="leading-4">{quickLinks.stores}</span>
-            </Link>
-            <Link href="/traditional" className="group flex min-h-16 items-center justify-center gap-2 rounded-2xl border border-border bg-background px-2 py-2.5 text-center text-[11px] font-extrabold text-foreground transition hover:border-primary/30 hover:bg-primary/5 sm:min-h-20 sm:text-xs">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary sm:h-10 sm:w-10"><Sparkles className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden /></span>
-              <span className="leading-4">{quickLinks.traditional}</span>
-            </Link>
-          </div>
-        </section>
-
-        <Suspense fallback={<div className="h-24 animate-pulse bg-muted/40" />}><CategoriesSection /></Suspense>
-        <Suspense fallback={<div className="h-56 animate-pulse bg-muted/30" />}><TraditionalProductsBanner locale={locale} /></Suspense>
+        <Suspense fallback={<div className="h-56 animate-pulse bg-muted/30" />}><CategoriesSection /></Suspense>
+        <Suspense fallback={<SectionSkeleton />}><TraditionalProductsBanner locale={locale} /></Suspense>
 
         <Suspense fallback={<SectionSkeleton />}>
-          <HomeProductSection section="featured" locale={locale} title={{ en: 'Special offers', ps: 'ځانګړي وړاندیزونه', fa: 'پیشنهادهای ویژه' }} subtitle={{ en: 'Limited-time products worth checking today', ps: 'د نن ورځې محدود او ارزښتناک وړاندیزونه', fa: 'محصولات محدود و ارزشمند امروز' }} href="/shop?badge=sale" badge="featured" />
+          <HomeProductSection
+            section="featured"
+            locale={locale}
+            title={{ en: 'Today’s picks', ps: 'د نن غوره انتخابونه', fa: 'انتخاب‌های امروز' }}
+            subtitle={{ en: 'A focused set of products worth your attention', ps: 'د پام وړ او غوره محصولات', fa: 'مجموعه‌ای متمرکز از محصولات ارزشمند' }}
+            href="/shop?badge=sale"
+            badge="featured"
+            accentColor="bg-rose-500"
+          />
         </Suspense>
+
         <Suspense fallback={<SectionSkeleton />}>
-          <HomeProductSection section="bestSelling" locale={locale} title={{ en: 'Best sellers', ps: 'تر ټولو ډېر پلورل شوي', fa: 'پرفروش‌ترین‌ها' }} href="/shop?sort=bestSelling" badge="best" accentColor="bg-amber-500" />
+          <HomeProductSection
+            section="bestSelling"
+            locale={locale}
+            title={{ en: 'Best sellers', ps: 'تر ټولو ډېر پلورل شوي', fa: 'پرفروش‌ترین‌ها' }}
+            subtitle={{ en: 'Products customers keep choosing', ps: 'هغه محصولات چې پیرودونکي یې بیا غوره کوي', fa: 'محصولاتی که مشتریان بیشتر انتخاب می‌کنند' }}
+            href="/shop?sort=bestSelling"
+            badge="best"
+            accentColor="bg-amber-500"
+          />
         </Suspense>
+
         <DynamicBannerStrip locale={locale} placement="HOME_PROMO_1" />
+
         <Suspense fallback={<SectionSkeleton />}>
-          <HomeProductSection section="newest" locale={locale} title={{ en: 'New arrivals', ps: 'نوي محصولات', fa: 'جدیدترین‌ها' }} href="/shop?sort=newest" badge="new" accentColor="bg-sky-500" />
+          <HomeProductSection
+            section="newest"
+            locale={locale}
+            title={{ en: 'Fresh arrivals', ps: 'تازه راغلي محصولات', fa: 'تازه‌واردها' }}
+            subtitle={{ en: 'New products to discover before everyone else', ps: 'نوي محصولات چې لومړی یې تاسو ومومئ', fa: 'محصولات تازه برای کشف زودتر از دیگران' }}
+            href="/shop?sort=newest"
+            badge="new"
+            accentColor="bg-sky-500"
+          />
         </Suspense>
-        <Suspense fallback={<SectionSkeleton />}>
-          <HomeProductSection section="popular" locale={locale} title={{ en: 'Popular products', ps: 'مشهور محصولات', fa: 'محبوب‌ترین محصولات' }} href="/shop?sort=popular" badge="popular" accentColor="bg-fuchsia-500" />
-        </Suspense>
-        <DynamicBannerStrip locale={locale} placement="HOME_PROMO_2" />
+
         <Suspense fallback={<SectionSkeleton />}><LowerRecommendationSections locale={locale} /></Suspense>
         <DynamicBannerStrip locale={locale} placement="HOME_MID" />
         <BecomeSellerBanner locale={locale} />
