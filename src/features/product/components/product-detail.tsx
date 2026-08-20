@@ -26,7 +26,7 @@ export async function ProductDetail({ product, related, locale, currency = 'AFN'
   const categoryLabel = tCat(`${categoryKey}.title`);
   const discountPct = product.comparePrice && product.comparePrice > price ? Math.round(((product.comparePrice - price) / product.comparePrice) * 100) : 0;
   const originalPrice = product.comparePrice && product.comparePrice > price ? product.comparePrice : null;
-  const avgRating = product.averageRating ?? 4.1;
+  const avgRating = product.averageRating ?? 0;
   const reviewCount = product.reviewCount ?? 0;
   const fullStars = Math.round(avgRating);
 
@@ -34,7 +34,7 @@ export async function ProductDetail({ product, related, locale, currency = 'AFN'
     <Container size="xl" className="py-4 sm:py-6 lg:py-8">
       <nav aria-label={tProduct('breadcrumb.label')} className="mb-4 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground sm:mb-5">
         <Link href={`/${locale}` as never} className="transition-colors hover:text-primary">{tNav('home')}</Link><ChevronRight className="h-3.5 w-3.5 rtl:rotate-180" aria-hidden />
-        <Link href={`/${locale}/shop` as never} className="transition-colors hover:text-primary">{tNav('shop')}</Link><ChevronRight className="h-3.5 w-3.5 rtl:rotate-180" aria-hidden /><span className="font-semibold text-foreground line-clamp-1">{name}</span>
+        <Link href={`/${locale}/shop` as never} className="transition-colors hover:text-primary">{tNav('shop')}</Link><ChevronRight className="h-3.5 w-3.5 rtl:rotate-180" aria-hidden /><span className="line-clamp-1 font-semibold text-foreground">{name}</span>
       </nav>
 
       <div className="grid gap-6 lg:grid-cols-[1.05fr_.95fr] lg:gap-10">
@@ -43,13 +43,9 @@ export async function ProductDetail({ product, related, locale, currency = 'AFN'
           <Stack gap="4">
             <div className="flex flex-wrap items-center gap-2"><span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/50 px-2.5 py-1 text-xs font-semibold text-foreground"><Tag className="h-3 w-3 text-primary" aria-hidden />{categoryLabel}</span>{badgeLabel && <span className={cn('inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold text-white', badge === 'sale' ? 'bg-price-sale' : badge === 'new' ? 'bg-violet-600' : 'bg-price-warning')}>{badgeLabel}</span>}{discountPct > 0 && <span className="inline-flex items-center rounded-full bg-red-500 px-2.5 py-1 text-xs font-bold text-white">{discountPct}{tProduct('discountSuffix')}</span>}</div>
             <h1 className="font-display text-2xl font-black leading-snug tracking-tight text-foreground sm:text-3xl lg:text-4xl">{name}</h1>
-
             {product.sellerId && product.sellerShopName && <Link href={`/store/${product.sellerId}` as never} className="flex w-fit items-center gap-2 rounded-xl border border-primary/15 bg-accent px-3 py-2 text-sm font-bold text-accent-foreground transition-colors hover:bg-accent/80"><Store className="h-4 w-4" aria-hidden /><span>{product.sellerShopName}</span></Link>}
-
-            <div className="flex flex-wrap items-center gap-3"><div className="flex items-center gap-1" aria-label={tProduct('ratingLabel', { rating: avgRating.toFixed(1) })}>{[...Array(5)].map((_, i) => <Star key={i} className={cn('h-4 w-4', i < fullStars ? 'fill-price-warning text-price-warning' : 'text-muted-foreground/30')} aria-hidden="true" />)}</div><span className="text-sm font-bold text-foreground">{avgRating.toFixed(1)}</span>{reviewCount > 0 && <span className="text-sm text-muted-foreground">({reviewCount} {tProduct('reviews')})</span>}<span className="text-muted-foreground/40">·</span><div className="flex items-center gap-1 text-xs text-muted-foreground"><MapPin className="h-3 w-3 text-primary" aria-hidden /><span>{tProduct('madeIn')} <span className="font-bold text-foreground">{region}</span></span></div></div>
-
+            <div className="flex flex-wrap items-center gap-3"><div className="flex items-center gap-1" aria-label={tProduct('ratingLabel', { rating: avgRating.toFixed(1) })}>{[...Array(5)].map((_, i) => <Star key={i} className={cn('h-4 w-4', i < fullStars && avgRating > 0 ? 'fill-price-warning text-price-warning' : 'text-muted-foreground/30')} aria-hidden="true" />)}</div>{avgRating > 0 && <span className="text-sm font-bold text-foreground">{avgRating.toFixed(1)}</span>}{reviewCount > 0 && <span className="text-sm text-muted-foreground">({reviewCount} {tProduct('reviews')})</span>}<span className="text-muted-foreground/40">·</span><div className="flex items-center gap-1 text-xs text-muted-foreground"><MapPin className="h-3 w-3 text-primary" aria-hidden /><span>{tProduct('madeIn')} <span className="font-bold text-foreground">{region}</span></span></div></div>
             <div className="rounded-2xl border border-border bg-card p-4 shadow-premium"><div className="flex items-end justify-between gap-4"><div className="flex min-w-0 flex-col gap-1">{originalPrice && <span className="text-sm text-muted-foreground line-through num-ltr">{formatPrice(originalPrice, currency, locale)}</span>}<span className={cn('font-display text-3xl font-black num-ltr sm:text-4xl', discountPct > 0 ? 'text-price-current' : 'text-foreground')}>{formatPrice(price, currency, locale)}</span></div><div className="flex flex-col items-end gap-1.5"><span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400">{tProduct('shippingIncluded')}</span>{product.inStock ? <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">● {tProduct('inStock')}</span> : <span className="text-xs font-semibold text-red-500">● {tProduct('outOfStock')}</span>}</div></div></div>
-
             {product.shortDescription && <p className="text-sm leading-7 text-muted-foreground">{product.shortDescription}</p>}
             {(description ?? []).length > 0 && <div className="space-y-2 text-sm leading-7 text-muted-foreground">{(description ?? []).map((paragraph, i) => <p key={i}>{paragraph}</p>)}</div>}
             {(features ?? []).length > 0 && <div className="rounded-2xl border border-border bg-muted/30 p-4"><h2 className="mb-3 text-xs font-bold tracking-wide text-foreground">{tProduct('features.title')}</h2><ul className="grid gap-2 sm:grid-cols-2">{(features ?? []).map((feature, i) => <li key={i} className="flex items-start gap-2 text-xs leading-5 text-foreground/80"><Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" aria-hidden /><span>{feature}</span></li>)}</ul></div>}

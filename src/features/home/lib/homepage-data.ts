@@ -3,11 +3,29 @@ import { getProductService } from '@/server/infrastructure/registry';
 import type { ProductSummary } from '@/types';
 import type { SliderProduct } from '../components/product-slider-section';
 
+type HomeSection = 'featured' | 'bestSelling' | 'newest' | 'popular';
+
 export const getHomepageData = cache(async () => {
   try {
     return await getProductService().getHomepageSections(12);
   } catch {
     return { newest: [], bestSelling: [], mostViewed: [], popular: [], featured: [] };
+  }
+});
+
+export const getHomepageSection = cache(async (section: HomeSection, size = 12): Promise<ProductSummary[]> => {
+  try {
+    const service = getProductService();
+    const result = await service.listProducts({
+      isActive: true,
+      page: 1,
+      pageSize: size,
+      sort: section === 'featured' ? 'featured' : section,
+      ...(section === 'featured' ? { featured: true } : {}),
+    });
+    return result.products;
+  } catch {
+    return [];
   }
 });
 

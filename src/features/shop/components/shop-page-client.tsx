@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { PackageSearch } from 'lucide-react';
+import { PackageSearch, LayoutGrid, List } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { Grid } from '@/components/layout/grid';
 import { Stack } from '@/components/layout/stack';
@@ -15,20 +15,9 @@ const DEFAULT_FILTERS: ShopFiltersValue = { priceMin: '', priceMax: '', inStockO
 const PAGE_SIZE = 24;
 const DEBOUNCE_MS = 350;
 
-function unwrap<T>(payload: unknown, fallback: T): T {
-  const body = payload as { ok?: boolean; data?: T };
-  return body?.ok && body.data !== undefined ? body.data : fallback;
-}
+function unwrap<T>(payload: unknown, fallback: T): T { const body = payload as { ok?: boolean; data?: T }; return body?.ok && body.data !== undefined ? body.data : fallback; }
 interface ApiMeta { total?: number; page?: number; pageSize?: number; hasMore?: boolean; }
-function toApiSort(sort: ShopFiltersValue['sort']): string {
-  switch (sort) {
-    case 'price_asc': return 'priceAsc';
-    case 'price_desc': return 'priceDesc';
-    case 'popular': return 'popular';
-    case 'recommended': return 'recommended';
-    default: return 'recommended';
-  }
-}
+function toApiSort(sort: ShopFiltersValue['sort']): string { switch (sort) { case 'price_asc': return 'priceAsc'; case 'price_desc': return 'priceDesc'; case 'popular': return 'popular'; case 'recommended': return 'recommended'; default: return 'recommended'; } }
 
 export function ShopPageClient({ locale, currency = 'AFN', initialCategoryKey }: ShopPageClientProps) {
   const searchParams = useSearchParams();
@@ -36,43 +25,26 @@ export function ShopPageClient({ locale, currency = 'AFN', initialCategoryKey }:
   const initialCategory = initialCategoryKey ?? searchParams.get('categoryKey') ?? searchParams.get('category');
   const initialSort = searchParams.get('sort');
   const initialBadge = searchParams.get('badge');
-
   const [search, setSearch] = React.useState(initialQuery);
   const [debouncedSearch, setDebouncedSearch] = React.useState(initialQuery);
   const [category, setCategory] = React.useState<string | 'all'>(initialCategory || 'all');
-  const [filters, setFilters] = React.useState<ShopFiltersValue>(() => ({
-    ...DEFAULT_FILTERS,
-    sort: initialSort === 'priceAsc' ? 'price_asc' : initialSort === 'priceDesc' ? 'price_desc' : initialSort === 'popular' || initialSort === 'bestSelling' ? 'popular' : 'recommended',
-  }));
+  const [filters, setFilters] = React.useState<ShopFiltersValue>(() => ({ ...DEFAULT_FILTERS, sort: initialSort === 'priceAsc' ? 'price_asc' : initialSort === 'priceDesc' ? 'price_desc' : initialSort === 'popular' || initialSort === 'bestSelling' ? 'popular' : 'recommended' }));
   const [allProducts, setAllProducts] = React.useState<ProductSummary[]>([]);
   const [categories, setCategories] = React.useState<Category[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [loadingMore, setLoadingMore] = React.useState(false);
   const [page, setPage] = React.useState(1);
   const [meta, setMeta] = React.useState<ApiMeta | null>(null);
+  const [view, setView] = React.useState<'grid' | 'list'>(() => searchParams.get('view') === 'list' ? 'list' : 'grid');
 
-  React.useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(search), DEBOUNCE_MS);
-    return () => clearTimeout(timer);
-  }, [search]);
-
-  React.useEffect(() => {
-    setPage(1);
-    setAllProducts([]);
-  }, [debouncedSearch, category, filters, initialBadge, initialCategoryKey]);
-
-  React.useEffect(() => {
-    fetch('/api/categories', { cache: 'no-store' })
-      .then((res) => res.json())
-      .then((body) => setCategories(unwrap(body, [])))
-      .catch(() => setCategories([]));
-  }, []);
+  React.useEffect(() => { const timer = setTimeout(() => setDebouncedSearch(search), DEBOUNCE_MS); return () => clearTimeout(timer); }, [search]);
+  React.useEffect(() => { setPage(1); setAllProducts([]); }, [debouncedSearch, category, filters, initialBadge, initialCategoryKey]);
+  React.useEffect(() => { fetch('/api/categories', { cache: 'no-store' }).then((res) => res.json()).then((body) => setCategories(unwrap(body, []))).catch(() => setCategories([])); }, []);
 
   React.useEffect(() => {
     const controller = new AbortController();
     const isLoadMore = page > 1;
     if (isLoadMore) setLoadingMore(true); else setLoading(true);
-
     const params = new URLSearchParams();
     if (debouncedSearch.trim()) params.set('q', debouncedSearch.trim());
     if (category !== 'all') params.set('categoryKey', category);
@@ -80,63 +52,28 @@ export function ShopPageClient({ locale, currency = 'AFN', initialCategoryKey }:
     if (filters.priceMin !== '') params.set('priceMin', String(filters.priceMin));
     if (filters.priceMax !== '') params.set('priceMax', String(filters.priceMax));
     if (filters.inStockOnly) params.set('inStock', 'true');
-    params.set('sort', toApiSort(filters.sort));
-    params.set('page', String(page));
-    params.set('pageSize', String(PAGE_SIZE));
-
-    fetch(`/api/products?${params.toString()}`, { cache: 'no-store', signal: controller.signal })
-      .then((res) => res.json())
-      .then((body) => {
-        const newProducts = unwrap<ProductSummary[]>(body, []);
-        const bodyMeta = (body as { meta?: ApiMeta }).meta ?? null;
-        setMeta(bodyMeta);
-        if (isLoadMore) setAllProducts((prev) => [...prev, ...newProducts]); else setAllProducts(newProducts);
-      })
-      .catch((error) => {
-        if (error?.name !== 'AbortError') {
-          setAllProducts([]);
-          setMeta(null);
-        }
-      })
-      .finally(() => { setLoading(false); setLoadingMore(false); });
+    params.set('sort', toApiSort(filters.sort)); params.set('page', String(page)); params.set('pageSize', String(PAGE_SIZE));
+    fetch(`/api/products?${params.toString()}`, { cache: 'no-store', signal: controller.signal }).then((res) => res.json()).then((body) => {
+      const newProducts = unwrap<ProductSummary[]>(body, []); const bodyMeta = (body as { meta?: ApiMeta }).meta ?? null; setMeta(bodyMeta); if (isLoadMore) setAllProducts((prev) => [...prev, ...newProducts]); else setAllProducts(newProducts);
+    }).catch((error) => { if (error?.name !== 'AbortError') { setAllProducts([]); setMeta(null); } }).finally(() => { setLoading(false); setLoadingMore(false); });
     return () => controller.abort();
   }, [debouncedSearch, category, filters, initialBadge, page, initialCategoryKey]);
 
-  const categoryOptions = React.useMemo<ShopCategoryOption[]>(() => [
-    { key: 'all', label: 'همه محصولات' },
-    ...categories.map((item) => ({ key: item.key, label: item.name, count: item.productCount })),
-  ], [categories]);
-
-  const clear = React.useCallback(() => {
-    setSearch('');
-    setDebouncedSearch('');
-    setCategory(initialCategoryKey ?? 'all');
-    setFilters(DEFAULT_FILTERS);
-    setPage(1);
-    setAllProducts([]);
-  }, [initialCategoryKey]);
-  const hasMore = meta?.hasMore ?? false;
-  const totalCount = meta?.total ?? allProducts.length;
+  const categoryOptions = React.useMemo<ShopCategoryOption[]>(() => [{ key: 'all', label: 'همه محصولات' }, ...categories.map((item) => ({ key: item.key, label: item.name, count: item.productCount }))], [categories]);
+  const clear = React.useCallback(() => { setSearch(''); setDebouncedSearch(''); setCategory(initialCategoryKey ?? 'all'); setFilters(DEFAULT_FILTERS); setPage(1); setAllProducts([]); }, [initialCategoryKey]);
+  const hasMore = meta?.hasMore ?? false; const totalCount = meta?.total ?? allProducts.length;
+  const changeView = (next: 'grid' | 'list') => { setView(next); const url = new URL(window.location.href); url.searchParams.set('view', next); window.history.replaceState(null, '', `${url.pathname}${url.search}`); };
 
   return (
     <Stack gap="8" className="py-10 sm:py-12">
       <ShopToolbar search={search} category={category} resultCount={totalCount} categories={categoryOptions} onSearchChange={setSearch} onCategoryChange={(val) => { setCategory(val); setPage(1); setAllProducts([]); }} onClear={clear} />
       <ShopFilters value={filters} onChange={(newFilters) => { setFilters(newFilters); setPage(1); setAllProducts([]); }} onReset={() => { setFilters(DEFAULT_FILTERS); setPage(1); setAllProducts([]); }} />
-      {loading && page === 1 ? (
-        <div className="rounded-2xl border border-border bg-card py-20 text-center text-sm text-muted-foreground">در حال بارگذاری محصولات…</div>
-      ) : allProducts.length > 0 ? (
-        <>
-          <Grid cols={1} sm={2} lg={3} xl={3} gap="4" className="sm:gap-6">{allProducts.map((product) => <ShopProductCard key={product.id} product={product} currency={currency} locale={locale} />)}</Grid>
-          {hasMore && <div className="flex justify-center pt-2"><button type="button" disabled={loadingMore} onClick={() => setPage((p) => p + 1)} className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-6 py-2.5 text-sm font-semibold text-foreground shadow-sm transition-all hover:border-primary/40 hover:text-primary disabled:cursor-not-allowed disabled:opacity-60">{loadingMore ? <><span className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" aria-hidden />در حال بارگذاری…</> : 'نمایش بیشتر'}</button></div>}
-          {!hasMore && allProducts.length > 0 && meta && <p className="pt-2 text-center text-xs text-muted-foreground">همه {totalCount.toLocaleString('fa-IR')} محصول نمایش داده شد</p>}
-        </>
-      ) : (
-        <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-border bg-card px-6 py-16 text-center sm:py-20">
-          <PackageSearch className="h-10 w-10 text-muted-foreground/60" aria-hidden />
-          <div><h3 className="font-display text-lg font-semibold text-foreground">محصولی یافت نشد</h3><p className="mt-1 text-sm text-muted-foreground">محصولات واقعی فروشندگان پس از ثبت در اینجا نمایش داده می‌شوند.</p></div>
-          <button type="button" onClick={clear} className="rounded-lg border border-border px-4 py-2 text-sm font-medium transition-colors hover:bg-muted">پاک کردن فیلترها</button>
-        </div>
-      )}
+      {allProducts.length > 0 && <div className="flex items-center justify-end gap-1" role="group" aria-label="Product view"><button type="button" onClick={() => changeView('grid')} aria-pressed={view === 'grid'} aria-label="Grid view" className={`rounded-lg p-2 ${view === 'grid' ? 'bg-primary text-primary-foreground' : 'border border-border bg-card text-muted-foreground'}`}><LayoutGrid className="h-4 w-4" aria-hidden /></button><button type="button" onClick={() => changeView('list')} aria-pressed={view === 'list'} aria-label="List view" className={`rounded-lg p-2 ${view === 'list' ? 'bg-primary text-primary-foreground' : 'border border-border bg-card text-muted-foreground'}`}><List className="h-4 w-4" aria-hidden /></button></div>}
+      {loading && page === 1 ? <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4" aria-label="Loading products">{Array.from({ length: 8 }).map((_, i) => <div key={i} className="overflow-hidden rounded-2xl border border-border bg-card"><div className="aspect-[4/3] animate-pulse bg-muted" /><div className="space-y-2 p-3"><div className="h-3 w-2/3 animate-pulse rounded bg-muted" /><div className="h-4 w-full animate-pulse rounded bg-muted" /><div className="h-4 w-1/2 animate-pulse rounded bg-muted" /></div></div>)}</div> : allProducts.length > 0 ? <>
+        {view === 'grid' ? <Grid cols={2} sm={3} lg={4} xl={5} gap="3" className="sm:gap-4"><>{allProducts.map((product) => <ShopProductCard key={product.id} product={product} currency={currency} locale={locale} />)}</></Grid> : <div className="grid gap-3">{allProducts.map((product) => <ShopProductCard key={product.id} product={product} currency={currency} locale={locale} view="list" />)}</div>}
+        {hasMore && <div className="flex justify-center pt-2"><button type="button" disabled={loadingMore} onClick={() => setPage((p) => p + 1)} className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-6 py-2.5 text-sm font-semibold text-foreground shadow-sm transition-all hover:border-primary/40 hover:text-primary disabled:cursor-not-allowed disabled:opacity-60">{loadingMore ? 'در حال بارگذاری…' : 'نمایش بیشتر'}</button></div>}
+        {!hasMore && meta && <p className="pt-2 text-center text-xs text-muted-foreground">همه {totalCount.toLocaleString('fa-IR')} محصول نمایش داده شد</p>}
+      </> : <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-border bg-card px-6 py-16 text-center sm:py-20"><PackageSearch className="h-10 w-10 text-muted-foreground/60" aria-hidden /><div><h3 className="font-display text-lg font-semibold text-foreground">محصولی یافت نشد</h3><p className="mt-1 text-sm text-muted-foreground">محصولات واقعی فروشندگان پس از ثبت در اینجا نمایش داده می‌شوند.</p></div><button type="button" onClick={clear} className="rounded-lg border border-border px-4 py-2 text-sm font-medium transition-colors hover:bg-muted">پاک کردن فیلترها</button></div>}
     </Stack>
   );
 }
