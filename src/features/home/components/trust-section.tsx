@@ -11,9 +11,9 @@ const items = [
 ] as const;
 
 const fallback: Record<(typeof items)[number]['key'], { label: string; sub: string }> = {
-  purchase: { label: 'خرید مطمئن', sub: 'فرآیند امن و شفاف' },
-  shipping: { label: 'ارسال', sub: 'به سراسر افغانستان' },
-  returns: { label: 'ضمانت', sub: 'قوانین شفاف مرجوعی' },
+  purchase: { label: 'خرید ۱۰۰٪ امن', sub: 'پرداخت و فرآیند شفاف' },
+  shipping: { label: 'ارسال سریع', sub: 'به سراسر افغانستان' },
+  returns: { label: 'ضمانت اصالت تمام', sub: 'قوانین شفاف مرجوعی' },
   payment: { label: 'پرداخت امن', sub: 'روش‌های پرداخت مطمئن' },
   sellers: { label: 'فروشندگان تأییدشده', sub: 'کیفیت بهتر، ریسک کمتر' },
 };
@@ -24,6 +24,7 @@ export async function TrustSection() {
     getLocale(),
   ]);
 
+  const brand = locale === 'en' ? 'Eshop' : 'ایشاپ';
   const heading = locale === 'en' ? 'Shop with confidence' : locale === 'ps' ? 'په ډاډه زړه پیرود وکړئ' : 'خرید با خیال راحت';
   const subheading = locale === 'en' ? 'Trust, speed and clarity in every order' : locale === 'ps' ? 'په هره سپارښتنه کې باور، چټکتیا او روڼتیا' : 'اعتماد، سرعت و شفافیت در هر سفارش';
 
@@ -32,7 +33,7 @@ export async function TrustSection() {
       <Container size="xl">
         <div className="mb-4 flex items-end justify-between gap-3">
           <div>
-            <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-primary">EmpireShop</p>
+            <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-primary">{brand}</p>
             <h2 className="mt-1 text-base font-black tracking-tight text-foreground sm:text-lg">{heading}</h2>
           </div>
           <p className="hidden text-xs text-muted-foreground sm:block">{subheading}</p>
