@@ -13,13 +13,7 @@ export const getHomepageData = cache(async () => {
 
 export const getHeroProducts = cache(async (): Promise<ProductSummary[]> => {
   try {
-    const result = await getProductService().listProducts({
-      badge: 'hero',
-      page: 1,
-      pageSize: 2,
-      sort: 'newest',
-      isActive: true,
-    });
+    const result = await getProductService().listProducts({ badge: 'hero', page: 1, pageSize: 2, sort: 'newest', isActive: true });
     return result.products.slice(0, 2);
   } catch {
     return [];
@@ -39,9 +33,12 @@ export function toSliderProduct(product: ProductSummary, badge?: string): Slider
     reviewCount: product.reviewCount,
     salesCount: product.salesCount,
     viewCount: product.viewCount,
+    categoryKey: product.categoryKey,
     category: { name: product.categoryKey },
     sellerId: product.sellerId,
     sellerShopName: product.sellerShopName,
     sellerWhatsapp: product.sellerWhatsapp ?? undefined,
+    region: product.region,
+    inStock: product.inStock,
   };
 }

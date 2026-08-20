@@ -2,9 +2,10 @@
 
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
-import { Search, X, SlidersHorizontal, ChevronDown } from 'lucide-react';
+import { X, SlidersHorizontal, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+
 export interface ShopCategoryOption {
   key: string;
   label: string;
@@ -46,7 +47,7 @@ export function ShopToolbar({
   sort,
   resultCount,
   categories,
-  onSearchChange,
+  onSearchChange: _onSearchChange,
   onCategoryChange,
   onSortChange,
   onClear,
@@ -56,33 +57,8 @@ export function ShopToolbar({
 
   return (
     <div className="space-y-3">
-      {/* Search bar */}
-      <div className="relative">
-        <Search className="pointer-events-none absolute start-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-        <input
-          type="search"
-          value={search}
-          onChange={(e) => onSearchChange(e.target.value)}
-          placeholder={t('searchPlaceholder')}
-          className="h-11 w-full rounded-2xl border border-border bg-card shadow-sm ps-10 pe-10 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus:border-rose-400 focus:outline-none focus:ring-2 focus:ring-rose-400/15"
-          aria-label={t('searchPlaceholder')}
-        />
-        {search && (
-          <button
-            type="button"
-            onClick={() => onSearchChange('')}
-            aria-label="پاک کردن جستجو"
-            className="absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-          >
-            <X className="h-4 w-4" aria-hidden />
-          </button>
-        )}
-      </div>
-
-      {/* Row: category pills + sort */}
       <div className="flex items-center gap-2">
-        {/* Category pills */}
-        <div className="flex flex-1 items-center gap-1.5 overflow-x-auto pb-0.5 no-scrollbar">
+        <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto pb-0.5 no-scrollbar" role="tablist" aria-label="دسته‌بندی محصولات">
           {categories.map((opt) => {
             const active = opt.key === category;
             return (
@@ -102,12 +78,7 @@ export function ShopToolbar({
               >
                 <span>{opt.label}</span>
                 {typeof opt.count === 'number' && (
-                  <span
-                    className={cn(
-                      'inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold',
-                      active ? 'bg-card/20 text-white' : 'bg-muted text-muted-foreground',
-                    )}
-                  >
+                  <span className={cn('inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold', active ? 'bg-card/20 text-white' : 'bg-muted text-muted-foreground')}>
                     {opt.count}
                   </span>
                 )}
@@ -116,7 +87,6 @@ export function ShopToolbar({
           })}
         </div>
 
-        {/* Sort dropdown */}
         {onSortChange && (
           <div className="relative shrink-0">
             <select
@@ -140,7 +110,7 @@ export function ShopToolbar({
             variant="ghost"
             size="sm"
             onClick={onClear}
-            className="shrink-0 h-7 gap-1.5 px-2 text-xs text-muted-foreground hover:text-rose-500"
+            className="h-7 shrink-0 gap-1.5 px-2 text-xs text-muted-foreground hover:text-rose-500"
           >
             <X className="h-3.5 w-3.5" aria-hidden />
             <span className="hidden sm:inline">{t('clearFilters')}</span>
@@ -148,7 +118,6 @@ export function ShopToolbar({
         )}
       </div>
 
-      {/* Result count */}
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <SlidersHorizontal className="h-3.5 w-3.5 text-rose-400" aria-hidden />
         <span>{t('resultsCount', { count: resultCount })}</span>

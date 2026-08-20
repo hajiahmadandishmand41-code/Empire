@@ -1,8 +1,7 @@
 import type { Metadata } from 'next';
-import { notFound } from 'next/navigation';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Link } from '@/i18n/routing';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Package, SlidersHorizontal } from 'lucide-react';
 import { SiteHeader } from '@/features/home/components/site-header';
 import { SiteFooter } from '@/features/home/components/site-footer';
 import { BottomNavigation } from '@/features/home/components/bottom-navigation';
@@ -42,8 +41,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { locale, slug } = await params;
   const category = (await getCategory(slug)) ?? fallbackCategories[slug];
   if (!category) return { title: locale === 'en' ? 'Category | Eshop' : 'دسته‌بندی | ایشاپ' };
-  const title = locale === 'en' ? `${category.name} | Eshop` : locale === 'ps' ? `${category.name} | Eshop` : `${category.name} | ایشاپ`;
-  const description = locale === 'en' ? `Browse ${category.name} products on Eshop.` : locale === 'ps' ? `د ${category.name} محصولات په Eshop کې وګورئ.` : `محصولات دسته «${category.name}» را در ایشاپ ببینید.`;
+  const title = locale === 'en' ? `${category.name} | Eshop` : `${category.name} | ایشاپ`;
+  const description = locale === 'en' ? `Browse ${category.name} products on Eshop.` : locale === 'ps' ? `د ${category.name} محصولات په ایشاپ کې وګورئ.` : `محصولات دسته «${category.name}» را در ایشاپ ببینید.`;
   return { title, description, robots: { index: true, follow: true } };
 }
 
@@ -53,30 +52,48 @@ export default async function CategoryPage({ params }: Props) {
   const category = (await getCategory(slug)) ?? fallbackFor(slug);
   const t = await getTranslations({ locale, namespace: 'nav' });
   const count = Number(category.productCount ?? 0);
+  const countLabel = locale === 'en' ? 'products' : locale === 'ps' ? 'محصولات' : 'محصول';
+  const allCategories = locale === 'en' ? 'All categories' : locale === 'ps' ? 'ټولې کټګورۍ' : 'همه دسته‌ها';
+  const hint = locale === 'en' ? 'Use the filters below to narrow the catalog.' : locale === 'ps' ? 'لاندې فلټرونه وکاروئ او خپل محصولات ژر پیدا کړئ.' : 'از فیلترهای پایین برای رسیدن سریع‌تر به محصول مناسب استفاده کنید.';
+
   return (
     <div className="min-h-dvh bg-background">
       <SiteHeader />
       <main id="main" className="pb-16 md:pb-0">
         <section className="border-b border-border bg-card">
-          <div className="mx-auto max-w-screen-xl px-3 py-6 sm:px-6 sm:py-8">
-            <div className="mb-3 flex items-center gap-2 text-xs text-muted-foreground">
-              <Link href="/categories" className="hover:text-primary">{t('categories')}</Link>
+          <div className="mx-auto max-w-screen-xl px-3 py-5 sm:px-6 sm:py-7">
+            <div className="mb-4 flex items-center gap-2 text-xs text-muted-foreground">
+              <Link href="/categories" className="font-semibold hover:text-primary">{t('categories')}</Link>
               <ArrowLeft className="h-3.5 w-3.5 rtl:rotate-180" aria-hidden />
               <span className="font-semibold text-foreground">{category.name}</span>
             </div>
-            <div className="flex flex-wrap items-end justify-between gap-3">
-              <div>
-                <p className="text-xs font-bold text-primary">{locale === 'en' ? 'Eshop' : 'ایشاپ'}</p>
-                <h1 className="mt-1 text-2xl font-black tracking-tight text-foreground sm:text-4xl">{category.name}</h1>
-                <p className="mt-2 text-sm text-muted-foreground">{count.toLocaleString(locale === 'ps' ? 'ps-AF' : locale === 'en' ? 'en-US' : 'fa-IR')} محصول</p>
+
+            <div className="overflow-hidden rounded-3xl border border-primary/10 bg-gradient-to-br from-primary/[0.08] via-card to-card p-5 shadow-sm sm:p-7">
+              <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+                <div className="min-w-0">
+                  <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-primary/15 bg-background/80 px-3 py-1 text-[10px] font-extrabold text-primary">
+                    <Package className="h-3.5 w-3.5" aria-hidden />
+                    {locale === 'en' ? 'Marketplace category' : locale === 'ps' ? 'د بازار کټګوري' : 'دسته‌بندی بازار'}
+                  </div>
+                  <h1 className="text-2xl font-black tracking-tight text-foreground sm:text-4xl">{category.name}</h1>
+                  <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{hint}</p>
+                  <div className="mt-4 flex flex-wrap items-center gap-2 text-xs font-semibold text-muted-foreground">
+                    <span className="rounded-full border border-border bg-background px-3 py-1.5">{count.toLocaleString(locale === 'ps' ? 'ps-AF' : locale === 'en' ? 'en-US' : 'fa-IR')} {countLabel}</span>
+                    <span className="rounded-full border border-border bg-background px-3 py-1.5">{locale === 'en' ? 'Real seller products' : locale === 'ps' ? 'د پلورونکو اصلي محصولات' : 'محصولات واقعی فروشندگان'}</span>
+                  </div>
+                </div>
+                <Link href="/categories" className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-border bg-background px-4 py-2 text-sm font-bold text-foreground hover:border-primary/40 hover:text-primary">
+                  <SlidersHorizontal className="h-4 w-4" aria-hidden />
+                  {allCategories}
+                </Link>
               </div>
-              <Link href="/categories" className="inline-flex items-center gap-2 rounded-xl border border-border bg-background px-4 py-2 text-sm font-semibold hover:border-primary/40 hover:text-primary">
-                {locale === 'en' ? 'All categories' : locale === 'ps' ? 'ټولې کټګورۍ' : 'همه دسته‌ها'}
-              </Link>
             </div>
           </div>
         </section>
-        <section className="mx-auto max-w-screen-xl px-3 sm:px-6"><ShopPageClient locale={locale} currency="AFN" initialCategoryKey={category.key} /></section>
+
+        <section className="mx-auto max-w-screen-xl px-3 sm:px-6">
+          <ShopPageClient locale={locale} currency="AFN" initialCategoryKey={category.key} />
+        </section>
       </main>
       <SiteFooter />
       <BottomNavigation />
