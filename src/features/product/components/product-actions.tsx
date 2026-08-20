@@ -27,6 +27,7 @@ interface ProductActionsProps {
 
 export function ProductActions({ productName, product }: ProductActionsProps) {
   const t = useTranslations('product.actions');
+  const tCart = useTranslations('cart');
   const { toast } = useToast();
   const addItem = useCartStore((s) => s.addItem);
   const [added, setAdded] = React.useState(false);
@@ -77,9 +78,9 @@ export function ProductActions({ productName, product }: ProductActionsProps) {
         </Button>
 
         <Button asChild size="lg" className="w-full gap-2 bg-foreground text-background shadow-sm hover:bg-foreground/90">
-          <Link href="/cart" onClick={handleBuyNow} aria-label={t('buyNow')}>
+          <Link href="/cart" onClick={handleBuyNow} aria-label={tCart('title')}>
             <Zap className="h-5 w-5" aria-hidden />
-            {t('buyNow')}
+            {tCart('title')}
           </Link>
         </Button>
       </div>
