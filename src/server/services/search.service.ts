@@ -39,12 +39,7 @@ export interface SearchResult {
   page: number;
   pageSize: number;
   hasMore: boolean;
-  meta: {
-    query: string;
-    durationMs: number;
-    reranked: boolean;
-    facets: SearchFacets;
-  };
+  meta: { query: string; durationMs: number; reranked: boolean; facets: SearchFacets };
 }
 
 export interface SuggestionResult {
@@ -97,7 +92,7 @@ function compareForSort(a: ProductRow, b: ProductRow, sort: SearchSort, ratingMa
   return 0;
 }
 
-function buildFacets(rows: ProductRow[], ratings: Map<string, { average: number; count: number }>): SearchFacets {
+function buildFacets(rows: ProductRow[]): SearchFacets {
   const categoryMap = new Map<string, { label: string; count: number }>();
   const sellerMap = new Map<string, { label: string; count: number }>();
   const brandMap = new Map<string, { label: string; count: number }>();
@@ -112,7 +107,6 @@ function buildFacets(rows: ProductRow[], ratings: Map<string, { average: number;
     if (brand) brandMap.set(brand, { label: brand, count: (brandMap.get(brand)?.count ?? 0) + 1 });
     const price = Number(row.price);
     if (Number.isFinite(price)) { min = Math.min(min, price); max = Math.max(max, price); }
-    void ratings;
   }
 
   return {
@@ -141,79 +135,77 @@ export class SearchService {
       : undefined;
     const extraFilters = this.buildExtraFilters(opts, ratedProductIds);
 
-    try {
-      if (!q) {
-        const result = await this.products.findMany({
-          ...this.toListFilter(opts),
-          sort: sort === 'relevance' ? 'popular' : sort,
-          page,
-          pageSize,
-          isActive: true,
-        });
-        const ratings = await this.products.getRatings(result.items.map((row) => row.id));
-        const products = result.items.map((row) => mapProductSummary(row as never, { averageRating: ratings.get(row.id)?.average ?? 0, reviewCount: ratings.get(row.id)?.count ?? 0 }));
-        return {
-          products,
-          total: result.total,
-          page,
-          pageSize,
-          hasMore: result.hasMore,
-          meta: { query: '', durationMs: Date.now() - start, reranked: false, facets: buildFacets(result.items, ratings) },
-        };
-      }
-
-      const where: Prisma.ProductWhereInput = {
-        isActive: true,
-        ...extraFilters,
-        ...buildSearchWhereClause(q),
-      };
-
-      // Fetch a bounded candidate window before ranking. Pagination is applied after
-      // relevance/sort ordering so page 2 cannot skip highly relevant products.
-      const { rows, total: coarseTotal } = await this.products.findSearchCandidates(where, MAX_CANDIDATES, 0);
-      const brandFiltered = opts.brand ? rows.filter((row) => hasBrand(row, opts.brand!)) : rows;
-      const productIds = brandFiltered.map((row) => row.id);
-      const ratings = await this.products.getRatings(productIds);
-
-      let rankedRows: ProductRow[];
-      if (sort === 'relevance') {
-        rankedRows = brandFiltered
-          .map((row) => ({
-            row,
-            score: computeSearchScore({
-              id: row.id,
-              name: row.name,
-              shortDescription: row.shortDescription,
-              description: row.description,
-              categoryName: row.category?.name,
-              tags: Array.isArray(row.tagsJson) ? row.tagsJson.filter((value): value is string => typeof value === 'string') : undefined,
-              region: row.region,
-              sellerShopName: row.seller?.sellerShopName,
-            }, q),
-          }))
-          .filter((entry) => entry.score > 0)
-          .sort((a, b) => b.score - a.score || b.row.salesCount - a.row.salesCount)
-          .map((entry) => entry.row);
-      } else {
-        rankedRows = [...brandFiltered].sort((a, b) => compareForSort(a, b, sort, ratings));
-      }
-
-      const startIndex = (page - 1) * pageSize;
-      const pageRows = rankedRows.slice(startIndex, startIndex + pageSize);
-      const products = pageRows.map((row) => mapProductSummary(row as never, { averageRating: ratings.get(row.id)?.average ?? 0, reviewCount: ratings.get(row.id)?.count ?? 0 }));
-      const total = opts.brand ? rankedRows.length : (rankedRows.length > 0 ? coarseTotal : 0);
-
-      return {
-        products,
-        total,
+    if (!q) {
+      const result = await this.products.findMany({
+        ...this.toListFilter(opts),
+        sort: sort === 'relevance' ? 'popular' : sort,
         page,
         pageSize,
-        hasMore: startIndex + pageRows.length < total,
-        meta: { query: q, durationMs: Date.now() - start, reranked: sort === 'relevance', facets: buildFacets(brandFiltered, ratings) },
+        isActive: true,
+      });
+      const ratings = await this.products.getRatings(result.items.map((row) => row.id));
+      const products = result.items.map((row) => mapProductSummary(row as never, { averageRating: ratings.get(row.id)?.average ?? 0, reviewCount: ratings.get(row.id)?.count ?? 0 }));
+      return {
+        products,
+        total: result.total,
+        page,
+        pageSize,
+        hasMore: result.hasMore,
+        meta: { query: '', durationMs: Date.now() - start, reranked: false, facets: buildFacets(result.items) },
       };
-    } catch (err) {
-      throw err;
     }
+
+    const where: Prisma.ProductWhereInput = {
+      isActive: true,
+      ...extraFilters,
+      ...buildSearchWhereClause(q),
+    };
+
+    // Relevance ranking is intentionally bounded to protect the request from
+    // loading an unbounded product catalogue into Node. The DB recall query
+    // remains the source of truth; non-relevance sorts use the same candidates.
+    const { rows, total: coarseTotal } = await this.products.findSearchCandidates(where, MAX_CANDIDATES, 0);
+    const brandFiltered = opts.brand ? rows.filter((row) => hasBrand(row, opts.brand!)) : rows;
+    const productIds = brandFiltered.map((row) => row.id);
+    const ratings = await this.products.getRatings(productIds);
+
+    let rankedRows: ProductRow[];
+    if (sort === 'relevance') {
+      rankedRows = brandFiltered
+        .map((row) => ({
+          row,
+          score: computeSearchScore({
+            id: row.id,
+            name: row.name,
+            shortDescription: row.shortDescription,
+            description: row.description,
+            categoryName: row.category?.name,
+            tags: Array.isArray(row.tagsJson) ? row.tagsJson.filter((value): value is string => typeof value === 'string') : undefined,
+            region: row.region,
+            sellerShopName: row.seller?.sellerShopName,
+            brand: readBrand(row.attributesJson),
+          }, q),
+        }))
+        .filter((entry) => entry.score > 0)
+        .sort((a, b) => b.score - a.score || b.row.salesCount - a.row.salesCount)
+        .map((entry) => entry.row);
+    } else {
+      rankedRows = [...brandFiltered].sort((a, b) => compareForSort(a, b, sort, ratings));
+    }
+
+    const startIndex = (page - 1) * pageSize;
+    const pageRows = rankedRows.slice(startIndex, startIndex + pageSize);
+    const products = pageRows.map((row) => mapProductSummary(row as never, { averageRating: ratings.get(row.id)?.average ?? 0, reviewCount: ratings.get(row.id)?.count ?? 0 }));
+    const total = opts.brand ? rankedRows.length : (rankedRows.length > 0 ? coarseTotal : 0);
+
+    return {
+      products,
+      total,
+      page,
+      pageSize,
+      hasMore: startIndex + pageRows.length < total && startIndex + pageRows.length < MAX_CANDIDATES,
+      meta: { query: q, durationMs: Date.now() - start, reranked: sort === 'relevance', facets: buildFacets(brandFiltered) },
+    };
   }
 
   async suggest(partialQuery: string, limit = 8): Promise<SuggestionResult> {
