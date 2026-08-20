@@ -9,8 +9,8 @@
  * Selection order:
  *   1. DATABASE_URL (canonical runtime URL)
  *   2. POSTGRES_PRISMA_URL / POSTGRES_URL (Vercel-compatible aliases)
- *   3. DATABASE_URL_UNPOOLED / POSTGRES_URL_NON_POOLING (safe last-resort
- *      compatibility path when the integration only injects a direct URL)
+ *   3. DATABASE_URL_UNPOOLED / POSTGRES_URL_NON_POOLING / SUPABASE_DB_URL
+ *      (direct-connection compatibility paths)
  *
  * No secret values are logged.
  */
@@ -22,6 +22,7 @@ const DATABASE_URL_KEYS = [
   'POSTGRES_URL',
   'DATABASE_URL_UNPOOLED',
   'POSTGRES_URL_NON_POOLING',
+  'SUPABASE_DB_URL',
 ] as const;
 
 function resolveDatabaseUrl(): string | undefined {
@@ -33,9 +34,9 @@ function resolveDatabaseUrl(): string | undefined {
 }
 
 // Prisma's datasource is intentionally defined as env("DATABASE_URL").
-// Normalize compatible Vercel/Postgres aliases into that canonical variable
-// before the PrismaClient is instantiated, while preserving an explicitly
-// configured DATABASE_URL unchanged.
+// Normalize compatible Vercel/Postgres/Supabase aliases into that canonical
+// variable before the PrismaClient is instantiated, while preserving an
+// explicitly configured DATABASE_URL unchanged.
 const resolvedDatabaseUrl = resolveDatabaseUrl();
 if (!process.env.DATABASE_URL && resolvedDatabaseUrl) {
   process.env.DATABASE_URL = resolvedDatabaseUrl;
