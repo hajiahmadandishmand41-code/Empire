@@ -1,119 +1,185 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import Image from 'next/image';
-import Link from 'next/link';
-import { Search, X, Package, ChevronDown, ArrowLeft, Star, RotateCcw, Store, MapPin, LayoutGrid } from 'lucide-react';
-import { useLocale, useTranslations } from 'next-intl';
-import { cn, formatPrice } from '@/lib/utils';
+import { Search, X, SlidersHorizontal, ArrowLeft, ChevronDown, Star, RotateCcw } from 'lucide-react';
+import { useLocale } from 'next-intl';
 import { useRouter } from '@/i18n/routing';
 import { SiteHeader } from '@/features/home/components/site-header';
 import { SiteFooter } from '@/features/home/components/site-footer';
+import { BottomNavigation } from '@/features/home/components/bottom-navigation';
+import { ShopProductCard } from '@/features/shop/components/shop-product-card';
+import type { ProductSummary } from '@/types';
 
-type SortOption = 'newest' | 'cheapest' | 'expensive' | 'popular';
-type Locale = 'fa' | 'ps' | 'en';
-interface Product { id: string; name: string; slug: string; price: number; compareAtPrice?: number | null; images?: Array<{ url: string }>; rating?: number; reviewCount?: number; category?: { name: string } }
-interface StoreResult { id: string; name: string; bio?: string | null; logoUrl?: string | null; city?: string | null; productCount: number; href: string }
-interface SearchMeta { total: number; page: number; pageSize: number; hasMore: boolean; query: string; stores?: StoreResult[]; storeCount?: number }
-interface SearchCopy { search: string; searchAria: string; sort: string; category: string; price: string; clear: string; view: string; results: string; resultsFor: string; emptyTitle: string; emptyText: string; noResults: string; noResultsText: string; allProducts: string; allCategories: string; allPrices: string; newest: string; cheapest: string; expensive: string; popular: string; clearSearch: string; wishlist: string; allShown: string; loading: string; error: string; retry: string; productsTitle: string; storesTitle: string; storeProducts: string; verifiedStore: string; categoriesTitle: string; categoryDigital: string; categoryClothing: string; categoryHome: string; categoryBeauty: string; categorySports: string; categoryTraditional: string; categoryFootwear: string }
+const SORTS = ['relevance', 'bestSelling', 'popular', 'newest', 'priceAsc', 'priceDesc', 'rating'] as const;
+type Sort = typeof SORTS[number];
 
-const sortApi: Record<SortOption, string> = { newest: 'newest', cheapest: 'priceAsc', expensive: 'priceDesc', popular: 'popular' };
+type StoreResult = { id: string; name: string; bio: string | null; logoUrl: string | null; city: string | null; productCount: number; href: string };
+type FacetOption = { value: string; label: string; count: number };
+type SearchMeta = {
+  total: number; page: number; pageSize: number; hasMore: boolean; query: string;
+  facets?: { categories: FacetOption[]; sellers: Array<FacetOption & { id: string }>; brands: FacetOption[]; price: { min: number; max: number } | null };
+  stores?: StoreResult[];
+};
 
-function FilterDropdown<T extends string>({ label, options, value, onChange }: { label: string; options: Array<{ value: T; label: string }>; value: T; onChange: (value: T) => void }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => { const close = (event: MouseEvent) => { if (!ref.current?.contains(event.target as Node)) setOpen(false); }; document.addEventListener('mousedown', close); return () => document.removeEventListener('mousedown', close); }, []);
-  const selected = options.find((option) => option.value === value);
-  return <div ref={ref} className="relative shrink-0"><button type="button" onClick={() => setOpen((current) => !current)} className="flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground hover:border-primary/50" aria-expanded={open}>{selected?.label ?? label}<ChevronDown className={cn('h-3 w-3 transition-transform', open && 'rotate-180')} aria-hidden /></button>{open && <div className="absolute start-0 top-full z-50 mt-1.5 min-w-[170px] overflow-hidden rounded-xl border border-border bg-card shadow-lg">{options.map((option) => <button key={option.value} type="button" onClick={() => { onChange(option.value); setOpen(false); }} className={cn('flex w-full px-4 py-2.5 text-start text-xs hover:bg-muted', option.value === value && 'bg-primary/10 font-semibold text-primary')}>{option.label}</button>)}</div>}</div>;
+const copy = (locale: string) => locale === 'en'
+  ? { title: 'Search', placeholder: 'Search products, brands and stores…', relevance: 'Most relevant', bestSelling: 'Best selling', popular: 'Most popular', newest: 'Newest', priceAsc: 'Price: low to high', priceDesc: 'Price: high to low', rating: 'Top rated', filters: 'Filters', sort: 'Sort', results: 'results', active: 'Active filters', clear: 'Clear all', noResults: 'No results found', noResultsText: 'Try another search or adjust your filters.', retry: 'Try again', trending: 'Popular products', minPrice: 'Minimum price', maxPrice: 'Maximum price', ratingLabel: 'Rating', availability: 'Availability', inStock: 'In stock', discount: 'On sale', category: 'Category', seller: 'Seller', brand: 'Brand', apply: 'Apply', close: 'Close' }
+  : locale === 'ps'
+    ? { title: 'لټون', placeholder: 'محصول، برانډ او پلورنځي ولټوئ…', relevance: 'ډېر اړوند', bestSelling: 'ډېر پلورل شوي', popular: 'ډېر مشهور', newest: 'نوي', priceAsc: 'ارزانه تر ګران', priceDesc: 'ګران تر ارزانه', rating: 'لوړه درجه', filters: 'فلټرونه', sort: 'ترتیب', results: 'پایلې', active: 'فعال فلټرونه', clear: 'ټول پاک کړه', noResults: 'پایله ونه موندل شوه', noResultsText: 'بل لټون یا بل فلټر وکاروئ.', retry: 'بیا هڅه', trending: 'مشهور محصولات', minPrice: 'لږ تر لږه بیه', maxPrice: 'تر ټولو لوړه بیه', ratingLabel: 'درجه', availability: 'موجودیت', inStock: 'په ذخیره کې', discount: 'تخفیف', category: 'وېشنیزه', seller: 'پلورونکی', brand: 'برانډ', apply: 'پلي کول', close: 'بندول' }
+    : { title: 'جستجو', placeholder: 'جستجوی محصول، برند و فروشگاه…', relevance: 'مرتبط‌ترین', bestSelling: 'پرفروش‌ترین', popular: 'محبوب‌ترین', newest: 'جدیدترین', priceAsc: 'ارزان‌ترین', priceDesc: 'گران‌ترین', rating: 'بالاترین امتیاز', filters: 'فیلترها', sort: 'مرتب‌سازی', results: 'نتیجه', active: 'فیلترهای فعال', clear: 'حذف همه', noResults: 'نتیجه‌ای یافت نشد', noResultsText: 'جستجوی دیگری امتحان کنید یا فیلترها را تغییر دهید.', retry: 'تلاش دوباره', trending: 'محصولات محبوب', minPrice: 'حداقل قیمت', maxPrice: 'حداکثر قیمت', ratingLabel: 'امتیاز', availability: 'موجودی', inStock: 'فقط موجودها', discount: 'فقط تخفیف‌دارها', category: 'دسته‌بندی', seller: 'فروشنده', brand: 'برند', apply: 'اعمال', close: 'بستن' };
+
+function sortLabel(value: Sort, locale: string) {
+  const t = copy(locale);
+  return t[value === 'priceAsc' ? 'priceAsc' : value === 'priceDesc' ? 'priceDesc' : value];
 }
 
-function SearchCard({ product, text, locale }: { product: Product; text: SearchCopy; locale: Locale }) {
-  const image = product.images?.[0]?.url;
-  const discount = product.compareAtPrice && product.compareAtPrice > product.price ? Math.round((1 - product.price / product.compareAtPrice) * 100) : 0;
-  return <article className="group flex min-w-0 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg">
-    <Link href={`/shop/${product.slug}`} className="relative block aspect-square overflow-hidden bg-muted"><>{image ? <Image src={image} alt={product.name} fill sizes="(max-width:640px) 50vw,(max-width:1024px) 25vw,20vw" className="object-cover transition-transform duration-300 group-hover:scale-105" /> : <div className="flex h-full items-center justify-center"><Package className="h-12 w-12 text-muted-foreground/30" aria-hidden /></div>}{discount > 0 && <span className="absolute start-2 top-2 rounded-md bg-primary px-2 py-1 text-[10px] font-bold text-primary-foreground">-{discount}%</span>}</></Link>
-    <div className="flex flex-1 flex-col gap-2 p-3"><div className="min-h-5">{product.category && <p className="truncate text-[10px] font-semibold uppercase tracking-wider text-primary">{product.category.name}</p>}</div><h2 className="line-clamp-2 min-h-10 text-sm font-semibold leading-5"><Link href={`/shop/${product.slug}`}>{product.name}</Link></h2>{product.rating !== undefined && product.rating > 0 && <div className="flex items-center gap-1">{[0,1,2,3,4].map((i) => <Star key={i} className={cn('h-2.5 w-2.5', i < Math.round(product.rating!) ? 'fill-amber-400 text-amber-400' : 'text-muted')} aria-hidden />)}{product.reviewCount ? <span className="text-[10px] text-muted-foreground">({product.reviewCount})</span> : null}</div>}<div className="mt-auto flex items-end justify-between gap-2 border-t border-border pt-2.5"><div>{discount > 0 && product.compareAtPrice && <span className="block text-[10px] text-muted-foreground line-through">{formatPrice(product.compareAtPrice, 'AFN', locale)}</span>}<span className="font-extrabold text-sm text-primary">{formatPrice(product.price, 'AFN', locale)}</span></div><Link href={`/products/${product.id}`} className="flex items-center gap-1 rounded-lg bg-primary px-2.5 py-1.5 text-[10px] font-bold text-primary-foreground">{text.view}<ArrowLeft className="h-2.5 w-2.5 icon-directional" aria-hidden /></Link></div></div>
-  </article>;
-}
+function SkeletonGrid() {
+  return <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">{Array.from({ length: 8 }).map((_, index) => <div key={index} className="overflow-hidden rounded-2xl border border-border bg-card"><div className="aspect-[4/3] animate-pulse bg-muted" /><div className="space-y-2 p-3"><div className="h-3 w-2/3 animate-pulse rounded bg-muted" /><div className="h-4 w-full animate-pulse rounded bg-muted" /><div className="h-4 w-1/2 animate-pulse rounded bg-muted" /></div></div>)}</div>;
 
-function StoreCard({ store, text }: { store: StoreResult; text: SearchCopy }) {
-  return <Link href={store.href} className="group flex items-center gap-4 rounded-2xl border border-border bg-card p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"><div className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-muted ring-1 ring-border">{store.logoUrl ? <Image src={store.logoUrl} alt={store.name} fill sizes="56px" className="object-cover" /> : <Store className="h-6 w-6 text-muted-foreground" aria-hidden />}</div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h3 className="truncate text-sm font-extrabold group-hover:text-primary">{store.name}</h3><span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">{text.verifiedStore}</span></div>{store.bio && <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">{store.bio}</p>}<div className="mt-2 flex flex-wrap items-center gap-3 text-[10px] text-muted-foreground"><span>{store.productCount} {text.storeProducts}</span>{store.city && <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" aria-hidden />{store.city}</span>}</div></div><ArrowLeft className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:-translate-x-0.5 icon-directional" aria-hidden /></Link>;
+function SelectBox({ label, value, options, onChange }: { label: string; value: string; options: Array<{ value: string; label: string }>; onChange: (value: string) => void }) {
+  return <label className="block space-y-1.5"><span className="text-xs font-bold text-muted-foreground">{label}</span><div className="relative"><select value={value} onChange={(event) => onChange(event.target.value)} className="h-10 w-full appearance-none rounded-xl border border-border bg-background px-3 pe-9 text-xs font-semibold outline-none focus:border-primary focus:ring-2 focus:ring-primary/15">{options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select><ChevronDown className="pointer-events-none absolute end-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden /></div></label>;
 }
 
 export default function SearchPage() {
-  const locale = useLocale() as Locale;
-  const translate = useTranslations('searchUi');
-  const text = useMemo<SearchCopy>(() => ({
-    search: translate('search'), searchAria: translate('searchAria'), sort: translate('sort'), category: translate('category'), price: translate('price'), clear: translate('clear'), view: translate('view'), results: translate('results'), resultsFor: translate('resultsFor'), emptyTitle: translate('emptyTitle'), emptyText: translate('emptyText'), noResults: translate('noResults'), noResultsText: translate('noResultsText'), allProducts: translate('allProducts'), allCategories: translate('allCategories'), allPrices: translate('allPrices'), newest: translate('newest'), cheapest: translate('cheapest'), expensive: translate('expensive'), popular: translate('popular'), clearSearch: translate('clearSearch'), wishlist: translate('wishlist'), allShown: translate('allShown'), loading: translate('loading'), error: translate('error'), retry: translate('retry'), productsTitle: translate('productsTitle'), storesTitle: translate('storesTitle'), storeProducts: translate('storeProducts'), verifiedStore: translate('verifiedStore'), categoriesTitle: translate('categoriesTitle'), categoryDigital: translate('categories.digital'), categoryClothing: translate('categories.clothing'), categoryHome: translate('categories.homeAppliances'), categoryBeauty: translate('categories.beauty'), categorySports: translate('categories.sports'), categoryTraditional: translate('categories.traditional'), categoryFootwear: translate('categories.footwear')
-  }), [translate]);
-  const searchParams = useSearchParams();
+  const locale = useLocale();
+  const t = copy(locale);
+  const params = useSearchParams();
   const router = useRouter();
-  const [query, setQuery] = useState(searchParams.get('q') ?? '');
-  const [debounced, setDebounced] = useState(query);
-  const [sort, setSort] = useState<SortOption>('newest');
-  const [category, setCategory] = useState('');
-  const [priceRange, setPriceRange] = useState('');
-  const [products, setProducts] = useState<Product[]>([]);
-  const [stores, setStores] = useState<StoreResult[]>([]);
+
+  const [query, setQuery] = useState(params.get('q') ?? '');
+  const [sort, setSort] = useState<Sort>((params.get('sort') as Sort) || 'relevance');
+  const [category, setCategory] = useState(params.get('category') ?? '');
+  const [seller, setSeller] = useState(params.get('seller') ?? '');
+  const [brand, setBrand] = useState(params.get('brand') ?? '');
+  const [minPrice, setMinPrice] = useState(params.get('minPrice') ?? '');
+  const [maxPrice, setMaxPrice] = useState(params.get('maxPrice') ?? '');
+  const [minRating, setMinRating] = useState(params.get('rating') ?? '');
+  const [inStock, setInStock] = useState(params.get('inStock') === 'true');
+  const [discount, setDiscount] = useState(params.get('discount') === 'true');
+  const [appliedQuery, setAppliedQuery] = useState(params.get('q') ?? '');
+  const [products, setProducts] = useState<ProductSummary[]>([]);
   const [meta, setMeta] = useState<SearchMeta | null>(null);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(false);
-  const loader = useRef<HTMLDivElement>(null);
-  const categories = [
-    { key: 'digital', label: text.categoryDigital, href: '/categories' },
-    { key: 'clothing', label: text.categoryClothing, href: '/categories' },
-    { key: 'home', label: text.categoryHome, href: '/categories' },
-    { key: 'beauty', label: text.categoryBeauty, href: '/categories' },
-    { key: 'sports', label: text.categorySports, href: '/categories' },
-    { key: 'footwear', label: text.categoryFootwear, href: '/categories' },
-    { key: 'traditional', label: text.categoryTraditional, href: '/traditional' },
-  ];
-  const prices = Object.entries({ low: translate('prices.low'), mid: translate('prices.mid'), high: translate('prices.high'), top: translate('prices.top') });
+  const [mobileSheet, setMobileSheet] = useState<'filters' | 'sort' | null>(null);
+  const loaderRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { const timer = setTimeout(() => setDebounced(query), 300); return () => clearTimeout(timer); }, [query]);
-  useEffect(() => { const next = searchParams.get('q') ?? ''; if (next !== query) { setQuery(next); setDebounced(next); } }, [searchParams, query]);
+  const queryString = useMemo(() => {
+    const next = new URLSearchParams();
+    if (appliedQuery.trim()) next.set('q', appliedQuery.trim());
+    if (category) next.set('category', category);
+    if (seller) next.set('seller', seller);
+    if (brand) next.set('brand', brand);
+    if (minPrice) next.set('minPrice', minPrice);
+    if (maxPrice) next.set('maxPrice', maxPrice);
+    if (minRating) next.set('rating', minRating);
+    if (inStock) next.set('inStock', 'true');
+    if (discount) next.set('discount', 'true');
+    if (sort !== 'relevance') next.set('sort', sort);
+    return next.toString();
+  }, [appliedQuery, category, seller, brand, minPrice, maxPrice, minRating, inStock, discount, sort]);
 
-  const fetchProducts = useCallback(async (requestedPage: number, append: boolean) => {
-    if (debounced.trim().length < 2) { setProducts([]); setStores([]); setMeta(null); setHasMore(false); return; }
+  const syncUrl = useCallback((nextQuery = appliedQuery) => {
+    const next = new URLSearchParams(queryString);
+    if (nextQuery.trim()) next.set('q', nextQuery.trim()); else next.delete('q');
+    const href = next.toString() ? `/search?${next.toString()}` : '/search';
+    router.replace(href);
+  }, [appliedQuery, queryString, router]);
+
+  useEffect(() => {
+    const nextQuery = params.get('q') ?? '';
+    const nextSort = (params.get('sort') as Sort) || 'relevance';
+    if (nextQuery !== appliedQuery) { setQuery(nextQuery); setAppliedQuery(nextQuery); }
+    if (nextSort !== sort) setSort(nextSort);
+    const pairs: Array<[string, (value: string) => void]> = [
+      ['category', setCategory], ['seller', setSeller], ['brand', setBrand], ['minPrice', setMinPrice], ['maxPrice', setMaxPrice], ['rating', setMinRating],
+    ];
+    pairs.forEach(([key, setter]) => setter(params.get(key) ?? ''));
+    setInStock(params.get('inStock') === 'true');
+    setDiscount(params.get('discount') === 'true');
+  }, [params]); // URL is source of truth
+
+  const fetchSearch = useCallback(async (requestedPage: number, append: boolean) => {
     setLoading(true); setError(false);
     try {
-      const params = new URLSearchParams({ q: debounced.trim(), page: String(requestedPage), pageSize: '12', sort: sortApi[sort] });
-      if (category) params.set('categoryKey', category);
-      if (priceRange) { const [min, max] = priceRange.split('-'); if (min) params.set('priceMin', min); if (max) params.set('priceMax', max); }
-      const response = await fetch(`/api/search?${params.toString()}`, { credentials: 'same-origin' });
-      const data = await response.json() as { ok?: boolean; data?: Product[]; meta?: SearchMeta };
-      if (!response.ok || !data.ok) throw new Error('search_failed');
-      setProducts((current) => append ? [...current, ...(data.data ?? [])] : (data.data ?? []));
-      setMeta(data.meta ?? null); setStores(data.meta?.stores ?? []); setHasMore(data.meta?.hasMore ?? false);
-    } catch { setError(true); if (!append) { setProducts([]); setStores([]); } } finally { setLoading(false); }
-  }, [debounced, sort, category, priceRange]);
+      const api = new URLSearchParams({ page: String(requestedPage), pageSize: '12', sort });
+      if (appliedQuery.trim()) api.set('q', appliedQuery.trim());
+      if (category) api.set('categoryKey', category);
+      if (seller) api.set('sellerId', seller);
+      if (brand) api.set('brand', brand);
+      if (minPrice) api.set('priceMin', minPrice);
+      if (maxPrice) api.set('priceMax', maxPrice);
+      if (minRating) api.set('minRating', minRating);
+      if (inStock) api.set('inStock', 'true');
+      if (discount) api.set('hasDiscount', 'true');
+      const response = await fetch(`/api/search?${api.toString()}`, { credentials: 'same-origin', cache: 'no-store' });
+      const payload = await response.json() as { ok?: boolean; data?: ProductSummary[]; meta?: SearchMeta };
+      if (!response.ok || !payload.ok) throw new Error('search_failed');
+      setProducts((current) => append ? [...current, ...(payload.data ?? [])] : (payload.data ?? []));
+      setMeta(payload.meta ?? null);
+    } catch {
+      setError(true);
+      if (!append) setProducts([]);
+    } finally { setLoading(false); }
+  }, [appliedQuery, category, seller, brand, minPrice, maxPrice, minRating, inStock, discount, sort]);
 
-  useEffect(() => { setPage(1); void fetchProducts(1, false); }, [fetchProducts]);
-  useEffect(() => { const element = loader.current; if (!element) return; const observer = new IntersectionObserver(([entry]) => { if (entry.isIntersecting && hasMore && !loading) setPage((value) => value + 1); }, { rootMargin: '160px' }); observer.observe(element); return () => observer.disconnect(); }, [hasMore, loading]);
-  useEffect(() => { if (page > 1) void fetchProducts(page, true); }, [page, fetchProducts]);
+  useEffect(() => { setPage(1); void fetchSearch(1, false); }, [fetchSearch]);
+  useEffect(() => {
+    const node = loaderRef.current;
+    if (!node) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting && meta?.hasMore && !loading) setPage((value) => value + 1);
+    }, { rootMargin: '320px' });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [meta?.hasMore, loading]);
+  useEffect(() => { if (page > 1) void fetchSearch(page, true); }, [page, fetchSearch]);
 
-  const sortOptions = [{ value: 'newest' as const, label: text.newest }, { value: 'cheapest' as const, label: text.cheapest }, { value: 'expensive' as const, label: text.expensive }, { value: 'popular' as const, label: text.popular }];
-  const categoryOptions = [{ value: '', label: text.allCategories }, { value: 'digital', label: text.categoryDigital }, { value: 'clothing', label: text.categoryClothing }, { value: 'homeAppliances', label: text.categoryHome }, { value: 'beauty', label: text.categoryBeauty }, { value: 'traditional', label: text.categoryTraditional }];
-  const priceOptions = [{ value: '', label: text.allPrices }, ...prices.map(([value, label]) => ({ value, label }))];
-  const hasFilters = Boolean(category || priceRange || sort !== 'newest');
-  function clearAll() { setQuery(''); setCategory(''); setPriceRange(''); setSort('newest'); setProducts([]); setStores([]); setMeta(null); router.push('/search'); }
+  const facets = meta?.facets;
+  const activeCount = [category, seller, brand, minPrice, maxPrice, minRating, inStock ? 'stock' : '', discount ? 'discount' : '', sort !== 'relevance' ? sort : ''].filter(Boolean).length;
+  const applyQuery = () => { setAppliedQuery(query); syncUrl(query); setMobileSheet(null); };
+  const clearFilters = () => {
+    setCategory(''); setSeller(''); setBrand(''); setMinPrice(''); setMaxPrice(''); setMinRating(''); setInStock(false); setDiscount(false); setSort('relevance'); setPage(1); setMobileSheet(null);
+    const href = appliedQuery.trim() ? `/search?q=${encodeURIComponent(appliedQuery.trim())}` : '/search';
+    router.replace(href);
+  };
 
-  return <><SiteHeader /><main id="main" className="min-h-dvh bg-background"><div className="mx-auto max-w-screen-xl px-3 py-5 sm:px-6 sm:py-8">
-    <div className="mb-5 rounded-3xl border border-border bg-card p-4 shadow-sm sm:p-5"><div className="relative"><Search className="pointer-events-none absolute start-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" aria-hidden /><input value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') router.push(`/search?q=${encodeURIComponent(query.trim())}`); }} placeholder={text.search} aria-label={text.searchAria} className="h-14 w-full rounded-2xl border border-border bg-muted/40 px-12 pe-12 text-sm outline-none transition focus:border-primary focus:bg-background focus:ring-2 focus:ring-primary/15" />{query && <button type="button" onClick={() => setQuery('')} aria-label={text.clearSearch} className="absolute end-4 top-1/2 -translate-y-1/2 rounded-full p-1.5 text-muted-foreground hover:bg-muted"><X className="h-4 w-4" aria-hidden /></button>}</div></div>
-    <div className="grid gap-6 lg:grid-cols-[220px_minmax(0,1fr)]">
-      <aside className="hidden self-start lg:block"><div className="sticky top-24 rounded-2xl border border-border bg-card p-3 shadow-sm"><div className="flex items-center gap-2 px-2 pb-3 text-sm font-extrabold"><LayoutGrid className="h-4 w-4 text-primary" />{text.categoriesTitle}</div><div className="space-y-1">{categories.map((item, index) => <Link key={item.key} href={item.href} className={cn('flex items-center gap-3 rounded-xl px-3 py-3 text-xs font-semibold transition-colors hover:bg-muted', item.key === 'traditional' && 'text-primary')}><span className="flex h-9 w-9 items-center justify-center rounded-full bg-muted text-base">{['📱','👕','🏠','✨','⚽','👟','🇦🇫'][index]}</span><span className="flex-1">{item.label}</span><ArrowLeft className="h-3 w-3 text-muted-foreground icon-directional" /></Link>)}</div><Link href="/categories" className="mt-2 flex items-center justify-center rounded-xl bg-muted py-2.5 text-xs font-bold text-foreground">{text.allCategories}</Link></div></aside>
-      <section className="min-w-0">
-        <div className="mb-4 flex flex-wrap items-center gap-2"><FilterDropdown label={text.sort} options={sortOptions} value={sort} onChange={setSort} /><FilterDropdown label={text.category} options={categoryOptions} value={category} onChange={setCategory} /><FilterDropdown label={text.price} options={priceOptions} value={priceRange} onChange={setPriceRange} />{hasFilters && <button type="button" onClick={clearAll} className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold text-destructive hover:bg-destructive/10"><RotateCcw className="h-3.5 w-3.5" aria-hidden />{text.clear}</button>}</div>
-        {error && <div className="mb-5 flex items-center justify-between gap-3 rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert"><span>{text.error}</span><button type="button" onClick={() => void fetchProducts(1, false)} className="inline-flex items-center gap-1 font-bold"><RotateCcw className="h-3.5 w-3.5" />{text.retry}</button></div>}
-        {!query && <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center"><Search className="mx-auto h-9 w-9 text-primary/70" aria-hidden /><h1 className="mt-3 text-xl font-black">{text.emptyTitle}</h1><p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-muted-foreground">{text.emptyText}</p></div>}
-        {query && <><div className="mb-5 flex items-end justify-between gap-3"><div><h1 className="text-xl font-extrabold">{text.resultsFor} “{query}”</h1><p className="mt-1 text-xs text-muted-foreground">{meta?.total ?? 0} {text.results} · {meta?.storeCount ?? 0} {text.storesTitle}</p></div>{loading && <span className="text-xs font-semibold text-muted-foreground">{text.loading}</span>}</div>
-          {stores.length > 0 && <section className="mb-8"><div className="mb-3 flex items-center justify-between"><h2 className="text-lg font-black">{text.storesTitle}</h2><span className="text-xs text-muted-foreground">{stores.length}</span></div><div className="grid gap-3 md:grid-cols-2">{stores.map((store) => <StoreCard key={store.id} store={store} text={text} />)}</div></section>}
-          <section><div className="mb-3 flex items-center justify-between"><h2 className="text-lg font-black">{text.productsTitle}</h2><span className="text-xs text-muted-foreground">{meta?.total ?? products.length}</span></div>{loading && products.length === 0 ? <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">{Array.from({ length: 8 }).map((_, i) => <div key={i} className="aspect-[.78] animate-pulse rounded-2xl bg-muted" />)}</div> : products.length > 0 ? <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">{products.map((product) => <SearchCard key={product.id} product={product} text={text} locale={locale} />)}</div> : <div className="rounded-2xl border border-dashed border-border bg-card px-6 py-12 text-center"><Package className="mx-auto h-9 w-9 text-muted-foreground/50" /><h3 className="mt-3 text-base font-bold">{text.noResults}</h3><p className="mt-1 text-sm text-muted-foreground">{text.noResultsText}</p></div>}{hasMore && <div ref={loader} className="flex justify-center py-8"><span className="text-xs text-muted-foreground">{text.loading}</span></div>}{!hasMore && products.length > 0 && <p className="mt-7 text-center text-xs text-muted-foreground">{text.allShown}</p>}</section>
-        </>}
+  const categoryOptions = [{ value: '', label: t.category }, ...(facets?.categories ?? []).map((item) => ({ value: item.value, label: `${item.label} (${item.count})` }))];
+  const sellerOptions = [{ value: '', label: t.seller }, ...(facets?.sellers ?? []).map((item) => ({ value: item.id, label: `${item.label} (${item.count})` }))];
+  const brandOptions = [{ value: '', label: t.brand }, ...(facets?.brands ?? []).map((item) => ({ value: item.value, label: `${item.label} (${item.count})` }))];
+  const sortOptions = SORTS.map((value) => ({ value, label: sortLabel(value, locale) }));
+
+  const filterPanel = <div className="space-y-4">
+    <SelectBox label={t.category} value={category} options={categoryOptions} onChange={(value) => { setCategory(value); syncUrl(appliedQuery); }} />
+    {sellerOptions.length > 1 && <SelectBox label={t.seller} value={seller} options={sellerOptions} onChange={(value) => { setSeller(value); syncUrl(appliedQuery); }} />}
+    {brandOptions.length > 1 && <SelectBox label={t.brand} value={brand} options={brandOptions} onChange={(value) => { setBrand(value); syncUrl(appliedQuery); }} />}
+    <div className="space-y-2"><p className="text-xs font-bold text-muted-foreground">{t.minPrice} / {t.maxPrice}</p><div className="grid grid-cols-2 gap-2"><input inputMode="numeric" value={minPrice} onChange={(event) => setMinPrice(event.target.value)} placeholder="0" className="h-10 rounded-xl border border-border bg-background px-3 text-xs outline-none focus:border-primary" /><input inputMode="numeric" value={maxPrice} onChange={(event) => setMaxPrice(event.target.value)} placeholder={facets?.price ? String(Math.round(facets.price.max)) : '∞'} className="h-10 rounded-xl border border-border bg-background px-3 text-xs outline-none focus:border-primary" /></div><button type="button" onClick={() => syncUrl(appliedQuery)} className="w-full rounded-xl bg-primary px-3 py-2 text-xs font-bold text-primary-foreground">{t.apply}</button></div>
+    <label className="flex items-center justify-between rounded-xl border border-border px-3 py-2.5 text-xs font-semibold"><span>{t.inStock}</span><input type="checkbox" checked={inStock} onChange={(event) => { setInStock(event.target.checked); setTimeout(() => syncUrl(appliedQuery), 0); }} className="h-4 w-4 accent-primary" /></label>
+    <label className="flex items-center justify-between rounded-xl border border-border px-3 py-2.5 text-xs font-semibold"><span>{t.discount}</span><input type="checkbox" checked={discount} onChange={(event) => { setDiscount(event.target.checked); setTimeout(() => syncUrl(appliedQuery), 0); }} className="h-4 w-4 accent-primary" /></label>
+    <div className="space-y-2"><p className="text-xs font-bold text-muted-foreground">{t.ratingLabel}</p><div className="flex gap-2">{['4', '3'].map((value) => <button key={value} type="button" onClick={() => { setMinRating(minRating === value ? '' : value); setTimeout(() => syncUrl(appliedQuery), 0); }} className={`flex flex-1 items-center justify-center gap-1 rounded-xl border px-3 py-2 text-xs font-bold ${minRating === value ? 'border-primary bg-primary/10 text-primary' : 'border-border'}`}><Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />{value}+</button>)}</div></div>
+  </div>;
+
+  return <div className="min-h-dvh bg-background"><SiteHeader /><main id="main" className="pb-20 md:pb-0"><div className="mx-auto max-w-screen-xl px-3 py-5 sm:px-6 sm:py-8">
+    <div className="mb-4 rounded-3xl border border-border bg-card p-3 shadow-sm sm:p-4"><div className="relative"><Search className="pointer-events-none absolute start-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" aria-hidden /><input value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') applyQuery(); }} placeholder={t.placeholder} aria-label={t.title} className="h-14 w-full rounded-2xl border border-border bg-muted/30 px-12 pe-12 text-sm font-semibold outline-none focus:border-primary focus:bg-background focus:ring-2 focus:ring-primary/15" />{query && <button type="button" onClick={() => { setQuery(''); setAppliedQuery(''); router.replace('/search'); }} aria-label={t.clear} className="absolute end-4 top-1/2 -translate-y-1/2 rounded-full p-2 hover:bg-muted"><X className="h-4 w-4" /></button>}</div></div>
+
+    <div className="mb-4 flex gap-2 lg:hidden"><button type="button" onClick={() => setMobileSheet('filters')} className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-xs font-bold"><SlidersHorizontal className="h-4 w-4" />{t.filters}{activeCount > 0 && <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] text-primary-foreground">{activeCount}</span>}</button><button type="button" onClick={() => setMobileSheet('sort')} className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-xs font-bold"><ChevronDown className="h-4 w-4" />{t.sort}: {sortLabel(sort, locale)}</button></div>
+
+    <div className="grid gap-6 lg:grid-cols-[250px_minmax(0,1fr)]">
+      <aside className="hidden lg:block"><div className="sticky top-24 rounded-2xl border border-border bg-card p-4 shadow-sm"><div className="mb-4 flex items-center justify-between"><h2 className="text-sm font-extrabold">{t.filters}</h2>{activeCount > 0 && <button type="button" onClick={clearFilters} className="text-[11px] font-bold text-primary">{t.clear}</button>}</div>{filterPanel}</div></aside>
+      <section className="min-w-0"><div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-xl font-black tracking-tight sm:text-2xl">{appliedQuery ? `${t.title}: ${appliedQuery}` : t.trending}</h1><p className="mt-1 text-xs text-muted-foreground">{(meta?.total ?? products.length).toLocaleString(locale === 'en' ? 'en-US' : 'fa-IR')} {t.results}</p></div><div className="hidden sm:block"><SelectBox label={t.sort} value={sort} options={sortOptions} onChange={(value) => { setSort(value as Sort); setTimeout(() => syncUrl(appliedQuery), 0); }} /></div></div>
+        {(activeCount > 0) && <div className="mb-4 flex flex-wrap items-center gap-2"><span className="text-[11px] font-bold text-muted-foreground">{t.active}:</span>{category && <button type="button" onClick={() => { setCategory(''); setTimeout(() => syncUrl(appliedQuery), 0); }} className="rounded-full bg-muted px-3 py-1.5 text-[11px] font-semibold">{t.category} ×</button>}{seller && <button type="button" onClick={() => { setSeller(''); setTimeout(() => syncUrl(appliedQuery), 0); }} className="rounded-full bg-muted px-3 py-1.5 text-[11px] font-semibold">{t.seller} ×</button>}{brand && <button type="button" onClick={() => { setBrand(''); setTimeout(() => syncUrl(appliedQuery), 0); }} className="rounded-full bg-muted px-3 py-1.5 text-[11px] font-semibold">{t.brand} ×</button>}{(minPrice || maxPrice) && <button type="button" onClick={() => { setMinPrice(''); setMaxPrice(''); setTimeout(() => syncUrl(appliedQuery), 0); }} className="rounded-full bg-muted px-3 py-1.5 text-[11px] font-semibold">{t.minPrice}/{t.maxPrice} ×</button>}{minRating && <button type="button" onClick={() => { setMinRating(''); setTimeout(() => syncUrl(appliedQuery), 0); }} className="rounded-full bg-muted px-3 py-1.5 text-[11px] font-semibold">{t.ratingLabel} {minRating}+ ×</button>}{(inStock || discount) && <button type="button" onClick={() => { setInStock(false); setDiscount(false); setTimeout(() => syncUrl(appliedQuery), 0); }} className="rounded-full bg-muted px-3 py-1.5 text-[11px] font-semibold">{t.availability}/{t.discount} ×</button>}<button type="button" onClick={clearFilters} className="ms-auto inline-flex items-center gap-1 text-[11px] font-bold text-primary"><RotateCcw className="h-3 w-3" />{t.clear}</button></div>}
+
+        {error ? <div className="rounded-2xl border border-dashed border-destructive/30 bg-card px-6 py-16 text-center"><p className="text-base font-black">{t.noResults}</p><p className="mt-2 text-xs text-muted-foreground">{t.noResultsText}</p><button type="button" onClick={() => void fetchSearch(1, false)} className="mt-5 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground">{t.retry}</button></div>
+          : loading && products.length === 0 ? <SkeletonGrid />
+          : products.length === 0 ? <div className="rounded-2xl border border-dashed border-border bg-card px-6 py-16 text-center"><p className="text-base font-black">{appliedQuery ? t.noResults : t.trending}</p><p className="mt-2 text-xs text-muted-foreground">{t.noResultsText}</p></div>
+          : <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">{products.map((product) => <ShopProductCard key={product.id} product={product} locale={locale} currency="AFN" />)}</div>}
+
+        <div ref={loaderRef} className="h-12 pt-5 text-center text-xs text-muted-foreground">{loading && products.length > 0 ? '…' : meta?.hasMore ? ' ' : products.length > 0 ? ' ' : ''}</div>
       </section>
     </div>
-  </div></main><SiteFooter /></>;
+  </div></main>
+
+  {mobileSheet && <div className="fixed inset-0 z-50 lg:hidden"><button type="button" aria-label={t.close} onClick={() => setMobileSheet(null)} className="absolute inset-0 bg-black/45" /><div className="absolute inset-x-0 bottom-0 max-h-[85vh] overflow-y-auto rounded-t-3xl border-t border-border bg-card p-5 pb-safe shadow-2xl"><div className="mb-4 flex items-center justify-between"><h2 className="text-base font-black">{mobileSheet === 'filters' ? t.filters : t.sort}</h2><button type="button" onClick={() => setMobileSheet(null)} className="rounded-full p-2 hover:bg-muted" aria-label={t.close}><X className="h-4 w-4" /></button></div>{mobileSheet === 'filters' ? filterPanel : <div className="space-y-2">{sortOptions.map((item) => <button key={item.value} type="button" onClick={() => { setSort(item.value as Sort); setMobileSheet(null); setTimeout(() => syncUrl(appliedQuery), 0); }} className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-sm font-bold ${sort === item.value ? 'border-primary bg-primary/10 text-primary' : 'border-border'}`}>{item.label}{sort === item.value ? '✓' : ''}</button>)}</div>}</div></div>}
+  <SiteFooter /><BottomNavigation /></div>;
 }
