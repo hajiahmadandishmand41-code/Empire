@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import { setRequestLocale } from 'next-intl/server';
 import { HomepageHeroCarousel } from '@/features/home/components/homepage-hero-carousel';
 import { DynamicBannerStrip } from '@/features/home/components/dynamic-banner-strip';
+import { TraditionalProductsBanner } from '@/features/home/components/traditional-products-banner';
 import { CategoriesSection } from '@/features/home/components/categories-section';
 import { ProductSliderSection } from '@/features/home/components/product-slider-section';
 import { PersonalizedProductsSection, RecentlyViewedSection } from '@/features/home/components/personalized-products-section';
@@ -60,6 +61,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
       <main id="main" className="min-h-dvh pb-16 md:pb-0">
         <HomepageHeroCarousel banners={heroBanners} locale={locale} />
         <Suspense fallback={<div className="h-24 animate-pulse bg-muted/40" />}><CategoriesSection /></Suspense>
+        <Suspense fallback={<div className="h-56 animate-pulse bg-muted/30" />}><TraditionalProductsBanner locale={locale} /></Suspense>
 
         <Suspense fallback={<SectionSkeleton />}>
           <HomeProductSection section="featured" locale={locale} title={{ en: 'Special offers', ps: 'ځانګړي وړاندیزونه', fa: 'پیشنهادهای ویژه' }} subtitle={{ en: 'Limited-time products worth checking today', ps: 'د نن ورځې محدود او ارزښتناک وړاندیزونه', fa: 'محصولات محدود و ارزشمند امروز' }} href="/shop?badge=sale" badge="featured" />
