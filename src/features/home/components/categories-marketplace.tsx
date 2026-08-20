@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { ChevronDown, SlidersHorizontal } from 'lucide-react';
+import { ChevronDown, SlidersHorizontal, ImageOff } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link } from '@/i18n/routing';
 
@@ -12,7 +12,6 @@ export function CategoriesMarketplace({ categories, locale, allLabel }: Props) {
   const [active, setActive] = useState('all');
   const visible = useMemo(() => active === 'all' ? categories : categories.filter((category) => category.key === active), [active, categories]);
   const selected = categories.find((category) => category.key === active);
-
   const labels = locale === 'en'
     ? { main: 'Main categories', explore: 'Explore by shelf', all: 'All categories', items: 'categories', products: 'products', empty: 'No categories found', back: 'View category' }
     : locale === 'ps'
@@ -33,7 +32,7 @@ export function CategoriesMarketplace({ categories, locale, allLabel }: Props) {
 
       {visible.length === 0 ? <div className="rounded-3xl border border-dashed border-border bg-card px-6 py-16 text-center"><p className="text-lg font-black">{labels.empty}</p></div> : <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
         {visible.map((category) => <Link key={category.key} href={`/category/${category.slug}`} className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition duration-300 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30">
-          <div className="relative aspect-[4/3] overflow-hidden bg-muted"><Image src={category.image} alt={category.title} fill sizes="(max-width: 640px) 50vw, (max-width: 1280px) 33vw, 260px" className="object-cover transition duration-500 group-hover:scale-[1.035]" /><div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" /></div>
+          <div className="relative aspect-[4/3] overflow-hidden bg-muted">{category.image ? <Image src={category.image} alt={category.title} fill sizes="(max-width: 640px) 50vw, (max-width: 1280px) 33vw, 260px" className="object-cover transition duration-500 group-hover:scale-[1.035]" /> : <div className="flex h-full items-center justify-center"><ImageOff className="h-8 w-8 text-muted-foreground/35" aria-hidden /></div>}<div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" /></div>
           <div className="flex min-h-[86px] flex-col justify-center px-3 py-3"><h3 className="line-clamp-2 text-sm font-black leading-5 sm:text-base">{category.title}</h3><p className="mt-1 text-[11px] font-semibold text-muted-foreground">{category.productCount ?? 0} {labels.products}</p><p className="mt-2 text-[10px] font-bold text-primary">{labels.back} ←</p></div>
         </Link>)}
       </div>}
