@@ -1,40 +1,89 @@
-import { Suspense } from 'react';
+import type { Metadata } from 'next';
+import { Search, SlidersHorizontal, RotateCcw } from 'lucide-react';
 import { setRequestLocale } from 'next-intl/server';
+import { Link } from '@/i18n/routing';
 import { SiteHeader } from '@/features/home/components/site-header';
 import { SiteFooter } from '@/features/home/components/site-footer';
 import { BottomNavigation } from '@/features/home/components/bottom-navigation';
-import SearchPageContent from './search-page-content';
+import { ShopProductCard } from '@/features/shop/components/shop-product-card';
+import { getSearchService } from '@/server/infrastructure/registry';
+import type { SearchSort } from '@/server/services/search.service';
 
 export const dynamic = 'force-dynamic';
 
-export default async function SearchPage({ params }: { params: Promise<{ locale: string }> }) {
-  const { locale } = await params;
-  setRequestLocale(locale);
+const SORTS: SearchSort[] = ['relevance', 'bestSelling', 'popular', 'newest', 'priceAsc', 'priceDesc', 'rating'];
+const copy = {
+  fa: { title: 'جستجو', found: 'نتیجه', placeholder: 'محصول، برند یا فروشگاه را جستجو کنید', submit: 'جستجو', filters: 'فیلترها', clear: 'حذف فیلترها', category: 'دسته‌بندی', seller: 'فروشنده', brand: 'برند', min: 'حداقل قیمت', max: 'حداکثر قیمت', stock: 'فقط موجودها', discount: 'فقط تخفیف‌دارها', rating: 'حداقل امتیاز', sort: 'مرتب‌سازی', empty: 'نتیجه‌ای پیدا نشد', emptyText: 'عبارت دیگری را امتحان کنید یا فیلترها را تغییر دهید.', retry: 'جستجوی جدید', previous: 'قبلی', next: 'بعدی', page: 'صفحه' },
+  ps: { title: 'لټون', found: 'پایلې', placeholder: 'محصول، برانډ یا پلورنځی ولټوئ', submit: 'لټون', filters: 'فلټرونه', clear: 'فلټرونه پاک کړئ', category: 'وېشنیزه', seller: 'پلورونکی', brand: 'برانډ', min: 'لږ تر لږه بیه', max: 'تر ټولو لوړه بیه', stock: 'یوازې شته', discount: 'یوازې تخفیف', rating: 'لږ تر لږه درجه', sort: 'ترتیب', empty: 'پایله ونه موندل شوه', emptyText: 'بله کلیمه یا فلټر وکاروئ.', retry: 'نوی لټون', previous: 'مخکینی', next: 'بل', page: 'پاڼه' },
+  en: { title: 'Search', found: 'results', placeholder: 'Search products, brands or stores', submit: 'Search', filters: 'Filters', clear: 'Clear filters', category: 'Category', seller: 'Seller', brand: 'Brand', min: 'Min price', max: 'Max price', stock: 'In stock only', discount: 'On sale only', rating: 'Minimum rating', sort: 'Sort', empty: 'No results found', emptyText: 'Try another query or change your filters.', retry: 'New search', previous: 'Previous', next: 'Next', page: 'Page' },
+} as const;
+const sortLabels = {
+  fa: { relevance: 'مرتبط‌ترین', bestSelling: 'پرفروش‌ترین', popular: 'محبوب‌ترین', newest: 'جدیدترین', priceAsc: 'ارزان‌ترین', priceDesc: 'گران‌ترین', rating: 'بالاترین امتیاز' },
+  ps: { relevance: 'ډېر اړوند', bestSelling: 'ډېر پلورل شوي', popular: 'ډېر مشهور', newest: 'نوي', priceAsc: 'ارزانه تر ګران', priceDesc: 'ګران تر ارزانه', rating: 'لوړه درجه' },
+  en: { relevance: 'Most relevant', bestSelling: 'Best selling', popular: 'Most popular', newest: 'Newest', priceAsc: 'Price: low to high', priceDesc: 'Price: high to low', rating: 'Top rated' },
+} as const;
 
-  return (
-    <div className="min-h-dvh bg-background">
-      <Suspense fallback={
-        <>
-          <SiteHeader />
-          <main id="main" className="pb-20 md:pb-0">
-            <div className="mx-auto max-w-screen-xl px-3 py-5 sm:px-6 sm:py-8">
-              <div className="mb-4 h-14 animate-pulse rounded-3xl bg-muted" />
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
-                {Array.from({ length: 8 }).map((_, index) => (
-                  <div key={index} className="overflow-hidden rounded-2xl border border-border bg-card">
-                    <div className="aspect-[4/3] animate-pulse bg-muted" />
-                    <div className="space-y-2 p-3"><div className="h-3 w-2/3 animate-pulse rounded bg-muted" /><div className="h-4 w-full animate-pulse rounded bg-muted" /><div className="h-4 w-1/2 animate-pulse rounded bg-muted" /></div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </main>
-          <SiteFooter />
-          <BottomNavigation />
-        </>
-      }>
-        <SearchPageContent />
-      </Suspense>
-    </div>
-  );
+type Props = { params: Promise<{ locale: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> };
+function one(v: string | string[] | undefined) { return Array.isArray(v) ? v[0] ?? '' : v ?? ''; }
+function num(v: string) { const n = Number(v); return v && Number.isFinite(n) ? n : undefined; }
+function href(locale: string, current: Record<string, string>, changes: Record<string, string | undefined> = {}) { const q = new URLSearchParams(); for (const [k, v] of Object.entries({ ...current, ...changes })) if (v) q.set(k, v); const s = q.toString(); return `/${locale}/search${s ? `?${s}` : ''}`; }
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> { const { locale } = await params; const lang = locale === 'en' || locale === 'ps' ? locale : 'fa'; return { title: copy[lang].title, description: copy[lang].placeholder }; }
+
+export default async function SearchPage({ params, searchParams }: Props) {
+  const { locale } = await params;
+  const raw = await searchParams;
+  setRequestLocale(locale);
+  const lang = locale === 'en' || locale === 'ps' ? locale : 'fa';
+  const t = copy[lang];
+  const q = one(raw.q).trim();
+  const category = one(raw.category);
+  const seller = one(raw.seller);
+  const brand = one(raw.brand);
+  const minRaw = one(raw.minPrice);
+  const maxRaw = one(raw.maxPrice);
+  const ratingRaw = one(raw.rating);
+  const minPrice = num(minRaw);
+  const maxPrice = num(maxRaw);
+  const minRating = num(ratingRaw);
+  const inStock = one(raw.inStock) === 'true';
+  const discount = one(raw.discount) === 'true';
+  const rawSort = one(raw.sort) as SearchSort;
+  const sort = SORTS.includes(rawSort) ? rawSort : 'relevance';
+  const page = Math.max(1, Math.min(1000, Number(one(raw.page)) || 1));
+  const invalidPrice = minPrice !== undefined && maxPrice !== undefined && minPrice > maxPrice;
+
+  type SearchResult = Awaited<ReturnType<ReturnType<typeof getSearchService>['search']>>;
+  let result: SearchResult = { products: [], total: 0, page, pageSize: 24, hasMore: false, meta: { query: q, durationMs: 0, reranked: false, facets: { categories: [], sellers: [], brands: [], price: null } } };
+  let failed = false;
+  if (!invalidPrice) {
+    try { result = await getSearchService().search({ q, categoryKey: category || undefined, sellerId: seller || undefined, brand: brand || undefined, priceMin: minPrice, priceMax: maxPrice, minRating, inStock: inStock || undefined, hasDiscount: discount || undefined, sort, page, pageSize: 24 }); }
+    catch (error) { console.error('[search-page] server search failed', error); failed = true; }
+  }
+
+  const current: Record<string, string> = {};
+  for (const [k, v] of [['q', q], ['category', category], ['seller', seller], ['brand', brand], ['minPrice', minRaw], ['maxPrice', maxRaw], ['rating', ratingRaw], ['inStock', inStock ? 'true' : ''], ['discount', discount ? 'true' : ''], ['sort', sort !== 'relevance' ? sort : '']] as Array<[string, string]>) if (v) current[k] = v;
+  const facets = result.meta.facets;
+  const totalPages = Math.max(1, Math.ceil(result.total / result.pageSize));
+
+  return <div className="min-h-dvh bg-background">
+    <SiteHeader />
+    <main id="main" className="pb-20 md:pb-0">
+      <div className="mx-auto max-w-screen-xl px-3 py-5 sm:px-6 sm:py-8">
+        <form action={`/${locale}/search`} method="get" className="rounded-3xl border border-border bg-card p-3 shadow-sm sm:p-4"><div className="flex flex-col gap-3 sm:flex-row"><div className="relative min-w-0 flex-1"><Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden /><input name="q" defaultValue={q} placeholder={t.placeholder} className="h-12 w-full rounded-2xl border border-border bg-background ps-10 pe-4 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15" /></div><button className="h-12 rounded-2xl bg-primary px-6 text-sm font-bold text-primary-foreground" type="submit">{t.submit}</button></div></form>
+
+        <div className="mt-5 grid gap-5 lg:grid-cols-[230px_minmax(0,1fr)]">
+          <aside className="lg:sticky lg:top-24 lg:self-start"><details className="rounded-3xl border border-border bg-card p-4" open><summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-black"><SlidersHorizontal className="h-4 w-4 text-primary" aria-hidden />{t.filters}</summary><form action={`/${locale}/search`} method="get" className="mt-4 space-y-3">{q && <input type="hidden" name="q" value={q} />}<label className="block text-xs font-bold text-muted-foreground">{t.category}<select name="category" defaultValue={category} className="mt-1.5 h-10 w-full rounded-xl border border-border bg-background px-3 text-xs"><option value="">{t.category}</option>{facets.categories.map((x) => <option key={x.value} value={x.value}>{x.label} ({x.count})</option>)}</select></label>{facets.sellers.length > 0 && <label className="block text-xs font-bold text-muted-foreground">{t.seller}<select name="seller" defaultValue={seller} className="mt-1.5 h-10 w-full rounded-xl border border-border bg-background px-3 text-xs"><option value="">{t.seller}</option>{facets.sellers.map((x) => <option key={x.id} value={x.id}>{x.label} ({x.count})</option>)}</select></label>}{facets.brands.length > 0 && <label className="block text-xs font-bold text-muted-foreground">{t.brand}<select name="brand" defaultValue={brand} className="mt-1.5 h-10 w-full rounded-xl border border-border bg-background px-3 text-xs"><option value="">{t.brand}</option>{facets.brands.map((x) => <option key={x.value} value={x.value}>{x.label} ({x.count})</option>)}</select></label>}<div className="grid grid-cols-2 gap-2"><label className="text-xs font-bold text-muted-foreground">{t.min}<input name="minPrice" defaultValue={minRaw} inputMode="numeric" className="mt-1.5 h-10 w-full rounded-xl border border-border bg-background px-2.5 text-xs" /></label><label className="text-xs font-bold text-muted-foreground">{t.max}<input name="maxPrice" defaultValue={maxRaw} inputMode="numeric" className="mt-1.5 h-10 w-full rounded-xl border border-border bg-background px-2.5 text-xs" /></label></div><label className="flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-xs font-semibold"><input type="checkbox" name="inStock" value="true" defaultChecked={inStock} />{t.stock}</label><label className="flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-xs font-semibold"><input type="checkbox" name="discount" value="true" defaultChecked={discount} />{t.discount}</label><label className="block text-xs font-bold text-muted-foreground">{t.rating}<select name="rating" defaultValue={ratingRaw} className="mt-1.5 h-10 w-full rounded-xl border border-border bg-background px-3 text-xs"><option value="">{t.rating}</option>{[4,3,2,1].map((x) => <option key={x} value={x}>{x}+</option>)}</select></label><button className="w-full rounded-xl bg-primary px-3 py-2.5 text-xs font-bold text-primary-foreground" type="submit">{t.filters}</button><Link href={`/${locale}/search${q ? `?q=${encodeURIComponent(q)}` : ''}`} className="flex items-center justify-center gap-1.5 rounded-xl border border-border px-3 py-2.5 text-xs font-bold text-muted-foreground"><RotateCcw className="h-3.5 w-3.5" aria-hidden />{t.clear}</Link></form></details></aside>
+
+          <section className="min-w-0"><div className="mb-4 flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><h1 className="truncate text-lg font-black sm:text-xl">{q ? `«${q}»` : t.title}</h1><p className="mt-1 text-xs text-muted-foreground">{result.total.toLocaleString(lang === 'en' ? 'en-US' : 'fa-IR')} {t.found}</p></div><form action={`/${locale}/search`} method="get" className="flex items-center gap-2">{Object.entries(current).filter(([k]) => k !== 'sort').map(([k,v]) => <input key={k} type="hidden" name={k} value={v} />)}<label className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">{t.sort}<select name="sort" defaultValue={sort} className="h-9 rounded-xl border border-border bg-background px-2.5 text-xs font-bold" onChange={(e) => e.currentTarget.form?.submit()}>{SORTS.map((x) => <option key={x} value={x}>{sortLabels[lang][x]}</option>)}</select></label></form></div>
+
+          {failed || invalidPrice ? <div className="rounded-3xl border border-dashed border-border bg-card px-6 py-16 text-center"><h2 className="text-lg font-black">{t.empty}</h2><p className="mt-2 text-sm text-muted-foreground">{invalidPrice ? 'Minimum price must be less than or equal to maximum price.' : t.emptyText}</p><Link href={`/${locale}/search${q ? `?q=${encodeURIComponent(q)}` : ''}`} className="mt-5 inline-flex rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground">{t.retry}</Link></div> : result.products.length === 0 ? <div className="rounded-3xl border border-dashed border-border bg-card px-6 py-16 text-center"><h2 className="text-lg font-black">{t.empty}</h2><p className="mt-2 text-sm text-muted-foreground">{t.emptyText}</p><Link href={`/${locale}/search`} className="mt-5 inline-flex rounded-xl border border-border px-4 py-2.5 text-xs font-bold">{t.retry}</Link></div> : <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">{result.products.map((product) => <ShopProductCard key={product.id} product={product} locale={lang} view="grid" />)}</div>}
+
+          {result.products.length > 0 && totalPages > 1 && <nav className="mt-6 flex items-center justify-center gap-2" aria-label="Pagination">{page > 1 && <Link href={href(locale, current, { page: String(page - 1) })} className="rounded-xl border border-border px-4 py-2 text-xs font-bold">{t.previous}</Link>}<span className="rounded-xl bg-muted px-4 py-2 text-xs font-bold">{t.page} {page} / {totalPages}</span>{page < totalPages && <Link href={href(locale, current, { page: String(page + 1) })} className="rounded-xl border border-border px-4 py-2 text-xs font-bold">{t.next}</Link>}</nav>}
+          </section>
+        </div>
+      </div>
+    </main>
+    <SiteFooter /><BottomNavigation />
+  </div>;
 }
