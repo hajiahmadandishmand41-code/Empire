@@ -1,7 +1,7 @@
 import { getLocale, getTranslations } from 'next-intl/server';
 import { CartBadge } from '@/features/cart';
 import { HeaderAuthActions } from '@/features/auth';
-import { Tag, Truck, LayoutGrid } from 'lucide-react';
+import { Tag, Truck, LayoutGrid, Store } from 'lucide-react';
 import { Link } from '@/i18n/routing';
 import { LanguageSwitcher } from './language-switcher';
 import { HeaderCategoryNav } from './header-category-nav';
@@ -18,6 +18,7 @@ export async function SiteHeader() {
     : locale === 'ps'
       ? 'په ټول افغانستان چټک لېږد • تایید شوي پلورونکي • د نن ځانګړي وړاندیزونه'
       : 'ارسال سریع در سراسر افغانستان • فروشندگان تأییدشده • پیشنهادهای ویژه امروز';
+  const storesLabel = locale === 'en' ? 'Stores' : locale === 'ps' ? 'پلورنځي' : 'فروشگاه‌ها';
 
   return (
     <header className="sticky top-0 z-50 w-full" role="banner">
@@ -32,6 +33,7 @@ export async function SiteHeader() {
             <div className="hidden flex-col sm:flex"><span className="font-display text-[15px] font-extrabold leading-none tracking-tight text-foreground">{brand}</span><span className="mt-0.5 text-[9px] font-semibold leading-tight tracking-wide text-primary uppercase">{t('brandSubline')}</span></div>
           </Link>
           <Link href="/categories" className="hidden shrink-0 items-center gap-2 rounded-xl border border-border bg-secondary px-3.5 py-2 text-xs font-bold text-secondary-foreground transition-colors hover:border-primary/30 hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:flex"><LayoutGrid className="h-3.5 w-3.5" aria-hidden="true" />{t('categories')}</Link>
+          <Link href="/stores" className="hidden shrink-0 items-center gap-2 rounded-xl border border-border bg-secondary px-3.5 py-2 text-xs font-bold text-secondary-foreground transition-colors hover:border-primary/30 hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:flex"><Store className="h-3.5 w-3.5" aria-hidden="true" />{storesLabel}</Link>
           <div className="flex min-w-0 flex-1 items-center"><HeaderSearchBar locale={locale} /></div>
           <div className="flex shrink-0 items-center gap-0.5 sm:gap-1.5"><LanguageSwitcher /><ThemeToggle variant="icon" lang={locale} /><div className="hidden md:flex"><HeaderAuthActions /></div><CartBadge /></div>
         </div></div>
