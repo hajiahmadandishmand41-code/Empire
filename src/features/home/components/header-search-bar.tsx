@@ -15,7 +15,8 @@ export function HeaderSearchBar({ locale: _locale }: HeaderSearchBarProps) {
 
   function navigateToSearch(query = '') {
     const q = query.trim();
-    router.push({ pathname: '/search', query: q ? { q } : undefined });
+    const target = q ? `/search?q=${encodeURIComponent(q)}` : '/search';
+    router.push(target);
   }
 
   function onSubmit(event: React.FormEvent<HTMLFormElement>) {
