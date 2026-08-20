@@ -13,9 +13,12 @@
  */
 import { spawnSync } from 'node:child_process';
 
+// Supabase/Vercel can expose the direct database URL under different names
+// depending on integration/version. Keep all known safe aliases here.
 const DIRECT_KEYS = [
   'DATABASE_URL_UNPOOLED',
   'POSTGRES_URL_NON_POOLING',
+  'SUPABASE_DB_URL',
   'DIRECT_DATABASE_URL',
   'DIRECT_URL',
 ];
@@ -67,7 +70,7 @@ function main() {
   const picked = pickUrl();
   if (!picked) {
     console.error(
-      '[migrate] No database URL configured. Set DATABASE_URL_UNPOOLED (preferred) or DATABASE_URL before running production migrations.',
+      '[migrate] No database URL configured. Set DATABASE_URL_UNPOOLED (preferred), POSTGRES_URL_NON_POOLING, SUPABASE_DB_URL, or DATABASE_URL before running production migrations.',
     );
     process.exit(1);
   }
