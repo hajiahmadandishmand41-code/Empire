@@ -9,6 +9,11 @@
  *   - Category validation is enforced at the SERVICE level, not here
  *   - Product becomes immediately visible on homepage/shop/category/seller pages
  *   - Slug uniqueness enforced at DB level with clean error mapping
+ *
+ * Stage 1 hardening:
+ *   - Product creation/update contracts now accept the existing media JSON shape.
+ *   - Image collections are validated server-side (max 10, non-empty src, valid JSON).
+ *   - primaryImageIndex is validated against the supplied image collection.
  */
 import type { NextRequest } from 'next/server';
 import { z } from 'zod';
@@ -34,6 +39,31 @@ function serializeProduct<T extends object>(row: T) {
   return out;
 }
 
+function imageCollectionHasValidShape(raw: string | null | undefined): boolean {
+  if (raw == null || raw.trim() === '') return true;
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed) || parsed.length > 10) return false;
+    return parsed.every((item) => {
+      if (typeof item === 'string') return item.trim().length > 0 && item.length <= 1500;
+      if (!item || typeof item !== 'object') return false;
+      const src = (item as { src?: unknown }).src;
+      return typeof src === 'string' && src.trim().length > 0 && src.length <= 1500;
+    });
+  } catch {
+    return false;
+  }
+}
+
+function imageCount(raw: string | null | undefined): number {
+  if (!raw || !imageCollectionHasValidShape(raw)) return 0;
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return Array.isArray(parsed) ? parsed.length : 0;
+  } catch {
+    return 0;
+  }
+}
 
 /**
  * Product creation schema.
@@ -62,7 +92,25 @@ const createSchema = z.object({
   dimensionsJson: z.string().max(200).optional().nullable(),
   tagsJson: z.string().max(500).optional().nullable(),
   attributesJson: z.string().max(2000).optional().nullable(),
+  imagesJson: z.string().max(12000).optional().nullable(),
   primaryImageIndex: z.number().int().min(0).default(0).optional(),
+}).superRefine((value, ctx) => {
+  if (!imageCollectionHasValidShape(value.imagesJson)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['imagesJson'],
+      message: 'فرمت تصاویر محصول نامعتبر است',
+    });
+    return;
+  }
+  const count = imageCount(value.imagesJson);
+  if (count > 0 && (value.primaryImageIndex ?? 0) >= count) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['primaryImageIndex'],
+      message: 'شاخص تصویر اصلی خارج از محدوده تصاویر است',
+    });
+  }
 });
 
 export async function OPTIONS() {
@@ -116,12 +164,14 @@ export async function POST(req: NextRequest) {
       compareAtPrice: parsed.data.compareAtPrice ?? null,
       videoUrl: parsed.data.videoUrl ?? null,
       isTraditional: parsed.data.isTraditional ?? false,
+      imagesJson: parsed.data.imagesJson ?? null,
     });
 
     logger.info('seller.product.created', {
       productId: created.id,
       sellerId: guard.user.id,
       slug: parsed.data.slug,
+      imageCount: imageCount(parsed.data.imagesJson),
     });
 
     return jsonOk(serializeProduct(created), { status: 201 });
