@@ -6,7 +6,6 @@ import { Home, LayoutGrid, ShoppingCart, User, X, ClipboardList, Heart, MapPin, 
 import { usePathname, useRouter, Link } from '@/i18n/routing';
 import { useLocale, useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
-import { useHydratedCartCount } from '@/features/cart/hooks/use-hydrated-cart';
 
 type MeUser = { id: string; fullName: string; email?: string; role: 'customer' | 'seller' | 'admin' };
 type MenuItem = { href: string; label: string; icon: React.ComponentType<{ className?: string }> };
@@ -19,7 +18,6 @@ export function BottomNavigation() {
   const h = useTranslations('siteHeader');
   const c = useTranslations('common');
   const a = useTranslations('accountNav');
-  const cartCount = useHydratedCartCount();
   const [accountOpen, setAccountOpen] = useState(false);
   const [user, setUser] = useState<MeUser | null>(null);
   const [userLoaded, setUserLoaded] = useState(false);
@@ -49,7 +47,6 @@ export function BottomNavigation() {
   const isCategories = pathname.includes('/categories');
   const isStores = pathname.includes('/stores') || pathname.includes('/store/');
   const isWishlist = pathname.includes('/wishlist');
-  const isCart = pathname === '/cart';
   const isAccount = pathname.includes('/profile') || pathname.includes('/orders') || pathname.includes('/settings') || pathname.includes('/seller') || pathname.includes('/admin');
 
   const accountMenuItems: MenuItem[] = user ? [
@@ -64,10 +61,9 @@ export function BottomNavigation() {
     { href: '/about', label: t('about'), icon: Info },
   ] : [];
 
-  function NavItem({ href, active, label, badge, children }: { href: string; active: boolean; label: string; badge?: number; children: React.ReactNode }) {
+  function NavItem({ href, active, label, children }: { href: string; active: boolean; label: string; children: React.ReactNode }) {
     return <Link href={href as never} aria-label={label} className={cn('relative flex flex-1 flex-col items-center gap-1 py-2.5 text-[10px] font-semibold transition-colors duration-150', active ? 'text-primary' : 'text-muted-foreground')}>
       {active && <span className="absolute inset-x-4 top-0 h-[2px] rounded-b-full bg-primary" aria-hidden />}
-      {badge !== undefined && badge > 0 && <span className="absolute end-[12%] top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold text-primary-foreground shadow-sm">{badge > 99 ? '99+' : badge}</span>}
       <span className={cn('flex h-9 w-9 items-center justify-center rounded-xl transition-colors', active ? 'bg-accent' : '')}>{children}</span><span>{label}</span>
     </Link>;
   }
@@ -81,7 +77,7 @@ export function BottomNavigation() {
         <NavItem href="/" active={isHome} label={t('home')}><Home className="h-5 w-5" /></NavItem>
         <NavItem href="/categories" active={isCategories} label={t('categories')}><LayoutGrid className="h-5 w-5" /></NavItem>
         <NavItem href="/stores" active={isStores} label={storesLabel}><Store className="h-5 w-5" /></NavItem>
-        <NavItem href="/cart" active={isCart} badge={cartCount} label={t('cart')}><ShoppingCart className="h-5 w-5" /></NavItem>
+        <NavItem href="/wishlist" active={isWishlist} label={t('wishlist')}><Heart className="h-5 w-5" /></NavItem>
         <button type="button" onClick={() => user ? setAccountOpen(true) : userLoaded && router.push('/auth/login')} className={cn('relative flex flex-1 flex-col items-center gap-1 py-2.5 text-[10px] font-semibold', isAccount ? 'text-primary' : 'text-muted-foreground')} aria-label={user ? t('account') : h('login')}>
           <span className={cn('flex h-9 w-9 items-center justify-center rounded-xl', isAccount ? 'bg-accent' : '')}>{user ? <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">{user.fullName.charAt(0)}</span> : <User className="h-5 w-5" />}</span>
           <span className="max-w-[64px] truncate">{user ? loginLabel : userLoaded ? loginLabel : c('loading')}</span>
