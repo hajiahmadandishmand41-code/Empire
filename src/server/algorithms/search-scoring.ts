@@ -18,7 +18,7 @@ export function levenshtein(a: string, b: string): number {
   for (let j = 1; j <= b.length; j++) {
     currRow[0] = j;
     for (let i = 1; i <= a.length; i++) {
-      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      const cost = a[i - 1] === b[i - 1] ? 0 : 1;
       currRow[i] = Math.min(prevRow[i] + 1, currRow[i - 1] + 1, prevRow[i - 1] + cost);
     }
     prevRow.splice(0, prevRow.length, ...currRow);
@@ -26,7 +26,6 @@ export function levenshtein(a: string, b: string): number {
   return prevRow[a.length];
 }
 
-/** Normalize Persian/Arabic text without changing the user's original query. */
 export function normalizePersian(s: string): string {
   return s
     .replace(/[\u200C\u200D]/g, '')
@@ -132,7 +131,6 @@ export interface SearchableProduct {
 export function computeSearchScore(product: SearchableProduct, query: string, fieldWeights: SearchFieldWeights = DEFAULT_FIELD_WEIGHTS, matchScores: MatchTypeScores = DEFAULT_MATCH_SCORES): number {
   const queries = query.trim().split(/\s+/).filter(Boolean);
   if (queries.length === 0) return 0;
-
   let total = 0;
   for (const q of queries) {
     const fieldScores = [
@@ -183,10 +181,11 @@ export function buildSearchWhereClause(query: string): Prisma.ProductWhereInput 
   if (!original) return {};
 
   const normalized = normalizeText(original);
-  const variants = [...new Set([original, normalized].filter(Boolean))];
-  const tokens = [...new Set(variants.flatMap((value) => value.split(/\s+/).filter(Boolean)))];
+  const originalTokens = original.split(/\s+/).filter(Boolean);
+  const normalizedTokens = normalized.split(/\s+/).filter(Boolean);
 
-  if (tokens.length === 1) {
+  if (originalTokens.length === 1) {
+    const variants = [...new Set([originalTokens[0], normalizedTokens[0]].filter(Boolean))];
     return {
       OR: variants.flatMap((variant) => [
         { name: { contains: variant, mode: 'insensitive' as const } },
@@ -200,15 +199,18 @@ export function buildSearchWhereClause(query: string): Prisma.ProductWhereInput 
   }
 
   return {
-    AND: tokens.map((token) => ({
-      OR: variants.flatMap((variant) => [
-        { name: { contains: token, mode: 'insensitive' as const } },
-        { shortDescription: { contains: token, mode: 'insensitive' as const } },
-        { description: { contains: token, mode: 'insensitive' as const } },
-        { region: { contains: token, mode: 'insensitive' as const } },
-        { category: { name: { contains: token, mode: 'insensitive' as const } } },
-        { seller: { sellerShopName: { contains: token, mode: 'insensitive' as const } } },
-      ]),
-    })),
+    AND: originalTokens.map((originalToken, index) => {
+      const variants = [...new Set([originalToken, normalizedTokens[index]].filter(Boolean))];
+      return {
+        OR: variants.flatMap((variant) => [
+          { name: { contains: variant, mode: 'insensitive' as const } },
+          { shortDescription: { contains: variant, mode: 'insensitive' as const } },
+          { description: { contains: variant, mode: 'insensitive' as const } },
+          { region: { contains: variant, mode: 'insensitive' as const } },
+          { category: { name: { contains: variant, mode: 'insensitive' as const } } },
+          { seller: { sellerShopName: { contains: variant, mode: 'insensitive' as const } } },
+        ]),
+      };
+    }),
   };
 }
