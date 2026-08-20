@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { ImageOff, MapPin, MessageCircle, ShoppingCart, Star, Store, Heart } from 'lucide-react';
 import { cn, formatPrice } from '@/lib/utils';
 import type { ProductSummary } from '@/types';
+import { useCartStore } from '@/features/cart/store/cart-store';
 
 interface ShopProductCardProps {
   product: ProductSummary;
@@ -18,6 +19,7 @@ export function ShopProductCard({ product, currency = 'AFN', locale = 'fa', what
   const tCard = useTranslations('shop.card');
   const tCat = useTranslations('home.categories.items');
   const tProduct = useTranslations('product');
+  const addItem = useCartStore((state) => state.addItem);
   const { name, shortDescription, categoryKey, price, badge, region } = product;
 
   const badgeLabel =
@@ -37,6 +39,19 @@ export function ShopProductCard({ product, currency = 'AFN', locale = 'fa', what
     ? `https://wa.me/${whatsappNumber.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`${tProduct('actions.whatsappMessage')} "${name}"`)}` : null;
   const rating = product.averageRating ?? 0;
   const reviewCount = product.reviewCount ?? 0;
+
+  const handleAddToCart = () => {
+    if (product.inStock === false) return;
+    addItem({
+      slug: product.slug,
+      name: product.name,
+      price: product.price,
+      region: product.region,
+      categoryKey: product.categoryKey,
+      images: product.images,
+      quantity: 1,
+    });
+  };
 
   return (
     <article className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm transition-all duration-300 hover:-translate-y-1.5 hover:border-rose-200 dark:hover:border-rose-800/60 hover:shadow-xl hover:shadow-rose-500/8">
@@ -62,7 +77,7 @@ export function ShopProductCard({ product, currency = 'AFN', locale = 'fa', what
           <div className="flex flex-col gap-0.5">{originalPrice && <span className="text-[11px] text-muted-foreground line-through">{formatPrice(originalPrice, currency, locale)}</span>}<span className={cn('font-extrabold text-sm', discountPct > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-foreground')}>{formatPrice(price, currency, locale)}</span></div>
           <div className="flex items-center gap-1.5 shrink-0">
             {waLink && <a href={waLink} target="_blank" rel="noopener noreferrer" aria-label={`${tCard('whatsappLabel')} — ${name}`} className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500 text-white shadow-sm transition-all hover:bg-emerald-600 hover:-translate-y-0.5 hover:shadow-md hover:shadow-emerald-400/30"><MessageCircle className="h-3.5 w-3.5" aria-hidden /></a>}
-            <Link href={`/shop/${product.slug}` as never} className="flex h-8 items-center gap-1.5 rounded-full bg-gradient-to-br from-rose-500 to-rose-600 px-3.5 text-xs font-bold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-rose-400/30 hover:from-rose-600 hover:to-rose-700 active:scale-95"><ShoppingCart className="h-3.5 w-3.5" aria-hidden /><span className="hidden sm:inline">{tCard('addToCart')}</span></Link>
+            <button type="button" onClick={handleAddToCart} disabled={product.inStock === false} aria-label={tCard('addToCart')} className="flex h-8 items-center gap-1.5 rounded-full bg-gradient-to-br from-rose-500 to-rose-600 px-3.5 text-xs font-bold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-rose-400/30 hover:from-rose-600 hover:to-rose-700 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"><ShoppingCart className="h-3.5 w-3.5" aria-hidden /><span className="hidden sm:inline">{tCard('addToCart')}</span></button>
           </div>
         </div>
       </div>
