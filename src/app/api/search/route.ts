@@ -14,14 +14,18 @@ const searchQuerySchema = z.object({
   categoryKey: z.string().trim().max(80).optional(),
   sellerId: z.string().trim().max(80).optional(),
   brand: z.string().trim().max(120).optional(),
-  priceMin: z.coerce.number().nonnegative().optional(),
-  priceMax: z.coerce.number().nonnegative().optional(),
+  priceMin: z.coerce.number().finite().nonnegative().optional(),
+  priceMax: z.coerce.number().finite().nonnegative().optional(),
   inStock: z.union([z.literal('true'), z.literal('false')]).transform((v) => v === 'true').optional(),
   hasDiscount: z.union([z.literal('true'), z.literal('false')]).transform((v) => v === 'true').optional(),
-  minRating: z.coerce.number().min(0).max(5).optional(),
+  minRating: z.coerce.number().finite().min(0).max(5).optional(),
   sort: z.enum(['relevance', 'newest', 'priceAsc', 'priceDesc', 'bestSelling', 'popular', 'rating']).optional().default('relevance'),
   page: z.coerce.number().int().positive().max(1000).optional().default(1),
   pageSize: z.coerce.number().int().positive().max(48).optional().default(12),
+}).superRefine((value, ctx) => {
+  if (value.priceMin !== undefined && value.priceMax !== undefined && value.priceMin > value.priceMax) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['priceMin'], message: 'priceMin must be less than or equal to priceMax' });
+  }
 });
 
 export async function OPTIONS() {
@@ -42,7 +46,6 @@ export async function GET(req: NextRequest) {
     const result = await getSearchService().search({ q, ...filters });
     let storeResults: Array<{ id: string; name: string; bio: string | null; logoUrl: string | null; city: string | null; productCount: number; href: string }> = [];
 
-    // Store search is supplemental and only meaningful for a non-empty query.
     if (q.trim()) {
       try {
         const stores = await prisma.user.findMany({
@@ -57,15 +60,7 @@ export async function GET(req: NextRequest) {
           orderBy: { createdAt: 'desc' },
           take: 8,
         });
-        storeResults = stores.map((store) => ({
-          id: store.id,
-          name: store.sellerShopName ?? store.fullName ?? 'Eshop Seller',
-          bio: store.sellerBio,
-          logoUrl: store.sellerLogoUrl,
-          city: store.sellerCity,
-          productCount: store._count.products,
-          href: `/store/${store.id}`,
-        }));
+        storeResults = stores.map((store) => ({ id: store.id, name: store.sellerShopName ?? store.fullName ?? 'Eshop Seller', bio: store.sellerBio, logoUrl: store.sellerLogoUrl, city: store.sellerCity, productCount: store._count.products, href: `/store/${store.id}` }));
       } catch (error) {
         console.warn('[api/search] optional store lookup failed', error);
       }
@@ -81,11 +76,7 @@ export async function GET(req: NextRequest) {
     }
 
     return jsonOk(result.products, {
-      meta: {
-        source: 'db', query: result.meta.query, total: result.total, page: result.page, pageSize: result.pageSize,
-        hasMore: result.hasMore, durationMs: result.meta.durationMs, reranked: result.meta.reranked,
-        facets: result.meta.facets, stores: storeResults, storeCount: storeResults.length,
-      },
+      meta: { source: 'db', query: result.meta.query, total: result.total, page: result.page, pageSize: result.pageSize, hasMore: result.hasMore, durationMs: result.meta.durationMs, reranked: result.meta.reranked, facets: result.meta.facets, stores: storeResults, storeCount: storeResults.length },
     });
   } catch (err) {
     console.error('[api/search]', err);
