@@ -24,11 +24,37 @@ const fa = {
   quick: 'دسترسی سریع', pending: 'در انتظار', processing: 'در حال آماده‌سازی', shipped: 'ارسال شده', delivered: 'تحویل شده',
 };
 
+type Labels = typeof fa;
+
 export default async function AdminOrdersPage({ params, searchParams }: Props) {
-  const { locale } = await params; const sp = await searchParams; const t = await getTranslations('admin.ordersPage');
+  const { locale } = await params;
+  const sp = await searchParams;
+  const t = await getTranslations('admin.ordersPage');
   const page = Math.max(1, parseInt(sp.page ?? '1', 10) || 1);
   const result = await listAdminOrders({ q: sp.q, status: sp.status, page, pageSize: 10 });
-  const labels = locale === 'fa' || locale === 'ps' || locale === 'en' ? fa : t;
+  const labels: Labels = locale === 'fa' || locale === 'ps' || locale === 'en'
+    ? fa
+    : {
+        ...fa,
+        title: t('title'),
+        subtitle: t('subtitle'),
+        search: t('search'),
+        number: t('number'),
+        customer: t('customer'),
+        status: t('status'),
+        payment: t('payment'),
+        items: t('items'),
+        total: t('total'),
+        date: t('date'),
+        empty: t('empty'),
+        emptyHint: t('emptyHint'),
+        all: t('all'),
+        quick: t('quick'),
+        pending: t('pending'),
+        processing: t('processing'),
+        shipped: t('shipped'),
+        delivered: t('delivered'),
+      };
   const columns: Column<AdminOrderRow>[] = [
     { key: 'ref', header: labels.number, cell: (r) => <Link href={`/${locale}/admin/orders/${r.id}`} className="inline-flex items-center gap-1.5 font-mono text-sm font-bold text-primary hover:underline"><span>{r.reference}</span><ArrowUpLeft className="h-3.5 w-3.5" aria-hidden /></Link> },
     { key: 'customer', header: labels.customer, cell: (r) => <div className="min-w-0"><div className="truncate font-medium">{r.customerName}</div><div className="text-[11px] text-muted-foreground">{r.itemCount} قلم</div></div> },
