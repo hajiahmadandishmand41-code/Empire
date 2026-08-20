@@ -14,7 +14,7 @@ export async function CategoryCard({ item }: CategoryCardProps) {
 
   return (
     <Link
-      href={`/shop?categoryKey=${key}` as never}
+      href={`/category/${key}` as never}
       className={cn(
         'group flex flex-col items-center gap-2 rounded-2xl border p-3 text-center shadow-sm category-card',
         'border-border/60 bg-card hover:border-rose-200 hover:bg-rose-50/40 hover:shadow-rose-100/60',
