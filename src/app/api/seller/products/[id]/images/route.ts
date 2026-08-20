@@ -50,7 +50,7 @@ export async function OPTIONS() {
 async function loadOwned(id: string, role: string, userId: string) {
   const p = await prisma.product.findUnique({
     where: { id },
-    select: { id: true, sellerId: true, imagesJson: true, name: true },
+    select: { id: true, sellerId: true, imagesJson: true, primaryImageIndex: true, name: true },
   });
   if (!p) return { ok: false as const, status: 404 };
   if (role !== 'admin' && p.sellerId !== userId) return { ok: false as const, status: 403 };
@@ -106,8 +106,11 @@ async function deleteStoredObjectBestEffort(url: string, context: Record<string,
   }
 }
 
-export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+export async function OPTIONS() {
+  return jsonPreflight();
+}
+
+async function handlePost(req: NextRequest, id: string) {
   const guard = await requireSellerApi();
   if (!guard.ok) return guard.response;
   if (!SAFE_ID.test(id))
@@ -212,6 +215,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   return jsonOk({ url: publicUrl, images: committedImages }, { status: 201 });
 }
 
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  return handlePost(req, id);
+}
+
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const guard = await requireSellerApi();
@@ -239,15 +247,23 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   }
 
   const existingImages = readImages(owned.product.imagesJson);
-  const imageExists = existingImages.some((image) => image.src === parsed.data.url);
-  if (!imageExists) {
+  const imageIndex = existingImages.findIndex((image) => image.src === parsed.data.url);
+  if (imageIndex < 0) {
     return jsonError('image_not_found', 'Image does not belong to this product', { status: 404 });
   }
 
   const images = existingImages.filter((image) => image.src !== parsed.data.url);
+  const currentPrimary = owned.product.primaryImageIndex;
+  let nextPrimary = 0;
+  if (images.length > 0) {
+    if (imageIndex === currentPrimary) nextPrimary = 0;
+    else if (imageIndex < currentPrimary) nextPrimary = currentPrimary - 1;
+    else nextPrimary = Math.min(currentPrimary, images.length - 1);
+  }
+
   await prisma.product.update({
     where: { id },
-    data: { imagesJson: images },
+    data: { imagesJson: images, primaryImageIndex: nextPrimary },
   });
 
   await deleteStoredObjectBestEffort(parsed.data.url, {
@@ -255,5 +271,5 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     userId: guard.user.id,
   });
 
-  return jsonOk({ images });
+  return jsonOk({ images, primaryImageIndex: nextPrimary });
 }
