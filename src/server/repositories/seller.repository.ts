@@ -25,17 +25,6 @@ export interface SellerPublicProfile {
   productCount: number;
 }
 
-export interface PublicSellerListItem {
-  id: string;
-  shopName: string;
-  bio: string | null;
-  logoUrl: string | null;
-  bannerUrl: string | null;
-  city: string | null;
-  country: string | null;
-  productCount: number;
-}
-
 export interface SellerRow {
   id: string;
   shopName: string | null;
@@ -63,7 +52,6 @@ export interface UpdateSellerStoreInput {
 
 export interface ISellerRepository {
   findPublicProfile(sellerId: string): Promise<SellerPublicProfile | null>;
-  findPublicMany(filter: BaseListFilter): Promise<PaginatedResult<PublicSellerListItem>>;
   findMany(filter: BaseListFilter): Promise<PaginatedResult<SellerRow>>;
   findById(id: string): Promise<SellerRow | null>;
   updateStoreSettings(sellerId: string, input: UpdateSellerStoreInput): Promise<void>;
@@ -108,61 +96,6 @@ export class PrismaSellerRepository implements ISellerRepository {
       country: user.sellerCountry,
       productCount: user._count.products,
     };
-  }
-
-  async findPublicMany(filter: BaseListFilter): Promise<PaginatedResult<PublicSellerListItem>> {
-    const page = Math.max(1, filter.page ?? 1);
-    const pageSize = Math.min(48, Math.max(1, filter.pageSize ?? 24));
-    const skip = (page - 1) * pageSize;
-    const q = filter.q?.trim();
-    const where = {
-      role: 'seller' as const,
-      sellerStatus: 'approved' as const,
-      isActive: true,
-      sellerShopName: { not: null as string | null },
-      ...(q
-        ? {
-            OR: [
-              { sellerShopName: { contains: q, mode: 'insensitive' as const } },
-              { sellerBio: { contains: q, mode: 'insensitive' as const } },
-              { sellerCity: { contains: q, mode: 'insensitive' as const } },
-            ],
-          }
-        : {}),
-    };
-
-    const [rows, total] = await Promise.all([
-      this.prisma.user.findMany({
-        where,
-        select: {
-          id: true,
-          sellerShopName: true,
-          sellerBio: true,
-          sellerLogoUrl: true,
-          sellerBannerUrl: true,
-          sellerCity: true,
-          sellerCountry: true,
-          _count: { select: { products: true } },
-        },
-        orderBy: [{ products: { _count: 'desc' } }, { createdAt: 'desc' }],
-        take: pageSize,
-        skip,
-      }),
-      this.prisma.user.count({ where }),
-    ]);
-
-    const items: PublicSellerListItem[] = rows.map((row) => ({
-      id: row.id,
-      shopName: row.sellerShopName ?? 'Eshop Seller',
-      bio: row.sellerBio,
-      logoUrl: row.sellerLogoUrl,
-      bannerUrl: row.sellerBannerUrl,
-      city: row.sellerCity,
-      country: row.sellerCountry,
-      productCount: row._count.products,
-    }));
-
-    return toPaginated(items, total, page, pageSize);
   }
 
   async findMany(filter: BaseListFilter): Promise<PaginatedResult<SellerRow>> {
