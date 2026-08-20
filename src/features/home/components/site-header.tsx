@@ -14,10 +14,10 @@ export async function SiteHeader() {
   const t = await getTranslations('siteHeader');
   const brand = locale === 'en' ? 'Eshop' : 'ایشاپ';
   const topMessage = locale === 'en'
-    ? 'Fast delivery across Afghanistan • Verified sellers • Today’s special offers'
+    ? 'Delivery in Kabul • Verified sellers • Today’s special offers'
     : locale === 'ps'
-      ? 'په ټول افغانستان چټک لېږد • تایید شوي پلورونکي • د نن ځانګړي وړاندیزونه'
-      : 'ارسال سریع در سراسر افغانستان • فروشندگان تأییدشده • پیشنهادهای ویژه امروز';
+      ? 'په کابل کې سپارنه • تایید شوي پلورونکي • د نن ځانګړي وړاندیزونه'
+      : 'تحویل در کابل • فروشندگان تأییدشده • پیشنهادهای ویژه امروز';
   const storesLabel = locale === 'en' ? 'Stores' : locale === 'ps' ? 'پلورنځي' : 'فروشگاه‌ها';
 
   return (
