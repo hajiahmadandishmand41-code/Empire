@@ -106,10 +106,6 @@ async function deleteStoredObjectBestEffort(url: string, context: Record<string,
   }
 }
 
-export async function OPTIONS() {
-  return jsonPreflight();
-}
-
 async function handlePost(req: NextRequest, id: string) {
   const guard = await requireSellerApi();
   if (!guard.ok) return guard.response;
