@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Circle, Clock3, CreditCard, MapPin, PackageCheck, Truck } from 'lucide-react';
 import { prisma, isDatabaseConfigured } from '@/lib/db';
 import { Card } from '@/components/ui/card';
 import { StatusBadge } from '@/features/admin/components/status-badge';
@@ -10,148 +10,80 @@ import { mapOrder } from '@/lib/db-mappers';
 import { formatDateTime, formatMoney } from '@/features/admin/lib/format';
 
 export const dynamic = 'force-dynamic';
+interface Props { params: Promise<{ locale: string; id: string }> }
 
-interface Props {
-  params: Promise<{ locale: string; id: string }>;
-}
+const flow = [
+  ['pending', 'در انتظار', 'سفارش ثبت شده و نیاز به بررسی دارد.', Clock3],
+  ['confirmed', 'تأیید شده', 'سفارش توسط مدیریت تأیید شده است.', CheckCircle2],
+  ['processing', 'در حال آماده‌سازی', 'اقلام سفارش در حال آماده‌سازی است.', PackageCheck],
+  ['shipped', 'ارسال شده', 'سفارش به بخش ارسال تحویل شده است.', Truck],
+  ['delivered', 'تحویل شده', 'سفارش به مشتری تحویل شده است.', MapPin],
+] as const;
 
 export default async function AdminOrderDetailPage({ params }: Props) {
   const { locale, id } = await params;
   const detail = await loadOrder(id);
   if (!detail) notFound();
+  const currentIndex = flow.findIndex(([status]) => status === detail.status);
 
   return (
-    <div className="space-y-4">
-      <header className="flex flex-wrap items-center gap-3">
-        <Link href={`/${locale}/admin/orders`} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-          <ArrowRight className="h-4 w-4 rtl:rotate-180" />
-          بازگشت به لیست
-        </Link>
-        <span className="text-muted-foreground">/</span>
-        <h2 className="font-mono text-lg font-semibold text-navy-800">{detail.reference}</h2>
-        <StatusBadge status={detail.status} />
+    <div className="space-y-6">
+      <header className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-wrap items-center gap-3">
+          <Link href={`/${locale}/admin/orders`} className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-sm text-muted-foreground hover:bg-muted">
+            <ArrowRight className="h-4 w-4 rtl:rotate-180" aria-hidden /> بازگشت به سفارش‌ها
+          </Link>
+          <span className="text-muted-foreground">/</span>
+          <div><div className="font-mono text-lg font-black text-foreground">{detail.reference}</div><div className="text-xs text-muted-foreground">ثبت شده در {formatDateTime(detail.createdAt)}</div></div>
+          <StatusBadge status={detail.status} />
+        </div>
+        <div className="rounded-2xl border border-border bg-card px-4 py-3"><div className="text-[10px] font-bold text-muted-foreground">مبلغ نهایی</div><div className="text-lg font-black text-foreground">{formatMoney(detail.total, detail.currency)}</div></div>
       </header>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="p-5 lg:col-span-2">
-          <h3 className="mb-3 text-sm font-semibold text-muted-foreground">اقلام سفارش</h3>
+      <Card className="overflow-hidden p-5 sm:p-6">
+        <div className="mb-5 flex items-start justify-between gap-3"><div><h2 className="text-base font-black">مسیر سفارش</h2><p className="mt-1 text-xs text-muted-foreground">وضعیت سفارش را فقط از کنترل مدیریتی زیر تغییر دهید.</p></div><OrderStatusSelect orderId={detail.id} current={detail.status} /></div>
+        <div className="grid gap-3 md:grid-cols-5">
+          {flow.map(([status, label, description, Icon], index) => {
+            const done = currentIndex >= index && currentIndex !== -1;
+            const current = detail.status === status;
+            return <div key={status} className="relative rounded-2xl border border-border bg-background p-4">
+              {index < flow.length - 1 ? <div className={`absolute start-1/2 top-[72px] hidden h-px w-[calc(100%+0.75rem)] md:block ${currentIndex > index ? 'bg-primary/50' : 'bg-border'}`} /> : null}
+              <div className={`relative z-10 mb-3 flex h-9 w-9 items-center justify-center rounded-xl ${current ? 'bg-primary text-primary-foreground' : done ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}><Icon className="h-4 w-4" aria-hidden /></div>
+              <div className="text-xs font-black">{label}</div>
+              <p className="mt-1 text-[11px] leading-5 text-muted-foreground">{description}</p>
+              <div className={`mt-3 text-[10px] font-bold ${current ? 'text-primary' : done ? 'text-emerald-600' : 'text-muted-foreground'}`}>{current ? 'وضعیت فعلی' : done ? 'انجام شده' : 'بعدی'}</div>
+            </div>;
+          })}
+          {detail.status === 'cancelled' ? <div className="rounded-2xl border border-red-200 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950/20"><div className="text-xs font-black text-red-700 dark:text-red-300">سفارش لغو شده</div><p className="mt-1 text-[11px] leading-5 text-red-700/80 dark:text-red-300/80">این سفارش از مسیر عادی خارج شده و دیگر نباید به وضعیت تحویل‌شده منتقل شود.</p></div> : null}
+        </div>
+      </Card>
+
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.7fr)_minmax(300px,0.8fr)]">
+        <Card className="p-5 sm:p-6">
+          <div className="mb-4 flex items-center justify-between"><div><h2 className="text-base font-black">اقلام سفارش</h2><p className="mt-1 text-xs text-muted-foreground">{detail.items.length} قلم در این سفارش</p></div><PackageCheck className="h-5 w-5 text-primary" aria-hidden /></div>
           <ul className="divide-y divide-border">
-            {detail.items.map((item, i) => (
-              <li key={i} className="flex items-start justify-between gap-3 py-3">
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-medium text-foreground">{item.name}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {item.quantity} × {formatMoney(item.price, detail.currency)}
-                  </div>
-                </div>
-                <span className="shrink-0 text-sm font-semibold text-navy-800">
-                  {formatMoney(item.price * item.quantity, detail.currency)}
-                </span>
-              </li>
-            ))}
+            {detail.items.map((item, i) => <li key={i} className="flex items-center gap-3 py-4"><div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground"><PackageCheck className="h-5 w-5" aria-hidden /></div><div className="min-w-0 flex-1"><div className="truncate text-sm font-bold">{item.name}</div><div className="mt-1 text-xs text-muted-foreground">تعداد: {item.quantity} × {formatMoney(item.price, detail.currency)}</div></div><div className="shrink-0 text-sm font-black">{formatMoney(item.price * item.quantity, detail.currency)}</div></li>)}
           </ul>
-          <div className="mt-4 space-y-1 border-t border-border pt-4 text-sm">
-            <Row label="جمع اقلام" value={formatMoney(detail.subtotal, detail.currency)} />
-            <Row label="حمل و نقل" value={formatMoney(detail.shipping, detail.currency)} />
-            <Row label="مجموع" value={formatMoney(detail.total, detail.currency)} emphasis />
-          </div>
+          <div className="mt-4 space-y-2 border-t border-border pt-4 text-sm"><Row label="جمع اقلام" value={formatMoney(detail.subtotal, detail.currency)} /><Row label="هزینه ارسال" value={formatMoney(detail.shipping, detail.currency)} /><Row label="مجموع نهایی" value={formatMoney(detail.total, detail.currency)} emphasis /></div>
         </Card>
 
         <div className="space-y-4">
-          <Card className="p-5">
-            <h3 className="mb-3 text-sm font-semibold text-muted-foreground">وضعیت</h3>
-            <OrderStatusSelect orderId={detail.id} current={detail.status} />
-            <p className="mt-3 text-xs text-muted-foreground">ثبت: {formatDateTime(detail.createdAt)}</p>
-            <p className="text-xs text-muted-foreground">روش پرداخت: {detail.paymentMethod}</p>
-          </Card>
-          <Card className="p-5">
-            <h3 className="mb-3 text-sm font-semibold text-muted-foreground">مشتری</h3>
-            <div className="space-y-1 text-sm">
-              <div className="font-medium text-foreground">{detail.address.fullName}</div>
-              <div>{detail.address.phone}</div>
-              <div className="text-muted-foreground">{detail.address.province} — {detail.address.district}</div>
-              <div className="text-muted-foreground">{detail.address.addressLine}</div>
-              {detail.address.postalCode && <div className="text-muted-foreground">کدپستی: {detail.address.postalCode}</div>}
-              {detail.address.notes && <p className="rounded-md bg-muted p-2 text-xs text-muted-foreground">{detail.address.notes}</p>}
-            </div>
-          </Card>
+          <Card className="p-5"><div className="mb-3 flex items-center gap-2"><CreditCard className="h-4 w-4 text-primary" aria-hidden /><h2 className="text-sm font-black">پرداخت</h2></div><div className="space-y-2 text-sm"><InfoRow label="روش پرداخت" value={paymentLabel(detail.paymentMethod)} /><InfoRow label="وضعیت سفارش" value={statusLabel(detail.status)} /><InfoRow label="ثبت سفارش" value={formatDateTime(detail.createdAt)} /></div></Card>
+          <Card className="p-5"><div className="mb-3 flex items-center gap-2"><MapPin className="h-4 w-4 text-primary" aria-hidden /><h2 className="text-sm font-black">آدرس تحویل</h2></div><div className="space-y-1.5 text-sm"><div className="font-bold">{detail.address.fullName}</div><div>{detail.address.phone}</div><div className="text-muted-foreground">{detail.address.province} — {detail.address.district}</div><div className="text-muted-foreground">{detail.address.addressLine}</div>{detail.address.postalCode ? <div className="text-muted-foreground">کدپستی: {detail.address.postalCode}</div> : null}{detail.address.notes ? <p className="mt-2 rounded-xl bg-muted p-3 text-xs leading-5 text-muted-foreground">یادداشت: {detail.address.notes}</p> : null}</div></Card>
+          <Card className="p-5"><div className="mb-3 flex items-center gap-2"><Truck className="h-4 w-4 text-primary" aria-hidden /><h2 className="text-sm font-black">عملیات ارسال</h2></div><p className="text-xs leading-5 text-muted-foreground">برای تغییر وضعیت به «ارسال شده» ابتدا مطمئن شوید سفارش آماده تحویل به بخش ارسال است.</p><Link href={`/${locale}/admin/shipping-methods`} className="mt-3 inline-flex text-xs font-bold text-primary hover:underline">مدیریت روش‌های ارسال</Link></Card>
         </div>
       </div>
     </div>
   );
 }
 
-function Row({ label, value, emphasis }: { label: string; value: string; emphasis?: boolean }) {
-  return (
-    <div className="flex justify-between">
-      <span className="text-muted-foreground">{label}</span>
-      <span className={emphasis ? 'text-base font-bold text-navy-800' : 'font-medium'}>{value}</span>
-    </div>
-  );
-}
+function Row({ label, value, emphasis }: { label: string; value: string; emphasis?: boolean }) { return <div className="flex justify-between gap-3"><span className="text-muted-foreground">{label}</span><span className={emphasis ? 'text-base font-black' : 'font-semibold'}>{value}</span></div>; }
+function InfoRow({ label, value }: { label: string; value: string }) { return <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">{label}</span><span className="font-semibold text-end">{value}</span></div>; }
+function statusLabel(status: string) { return ({ pending: 'در انتظار', confirmed: 'تأیید شده', processing: 'در حال آماده‌سازی', shipped: 'ارسال شده', delivered: 'تحویل شده', cancelled: 'لغو شده' } as Record<string,string>)[status] ?? status; }
+function paymentLabel(method: string) { return ({ cod: 'پرداخت در محل', bank_transfer: 'واریز بانکی', atoma_pay: 'آتاما پی', whatsapp: 'واتساپ' } as Record<string,string>)[method] ?? method; }
 
-interface OrderDetailView {
-  id: string;
-  reference: string;
-  status: string;
-  paymentMethod: string;
-  createdAt: string;
-  subtotal: number;
-  shipping: number;
-  total: number;
-  currency: string;
-  items: Array<{ name: string; price: number; quantity: number }>;
-  address: {
-    fullName: string;
-    phone: string;
-    province: string;
-    district: string;
-    addressLine: string;
-    postalCode?: string;
-    notes?: string;
-  };
-}
-
+interface OrderDetailView { id:string; reference:string; status:string; paymentMethod:string; createdAt:string; subtotal:number; shipping:number; total:number; currency:string; items:Array<{name:string;price:number;quantity:number}>; address:{fullName:string;phone:string;province:string;district:string;addressLine:string;postalCode?:string;notes?:string}; }
 async function loadOrder(id: string): Promise<OrderDetailView | null> {
-  if (!isDatabaseConfigured()) {
-    const m = mockOrders.find((o) => o.id === id || o.reference === id);
-    if (!m) return null;
-    return {
-      id: m.id,
-      reference: m.reference,
-      status: m.status,
-      paymentMethod: m.paymentMethod,
-      createdAt: m.createdAt,
-      subtotal: m.total,
-      shipping: 0,
-      total: m.total,
-      currency: m.currency,
-      items: Array.from({ length: m.itemCount }, (_, i) => ({ name: `کالای نمایشی ${i + 1}`, price: Math.round(m.total / m.itemCount), quantity: 1 })),
-      address: { fullName: m.customerName, phone: '+9370000000', province: 'کابل', district: 'ناحیه ۱۰', addressLine: 'آدرس نمایشی' },
-    };
-  }
-  try {
-    const row = await prisma.order.findFirst({
-      where: { OR: [{ id }, { reference: id }] },
-      include: { items: true, address: true },
-    });
-    if (!row) return null;
-    const mapped = mapOrder(row);
-    return {
-      id: row.id,
-      reference: row.reference,
-      status: row.status,
-      paymentMethod: row.paymentMethod,
-      createdAt: row.createdAt.toISOString(),
-      subtotal: Number(row.subtotal),
-      shipping: Number(row.shipping),
-      total: Number(row.total),
-      currency: row.currency,
-      items: mapped.items.map((item) => ({ ...item, price: Number(item.price) })),
-      address: mapped.address,
-    };
-  } catch (err) {
-    console.error('[admin/orders/:id] load error:', err);
-    return null;
-  }
+  if (!isDatabaseConfigured()) { const m = mockOrders.find((o) => o.id === id || o.reference === id); if (!m) return null; return { id:m.id, reference:m.reference, status:m.status, paymentMethod:m.paymentMethod, createdAt:m.createdAt, subtotal:m.total, shipping:0, total:m.total, currency:m.currency, items:Array.from({length:m.itemCount},(_,i)=>({name:`کالای نمایشی ${i+1}`,price:Math.round(m.total/m.itemCount),quantity:1})), address:{fullName:m.customerName,phone:'+9370000000',province:'کابل',district:'ناحیه ۱۰',addressLine:'آدرس نمایشی'} }; }
+  try { const row = await prisma.order.findFirst({ where:{ OR:[{id},{reference:id}] }, include:{items:true,address:true} }); if (!row) return null; const mapped=mapOrder(row); return { id:row.id, reference:row.reference, status:row.status, paymentMethod:row.paymentMethod, createdAt:row.createdAt.toISOString(), subtotal:Number(row.subtotal), shipping:Number(row.shipping), total:Number(row.total), currency:row.currency, items:mapped.items.map((item)=>({...item,price:Number(item.price)})), address:mapped.address }; } catch (err) { console.error('[admin/orders/:id] load error:',err); return null; }
 }
