@@ -10,7 +10,7 @@ import type { ProductSummary } from '@/types';
 
 const CATEGORY_KEYS = ['all', 'carpet', 'saffron', 'driedFruits', 'handicrafts', 'localClothing', 'honey', 'nuts', 'gemstones', 'traditional'] as const;
 const CATEGORY_EMOJI: Record<(typeof CATEGORY_KEYS)[number], string> = { all: '🇦🇫', carpet: '🎨', saffron: '🌸', driedFruits: '🍇', handicrafts: '🏺', localClothing: '👘', honey: '🍯', nuts: '🥜', gemstones: '💎', traditional: '✨' };
-interface Product { id: string; name: string; slug: string; price: number; comparePrice?: number | null; images?: Array<{ url?: string; src?: string }>; rating?: number; category?: { name: string }; videoUrl?: string | null; }
+interface Product { id: string; name: string; slug: string; price: number; comparePrice?: number | null; images?: Array<{ url?: string; src?: string }>; rating?: number; category?: { name: string }; categoryKey?: ProductSummary['categoryKey']; videoUrl?: string | null; }
 const PAGE_SIZE = 12;
 type SortKey = 'recommended' | 'newest' | 'bestSelling' | 'priceAsc' | 'priceDesc';
 
@@ -36,7 +36,7 @@ function toSummary(product: Product): ProductSummary {
     slug: product.slug,
     name: product.name,
     shortDescription: '',
-    categoryKey: 'digital',
+    categoryKey: product.categoryKey ?? 'digital',
     price: product.price,
     currency: 'AFN',
     comparePrice: product.comparePrice,
