@@ -6,7 +6,7 @@ import { Home, LayoutGrid, Search, ShoppingCart, User, X, ClipboardList, Heart, 
 import { Link, usePathname, useRouter } from '@/i18n/routing';
 import { useLocale, useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
-import { CartBadge } from '@/features/cart';
+import { useHydratedCartCount } from '@/features/cart';
 
 type MeUser = { id: string; fullName: string; email?: string; role: 'customer' | 'seller' | 'admin' };
 type MenuItem = { href: string; label: string; icon: React.ComponentType<{ className?: string }> };
@@ -15,6 +15,7 @@ export function MarketplaceMobileNavigation() {
   const pathname = usePathname();
   const router = useRouter();
   const locale = useLocale();
+  const cartCount = useHydratedCartCount();
   const t = useTranslations('nav');
   const h = useTranslations('siteHeader');
   const c = useTranslations('common');
@@ -87,7 +88,12 @@ export function MarketplaceMobileNavigation() {
         <NavItem href="/" active={isHome} label={t('home')}><Home className="h-5 w-5" /></NavItem>
         <NavItem href="/categories" active={isCategories} label={categoriesLabel}><LayoutGrid className="h-5 w-5" /></NavItem>
         <NavItem href="/search" active={isSearch} label={searchLabel}><Search className="h-5 w-5" /></NavItem>
-        <NavItem href="/cart" active={isCart} label={t('cart')}><span className="relative flex h-6 w-6 items-center justify-center"><ShoppingCart className="h-5 w-5" /><CartBadge /></span></NavItem>
+        <NavItem href="/cart" active={isCart} label={t('cart')}>
+          <span className="relative flex h-6 w-6 items-center justify-center">
+            <ShoppingCart className="h-5 w-5" />
+            {cartCount > 0 && <span aria-hidden="true" className="absolute -end-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold leading-none text-white">{cartCount > 9 ? '۹+' : cartCount}</span>}
+          </span>
+        </NavItem>
         <button type="button" onClick={() => user ? setAccountOpen(true) : userLoaded && router.push('/auth/login')} className={cn('relative flex flex-1 flex-col items-center gap-1 py-2.5 text-[10px] font-semibold', isAccount ? 'text-primary' : 'text-muted-foreground')} aria-label={user ? accountLabel : h('login')}>
           {isAccount && <span className="absolute inset-x-4 top-0 h-[2px] rounded-b-full bg-primary" aria-hidden />}
           <span className={cn('flex h-9 w-9 items-center justify-center rounded-xl', isAccount ? 'bg-accent' : '')}>{user ? <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">{user.fullName.charAt(0)}</span> : <User className="h-5 w-5" />}</span>
