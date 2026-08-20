@@ -1,16 +1,17 @@
 /**
- * Seller product image endpoint — Phase 4.
+ * Seller product image endpoint.
  *
- * POST { dataUrl }          → decode a base64 image, persist to
- *                             `public/uploads/products/<id>/<uuid>.<ext>`,
- *                             append URL to Product.imagesJson.
- * DELETE { url }            → remove an image URL from Product.imagesJson
- *                             (and best-effort unlink the file).
+ * POST { dataUrl }          → validate and persist an image, then append its
+ *                             URL to Product.imagesJson atomically.
+ * DELETE { url }            → remove an image URL from Product.imagesJson and
+ *                             best-effort delete the corresponding stored file.
  *
- * Accepts image/{png,jpeg,jpg,webp,gif} up to 3 MB. Sellers may only
- * touch products they own; admins bypass ownership.
+ * Accepts image/{png,jpeg,jpg,webp,gif} up to 3 MB. Sellers may only touch
+ * products they own; admins bypass ownership.
  *
- * Stage 3: replaced console.error with structured logger.
+ * Media persistence is deliberately defensive: storage writes can succeed
+ * before the database transaction commits, so failed metadata writes clean up
+ * the newly-created object when possible. Serializable conflicts are retried.
  */
 import type { NextRequest } from 'next/server';
 import { z } from 'zod';
@@ -25,6 +26,7 @@ export const dynamic = 'force-dynamic';
 
 const MAX_BYTES = 3 * 1024 * 1024;
 const MAX_IMAGES = 10;
+const MAX_TRANSACTION_RETRIES = 3;
 const EXT: Record<string, string> = {
   'image/png': 'png',
   'image/jpeg': 'jpg',
@@ -48,7 +50,7 @@ export async function OPTIONS() {
 async function loadOwned(id: string, role: string, userId: string) {
   const p = await prisma.product.findUnique({
     where: { id },
-    select: { id: true, sellerId: true, imagesJson: true, name: true },
+    select: { id: true, sellerId: true, imagesJson: true, primaryImageIndex: true, name: true },
   });
   if (!p) return { ok: false as const, status: 404 };
   if (role !== 'admin' && p.sellerId !== userId) return { ok: false as const, status: 403 };
@@ -92,8 +94,19 @@ function hasValidImageSignature(buf: Buffer, mime: string): boolean {
   return false;
 }
 
-export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+function isSerializableConflict(err: unknown): boolean {
+  return err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2034';
+}
+
+async function deleteStoredObjectBestEffort(url: string, context: Record<string, string>) {
+  try {
+    await deletePersistent(url);
+  } catch (err) {
+    logger.warn('seller.products.images.cleanup_failed', context, err);
+  }
+}
+
+async function handlePost(req: NextRequest, id: string) {
   const guard = await requireSellerApi();
   if (!guard.ok) return guard.response;
   if (!SAFE_ID.test(id))
@@ -144,36 +157,63 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return jsonError('storage_failed', 'Failed to persist image', { status: 503 });
   }
 
-  let images: Array<{ src: string; alt?: string }> = [];
-  try {
-    images = await prisma.$transaction(
-      async (tx) => {
-        const current = await tx.product.findUnique({
-          where: { id },
-          select: { imagesJson: true, name: true },
-        });
-        if (!current) throw new Error('PRODUCT_NOT_FOUND');
-        const next = readImages(current.imagesJson);
-        if (next.length >= MAX_IMAGES) throw new Error('IMAGE_LIMIT');
-        next.push({ src: publicUrl, alt: parsed.data.alt ?? current.name });
-        await tx.product.update({
-          where: { id },
-          data: { imagesJson: next },
-        });
-        return next;
-      },
-      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
-    );
-  } catch (err) {
-    if (err instanceof Error && err.message === 'IMAGE_LIMIT') {
+  let committedImages: Array<{ src: string; alt?: string }> | null = null;
+  let terminalError: unknown = null;
+
+  for (let attempt = 1; attempt <= MAX_TRANSACTION_RETRIES; attempt += 1) {
+    try {
+      committedImages = await prisma.$transaction(
+        async (tx) => {
+          const current = await tx.product.findUnique({
+            where: { id },
+            select: { imagesJson: true, name: true },
+          });
+          if (!current) throw new Error('PRODUCT_NOT_FOUND');
+          const next = readImages(current.imagesJson);
+          if (next.length >= MAX_IMAGES) throw new Error('IMAGE_LIMIT');
+          next.push({ src: publicUrl, alt: parsed.data.alt ?? current.name });
+          await tx.product.update({
+            where: { id },
+            data: { imagesJson: next },
+          });
+          return next;
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
+      terminalError = null;
+      break;
+    } catch (err) {
+      terminalError = err;
+      if (!isSerializableConflict(err) || attempt === MAX_TRANSACTION_RETRIES) break;
+    }
+  }
+
+  if (!committedImages) {
+    await deleteStoredObjectBestEffort(publicUrl, {
+      productId: id,
+      userId: guard.user.id,
+    });
+
+    if (terminalError instanceof Error && terminalError.message === 'IMAGE_LIMIT') {
       return jsonError('image_limit', `A product can have at most ${MAX_IMAGES} images`, { status: 422 });
     }
-    if (err instanceof Error && err.message === 'PRODUCT_NOT_FOUND') {
+    if (terminalError instanceof Error && terminalError.message === 'PRODUCT_NOT_FOUND') {
       return jsonError('not_found', 'Product not found', { status: 404 });
     }
+    logger.error('seller.products.images.metadata_failed', {
+      productId: id,
+      userId: guard.user.id,
+      retryCount: String(MAX_TRANSACTION_RETRIES),
+    }, terminalError);
     return jsonError('storage_failed', 'Failed to persist image metadata', { status: 500 });
   }
-  return jsonOk({ url: publicUrl, images }, { status: 201 });
+
+  return jsonOk({ url: publicUrl, images: committedImages }, { status: 201 });
+}
+
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  return handlePost(req, id);
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -202,12 +242,30 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       : jsonError('forbidden', 'You do not own this product', { status: 403 });
   }
 
-  const images = readImages(owned.product.imagesJson).filter((i) => i.src !== parsed.data.url);
+  const existingImages = readImages(owned.product.imagesJson);
+  const imageIndex = existingImages.findIndex((image) => image.src === parsed.data.url);
+  if (imageIndex < 0) {
+    return jsonError('image_not_found', 'Image does not belong to this product', { status: 404 });
+  }
+
+  const images = existingImages.filter((image) => image.src !== parsed.data.url);
+  const currentPrimary = owned.product.primaryImageIndex;
+  let nextPrimary = 0;
+  if (images.length > 0) {
+    if (imageIndex === currentPrimary) nextPrimary = 0;
+    else if (imageIndex < currentPrimary) nextPrimary = currentPrimary - 1;
+    else nextPrimary = Math.min(currentPrimary, images.length - 1);
+  }
+
   await prisma.product.update({
     where: { id },
-    data: { imagesJson: images },
+    data: { imagesJson: images, primaryImageIndex: nextPrimary },
   });
-  await deletePersistent(parsed.data.url);
 
-  return jsonOk({ images });
+  await deleteStoredObjectBestEffort(parsed.data.url, {
+    productId: id,
+    userId: guard.user.id,
+  });
+
+  return jsonOk({ images, primaryImageIndex: nextPrimary });
 }

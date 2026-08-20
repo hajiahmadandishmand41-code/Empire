@@ -3,6 +3,10 @@
  *
  * PATCH  /api/seller/products/:id — Update a product
  * DELETE /api/seller/products/:id — Delete a product (or safely deactivate when order history exists)
+ *
+ * Stage 1 hardening:
+ *   - Accept and validate the existing Product.imagesJson contract.
+ *   - Validate primaryImageIndex against the submitted image collection.
  */
 import type { NextRequest } from 'next/server';
 import { z } from 'zod';
@@ -27,6 +31,32 @@ function serializeProduct<T extends object>(row: T) {
   return out;
 }
 
+function imageCollectionHasValidShape(raw: string | null | undefined): boolean {
+  if (raw == null || raw.trim() === '') return true;
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed) || parsed.length > 10) return false;
+    return parsed.every((item) => {
+      if (typeof item === 'string') return item.trim().length > 0 && item.length <= 1500;
+      if (!item || typeof item !== 'object') return false;
+      const src = (item as { src?: unknown }).src;
+      return typeof src === 'string' && src.trim().length > 0 && src.length <= 1500;
+    });
+  } catch {
+    return false;
+  }
+}
+
+function imageCount(raw: string | null | undefined): number {
+  if (!raw || !imageCollectionHasValidShape(raw)) return 0;
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return Array.isArray(parsed) ? parsed.length : 0;
+  } catch {
+    return 0;
+  }
+}
+
 const patchSchema = z.object({
   name: z.string().trim().min(2).max(120).optional(),
   shortDescription: z.string().trim().min(2).max(300).optional(),
@@ -45,8 +75,28 @@ const patchSchema = z.object({
   dimensionsJson: z.string().max(200).optional().nullable(),
   tagsJson: z.string().max(500).optional().nullable(),
   attributesJson: z.string().max(2000).optional().nullable(),
+  imagesJson: z.string().max(12000).optional().nullable(),
   primaryImageIndex: z.number().int().min(0).optional(),
-}).strict();
+}).strict().superRefine((value, ctx) => {
+  if (!imageCollectionHasValidShape(value.imagesJson)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['imagesJson'],
+      message: 'فرمت تصاویر محصول نامعتبر است',
+    });
+    return;
+  }
+  if (value.imagesJson !== undefined && value.primaryImageIndex !== undefined) {
+    const count = imageCount(value.imagesJson);
+    if (count > 0 && value.primaryImageIndex >= count) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['primaryImageIndex'],
+        message: 'شاخص تصویر اصلی خارج از محدوده تصاویر است',
+      });
+    }
+  }
+});
 
 export async function OPTIONS() { return jsonPreflight(); }
 
@@ -67,7 +117,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (ownership === 'not_found') return jsonError('not_found', 'Product not found', { status: 404 });
     if (ownership === 'forbidden') return jsonError('forbidden', 'You do not own this product', { status: 403 });
     const updated = await svc.updateProduct(id, parsed.data);
-    logger.info('seller.product.updated', { productId: id, sellerId: guard.user.id, fields: Object.keys(parsed.data) });
+    logger.info('seller.product.updated', {
+      productId: id,
+      sellerId: guard.user.id,
+      fields: Object.keys(parsed.data),
+      imageCount: imageCount(parsed.data.imagesJson),
+    });
     return jsonOk(serializeProduct(updated));
   } catch (err) {
     if (err instanceof ProductServiceError) return jsonError(err.code, err.message, { status: err.httpStatus });
