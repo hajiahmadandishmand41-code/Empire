@@ -18,7 +18,7 @@ export function levenshtein(a: string, b: string): number {
   for (let j = 1; j <= b.length; j++) {
     currRow[0] = j;
     for (let i = 1; i <= a.length; i++) {
-      const cost = a[i - 1] === b[i - 1] ? 0 : 1;
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
       currRow[i] = Math.min(prevRow[i] + 1, currRow[i - 1] + 1, prevRow[i - 1] + cost);
     }
     prevRow.splice(0, prevRow.length, ...currRow);
@@ -175,7 +175,6 @@ export function generateSuggestions(candidates: Array<{ text: string; type: Sear
 
 import type { Prisma } from '@prisma/client';
 
-/** Build a DB-side recall filter while preserving normalized Persian/Arabic variants. */
 export function buildSearchWhereClause(query: string): Prisma.ProductWhereInput {
   const original = query.trim();
   if (!original) return {};
