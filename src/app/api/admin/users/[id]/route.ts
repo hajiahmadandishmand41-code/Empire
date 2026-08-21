@@ -23,69 +23,35 @@ export async function OPTIONS() {
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const guard = await requireAdminApi();
+  const guard = await requireAdminApi('users.manage');
   if (!guard.ok) return guard.response;
 
   if (guard.user.id === id) {
-    return jsonError(
-      'self_modification_forbidden',
-      'You cannot change your own role or active state from here',
-      { status: 409 },
-    );
+    return jsonError('self_modification_forbidden', 'You cannot change your own role or active state from here', { status: 409 });
   }
 
   let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return jsonError('invalid_json', 'Invalid JSON', { status: 400 });
-  }
+  try { body = await req.json(); } catch { return jsonError('invalid_json', 'Invalid JSON', { status: 400 }); }
   const parsed = patchSchema.safeParse(body);
-  if (!parsed.success) {
-    return jsonError('invalid_body', 'Invalid user patch', {
-      status: 422,
-      details: { issues: parsed.error.issues },
-    });
+  if (!parsed.success) return jsonError('invalid_body', 'Invalid user patch', { status: 422, details: { issues: parsed.error.issues } });
+
+  if (parsed.data.role !== undefined && guard.accessRole !== 'super_admin') {
+    return jsonError('forbidden', 'Only a super admin can change a user role', { status: 403 });
   }
+
   if (!isDatabaseConfigured()) return jsonError('db_unavailable', 'Database is not configured', { status: 503 });
   try {
-    const previous = (await prisma.user.findUnique({
-      where: { id },
-      select: { id: true, role: true, isActive: true } as never,
-    })) as { id: string; role?: string; isActive?: boolean } | null;
+    const previous = (await prisma.user.findUnique({ where: { id }, select: { id: true, role: true, isActive: true } as never })) as { id: string; role?: string; isActive?: boolean } | null;
     if (!previous) return jsonError('not_found', 'User not found', { status: 404 });
 
-    // Cast `data` because older generated clients may not yet include
-    // the `isActive`/`role` fields (they are added in Phase 9.3 / Phase 10).
-    const updated = await prisma.user.update({
-      where: { id },
-      data: parsed.data as never,
-    });
+    const updated = await prisma.user.update({ where: { id }, data: parsed.data as never });
     const raw = updated as unknown as { role?: string; isActive?: boolean };
 
-    // Emit one audit row per distinct sensitive change so ops can
-    // filter the timeline by action easily.
     if (parsed.data.role !== undefined && parsed.data.role !== previous.role) {
-      await recordAudit({
-        actor: { id: guard.user.id, role: guard.user.role },
-        action: 'user.role_change',
-        entityType: 'user',
-        entityId: updated.id,
-        before: { role: previous.role },
-        after: { role: raw.role },
-        req,
-      });
+      await recordAudit({ actor: { id: guard.user.id, role: guard.user.role }, action: 'user.role_change', entityType: 'user', entityId: updated.id, before: { role: previous.role }, after: { role: raw.role }, req });
     }
     if (parsed.data.isActive !== undefined && parsed.data.isActive !== previous.isActive) {
-      await recordAudit({
-        actor: { id: guard.user.id, role: guard.user.role },
-        action: 'user.active_change',
-        entityType: 'user',
-        entityId: updated.id,
-        before: { isActive: previous.isActive },
-        after: { isActive: raw.isActive },
-        req,
-      });
+      await recordAudit({ actor: { id: guard.user.id, role: guard.user.role }, action: 'user.active_change', entityType: 'user', entityId: updated.id, before: { isActive: previous.isActive }, after: { isActive: raw.isActive }, req });
     }
 
     return jsonOk({ id: updated.id, role: raw.role, isActive: raw.isActive });
