@@ -3,16 +3,18 @@
  * One-time, non-destructive Prisma baseline bootstrap for an already provisioned
  * Empire database.
  *
- * The Supabase Marketplace integration provisioned the current schema before the
- * Prisma migration history existed. Prisma therefore sees a non-empty database
- * but no `_prisma_migrations` table and refuses `migrate deploy` with P3005.
+ * There are three safe database states:
+ *  1. `_prisma_migrations` exists: nothing to bootstrap.
+ *  2. No migration history and all required application tables exist: mark only
+ *     the canonical historical baseline as applied; newer migrations remain
+ *     pending for `prisma migrate deploy`.
+ *  3. No migration history and none of the required application tables exist:
+ *     the database is empty. Exit with code 10 so the Vercel build can skip the
+ *     baseline and let `prisma migrate deploy` create the schema normally.
  *
- * This script only runs the first time `_prisma_migrations` is absent AND all
- * application tables from the current Prisma schema already exist. It marks
- * only migrations up to the canonical production baseline as applied without
- * executing their SQL. Later migrations remain pending so `prisma migrate
- * deploy` can create newer application tables (for example Banner and
- * MediaAsset) normally.
+ * A partially-populated database without migration history is rejected rather
+ * than guessed, because automatically choosing a baseline there could hide
+ * schema drift or destroy the integrity of the migration history.
  */
 import { PrismaClient } from '@prisma/client';
 import { readdirSync, statSync } from 'node:fs';
@@ -20,6 +22,8 @@ import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
 const BASELINE_MIGRATION = '202608210227_baseline_existing_supabase_schema';
+const EMPTY_DATABASE_EXIT_CODE = 10;
+
 const REQUIRED_TABLES = [
   'Address',
   'AdminAuditLog',
@@ -112,21 +116,14 @@ function runResolve(migrationName, databaseUrl) {
   }
 }
 
-async function main() {
-  const picked = pickDatabaseUrl();
-  if (!picked) throw new Error('No database URL or Supabase/Vercel pooler URL is configured.');
-  process.env.DATABASE_URL = picked.value;
-
-  console.log(`[baseline] Inspecting database using ${picked.key}.`);
-
+async function inspectDatabase(databaseUrl) {
   const prisma = new PrismaClient();
   try {
     const migrationTable = await prisma.$queryRaw`
       SELECT to_regclass('public."_prisma_migrations"')::text AS name
     `;
     if (migrationTable[0]?.name) {
-      console.log('[baseline] _prisma_migrations already exists; no baseline needed.');
-      return;
+      return { hasMigrationHistory: true, tableNames: new Set() };
     }
 
     const tableRows = await prisma.$queryRaw`
@@ -135,16 +132,41 @@ async function main() {
       WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
       ORDER BY table_name
     `;
-    const tableSet = new Set(tableRows.map((row) => row.table_name));
-    const missing = REQUIRED_TABLES.filter((name) => !tableSet.has(name));
 
-    if (missing.length > 0) {
-      throw new Error(
-        `Refusing automatic baseline because the current Prisma schema is not fully present. Missing tables: ${missing.join(', ')}`,
-      );
-    }
+    return {
+      hasMigrationHistory: false,
+      tableNames: new Set(tableRows.map((row) => row.table_name)),
+    };
   } finally {
     await prisma.$disconnect();
+  }
+}
+
+async function main() {
+  const picked = pickDatabaseUrl();
+  if (!picked) throw new Error('No database URL or Supabase/Vercel pooler URL is configured.');
+  process.env.DATABASE_URL = picked.value;
+
+  console.log(`[baseline] Inspecting database using ${picked.key}.`);
+  const inspection = await inspectDatabase(picked.value);
+
+  if (inspection.hasMigrationHistory) {
+    console.log('[baseline] _prisma_migrations already exists; no baseline needed.');
+    return;
+  }
+
+  const missing = REQUIRED_TABLES.filter((name) => !inspection.tableNames.has(name));
+  const existingRequiredCount = REQUIRED_TABLES.length - missing.length;
+
+  if (existingRequiredCount === 0) {
+    console.log('[baseline] No required Empire application tables exist; database is empty.');
+    process.exit(EMPTY_DATABASE_EXIT_CODE);
+  }
+
+  if (missing.length > 0) {
+    throw new Error(
+      `Refusing automatic baseline because the database has a partial Prisma schema. Missing tables: ${missing.join(', ')}`,
+    );
   }
 
   const migrationsDir = join(process.cwd(), 'prisma', 'migrations');
