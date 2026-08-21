@@ -1,0 +1,1 @@
+Schema reset is pending; do not deploy until the known-good schema commit is restored.
