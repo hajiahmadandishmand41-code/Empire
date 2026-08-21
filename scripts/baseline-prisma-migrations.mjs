@@ -8,15 +8,18 @@
  * but no `_prisma_migrations` table and refuses `migrate deploy` with P3005.
  *
  * This script only runs the first time `_prisma_migrations` is absent AND all
- * application tables from the current Prisma schema already exist. It then
- * marks every migration directory as applied without executing its SQL.
- * Nothing is dropped, altered, reset, or recreated.
+ * application tables from the current Prisma schema already exist. It marks
+ * only migrations up to the canonical production baseline as applied without
+ * executing their SQL. Later migrations remain pending so `prisma migrate
+ * deploy` can create newer application tables (for example Banner and
+ * MediaAsset) normally.
  */
 import { PrismaClient } from '@prisma/client';
 import { readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
+const BASELINE_MIGRATION = '202608210227_baseline_existing_supabase_schema';
 const REQUIRED_TABLES = [
   'Address',
   'AdminAuditLog',
@@ -150,9 +153,16 @@ async function main() {
     .sort();
 
   if (migrations.length === 0) throw new Error('No Prisma migrations found in prisma/migrations.');
+  const baselineIndex = migrations.indexOf(BASELINE_MIGRATION);
+  if (baselineIndex < 0) {
+    throw new Error(`Canonical baseline migration not found: ${BASELINE_MIGRATION}`);
+  }
 
-  console.log(`[baseline] Found ${migrations.length} Prisma migrations. Marking them as applied without executing SQL.`);
-  for (const migration of migrations) {
+  const baselineMigrations = migrations.slice(0, baselineIndex + 1);
+  const pendingMigrations = migrations.slice(baselineIndex + 1);
+  console.log(`[baseline] Marking ${baselineMigrations.length} pre-baseline migrations as applied; leaving ${pendingMigrations.length} newer migrations pending.`);
+
+  for (const migration of baselineMigrations) {
     console.log(`[baseline] Marking ${migration} as applied.`);
     runResolve(migration, picked.value);
   }
