@@ -25,7 +25,7 @@ export async function OPTIONS() {
 }
 
 export async function POST(req: NextRequest) {
-  const guard = await requireAdminApi();
+  const guard = await requireAdminApi('products.manage');
   if (!guard.ok) return guard.response;
 
   let body: unknown;
