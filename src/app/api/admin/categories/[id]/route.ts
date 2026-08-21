@@ -19,7 +19,7 @@ export async function OPTIONS() {
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const guard = await requireAdminApi();
+  const guard = await requireAdminApi('categories.manage');
   if (!guard.ok) return guard.response;
 
   let body: unknown;
@@ -52,7 +52,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const guard = await requireAdminApi();
+  const guard = await requireAdminApi('categories.manage');
   if (!guard.ok) return guard.response;
 
   if (!isDatabaseConfigured()) {
