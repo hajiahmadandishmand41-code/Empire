@@ -118,7 +118,9 @@ async function main() {
 
   const prisma = new PrismaClient();
   try {
-    const migrationTable = await prisma.$queryRaw`SELECT to_regclass('public."_prisma_migrations"') AS name`;
+    const migrationTable = await prisma.$queryRaw`
+      SELECT to_regclass('public."_prisma_migrations"')::text AS name
+    `;
     if (migrationTable[0]?.name) {
       console.log('[baseline] _prisma_migrations already exists; no baseline needed.');
       return;
