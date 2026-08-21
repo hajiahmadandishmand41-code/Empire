@@ -10,7 +10,8 @@ interface CategoryCardProps { item: CategoryItem; }
 export async function CategoryCard({ item }: CategoryCardProps) {
   const { key, Icon, accent } = item;
   const t = await getTranslations('home.categories.items');
-  const title = t(`${key}.title` as Parameters<typeof t>[0]);
+  const translationKey = `${key}.title` as Parameters<typeof t>[0];
+  const title = t.has(translationKey) ? t(translationKey) : key;
 
   return (
     <Link
