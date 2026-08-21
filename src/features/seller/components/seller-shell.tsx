@@ -149,6 +149,7 @@ export function SellerShell({ locale, userName, storeName, children }: SellerShe
     { href: `${base}/customers`, label: 'مشتریان', icon: Users },
     { href: `${base}/discounts`, label: 'تخفیف‌ها', icon: TicketPercent },
     { href: `${base}/reviews`, label: 'نظرات', icon: Star },
+    { href: `${base}/notifications`, label: 'اعلان‌ها', icon: Bell },
     { href: `${base}/wallet`, label: 'درآمد و کیف پول', icon: Wallet },
     { href: `${base}/reports`, label: 'Analytics', icon: BarChart3 },
     { href: `${base}/storefront`, label: 'فروشگاه من', icon: Store },
@@ -189,7 +190,7 @@ export function SellerShell({ locale, userName, storeName, children }: SellerShe
             <Link href={`${base}/products/new`} className="hidden sm:flex items-center gap-1.5 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 px-3.5 py-1.5 text-xs font-bold text-white hover:from-emerald-600 hover:to-teal-700 transition-all shadow-sm hover:shadow-emerald-500/25"><Plus className="h-3.5 w-3.5" />محصول جدید</Link>
             <Link href={`${base}/products`} aria-label="جستجوی محصولات" className="flex h-8 w-8 items-center justify-center rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"><Search className="h-4 w-4" /></Link>
             <ThemeToggle variant="icon" lang={locale} />
-            <button className="flex h-8 w-8 items-center justify-center rounded-xl border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-emerald-600 transition-colors" aria-label="اعلان‌ها"><Bell className="h-4 w-4" /></button>
+            <Link href={`${base}/notifications`} className="flex h-8 w-8 items-center justify-center rounded-xl border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-emerald-600 transition-colors" aria-label="اعلان‌ها"><Bell className="h-4 w-4" /></Link>
           </div>
         </header>
         <main id="main" className="flex-1 p-4 sm:p-6">{children}</main>
