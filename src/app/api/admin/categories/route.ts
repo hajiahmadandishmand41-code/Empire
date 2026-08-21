@@ -23,14 +23,14 @@ export async function OPTIONS() {
 }
 
 export async function GET() {
-  const guard = await requireAdminApi();
+  const guard = await requireAdminApi('categories.view');
   if (!guard.ok) return guard.response;
   const { items, source } = await listAdminCategories();
   return jsonOk(items, { meta: { source } });
 }
 
 export async function POST(req: NextRequest) {
-  const guard = await requireAdminApi();
+  const guard = await requireAdminApi('categories.manage');
   if (!guard.ok) return guard.response;
 
   let body: unknown;
