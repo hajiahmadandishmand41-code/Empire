@@ -6,11 +6,5 @@
   "regions": ["fra1"],
   "github": {
     "silent": false
-  },
-  "crons": [
-    {
-      "path": "/api/cron/seller-product-import",
-      "schedule": "* * * * *"
-    }
-  ]
+  }
 }
