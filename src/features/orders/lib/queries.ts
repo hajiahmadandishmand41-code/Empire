@@ -138,11 +138,19 @@ export async function getSellerOrderSummary(sellerId: string): Promise<SellerOrd
   if (!isDatabaseConfigured()) return empty;
 
   const base = { items: { some: { product: { sellerId } } } };
-  const [total, pending, confirmed, processing, shipped, delivered, cancelled] = await Promise.all(
+  const [pending, confirmed, processing, shipped, delivered, cancelled] = await Promise.all(
     STATUSES.map((status) => prisma.order.count({ where: { ...base, status } })),
-  ).then((counts) => [counts.reduce((sum, value) => sum + value, 0), ...counts]);
+  );
 
-  return { total, pending, confirmed, processing, shipped, delivered, cancelled };
+  return {
+    total: pending + confirmed + processing + shipped + delivered + cancelled,
+    pending,
+    confirmed,
+    processing,
+    shipped,
+    delivered,
+    cancelled,
+  };
 }
 
 export async function getOrderForViewer(
