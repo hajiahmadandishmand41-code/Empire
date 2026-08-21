@@ -10,7 +10,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(req: NextRequest) {
-  const guard = await requireAdminApi();
+  const guard = await requireAdminApi('users.view');
   if (!guard.ok) return guard.response;
 
   const sp = req.nextUrl.searchParams;
@@ -25,8 +25,7 @@ export async function GET(req: NextRequest) {
     return jsonOk(result, { meta: { source: result.source } });
   } catch (err) {
     console.error('[api/admin/users]', err);
-    const isDatabaseErr =
-      err instanceof Error && err.message === 'Database not configured';
+    const isDatabaseErr = err instanceof Error && err.message === 'Database not configured';
     return jsonError(
       isDatabaseErr ? 'db_unavailable' : 'query_failed',
       isDatabaseErr ? 'Database is not configured' : 'Failed to fetch users',
