@@ -40,17 +40,19 @@ export async function listSellerCustomers(args: {
     last_order: Date;
   }>>(Prisma.sql`
     WITH seller_orders AS (
-      SELECT DISTINCT
+      SELECT
         o.id,
         o."userId",
         o."shippingPhone",
         o."shippingFullName",
-        o."total",
-        o."createdAt"
+        o."createdAt",
+        COALESCE(SUM(oi."price" * oi."quantity"), 0) AS seller_total
       FROM "Order" o
       JOIN "OrderItem" oi ON oi."orderId" = o.id
       JOIN "Product" p ON p.id = oi."productId"
       WHERE p."sellerId" = ${args.sellerId}
+        AND o."status" <> 'cancelled'
+      GROUP BY o.id, o."userId", o."shippingPhone", o."shippingFullName", o."createdAt"
     ),
     customer_rollup AS (
       SELECT
@@ -58,7 +60,7 @@ export async function listSellerCustomers(args: {
         MAX("shippingFullName") AS name,
         MAX("shippingPhone") AS phone,
         COUNT(*)::bigint AS order_count,
-        COALESCE(SUM("total"), 0) AS total_spent,
+        COALESCE(SUM(seller_total), 0) AS total_spent,
         MAX("createdAt") AS last_order
       FROM seller_orders
       GROUP BY COALESCE("userId", 'guest:' || COALESCE("shippingPhone", "shippingFullName", id))
@@ -81,6 +83,7 @@ export async function listSellerCustomers(args: {
       JOIN "OrderItem" oi ON oi."orderId" = o.id
       JOIN "Product" p ON p.id = oi."productId"
       WHERE p."sellerId" = ${args.sellerId}
+        AND o."status" <> 'cancelled'
     )
     SELECT COUNT(*)::bigint AS count
     FROM (
