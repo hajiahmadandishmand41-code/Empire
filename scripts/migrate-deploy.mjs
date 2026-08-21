@@ -5,19 +5,21 @@
  * Rules:
  *  - ONLY ever runs `prisma migrate deploy` (forward-only).
  *  - NEVER runs `migrate reset`, `db push --force-reset`, or any destructive command.
- *  - Prefer the explicitly configured direct/non-pooled URL for migrations.
- *  - If a direct URL is not configured, use the configured DATABASE_URL as-is.
+ *  - On IPv4-only platforms such as Vercel, prefer Supabase's session pooler
+ *    (`POSTGRES_URL_NON_POOLING`) for migrations. Direct Supabase endpoints
+ *    are IPv6-only unless the project has the IPv4 add-on.
+ *  - Fall back to a direct/non-pooled URL only when the session pooler is unavailable.
  *  - Add a bounded connection timeout so a cold database gets enough time.
  *  - Never silently skip a migration when a database URL is configured.
  *  - In Vercel production, SKIP_DB_MIGRATE=1 is a hard failure rather than a bypass.
  */
 import { spawnSync } from 'node:child_process';
 
-// Supabase/Vercel can expose the direct database URL under different names
-// depending on integration/version. Keep all known safe aliases here.
-const DIRECT_KEYS = [
-  'DATABASE_URL_UNPOOLED',
+// Supabase/Vercel can expose different aliases depending on integration/version.
+// Prefer the IPv4-compatible Supavisor Session Pooler for Vercel migrations.
+const MIGRATION_KEYS = [
   'POSTGRES_URL_NON_POOLING',
+  'DATABASE_URL_UNPOOLED',
   'SUPABASE_DB_URL',
   'DIRECT_DATABASE_URL',
   'DIRECT_URL',
@@ -50,7 +52,7 @@ function withConnectTimeout(value) {
 }
 
 function pickUrl() {
-  return pickConfiguredUrl(DIRECT_KEYS) ?? pickConfiguredUrl(RUNTIME_KEYS);
+  return pickConfiguredUrl(MIGRATION_KEYS) ?? pickConfiguredUrl(RUNTIME_KEYS);
 }
 
 function isVercelProduction() {
@@ -70,7 +72,7 @@ function main() {
   const picked = pickUrl();
   if (!picked) {
     console.error(
-      '[migrate] No database URL configured. Set DATABASE_URL_UNPOOLED (preferred), POSTGRES_URL_NON_POOLING, SUPABASE_DB_URL, or DATABASE_URL before running production migrations.',
+      '[migrate] No database URL configured. Set POSTGRES_URL_NON_POOLING (preferred for Vercel), DATABASE_URL_UNPOOLED, SUPABASE_DB_URL, or DATABASE_URL before running production migrations.',
     );
     process.exit(1);
   }
