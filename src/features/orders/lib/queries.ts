@@ -33,6 +33,16 @@ export interface Paged<T> {
   source: 'db' | 'empty';
 }
 
+export interface SellerOrderSummary {
+  total: number;
+  pending: number;
+  confirmed: number;
+  processing: number;
+  shipped: number;
+  delivered: number;
+  cancelled: number;
+}
+
 interface UserListArgs { userId: string; page?: number; pageSize?: number; status?: string; }
 
 function mapOrderListItem(r: {
@@ -59,6 +69,18 @@ function mapOrderListItem(r: {
   };
 }
 
+const sellerOrderSelect = {
+  id: true,
+  reference: true,
+  status: true,
+  paymentStatus: true,
+  paymentMethod: true,
+  itemCount: true,
+  total: true,
+  currency: true,
+  createdAt: true,
+} as const;
+
 export async function listUserOrders(args: UserListArgs): Promise<Paged<OrderListItem>> {
   const page = Math.max(1, args.page ?? 1);
   const pageSize = Math.min(50, Math.max(5, args.pageSize ?? 10));
@@ -67,7 +89,7 @@ export async function listUserOrders(args: UserListArgs): Promise<Paged<OrderLis
 
   const where = { userId: args.userId, ...(status ? { status } : {}) };
   const [rows, total] = await Promise.all([
-    prisma.order.findMany({ where, orderBy: { createdAt: 'desc' }, skip: (page - 1) * pageSize, take: pageSize }),
+    prisma.order.findMany({ where, orderBy: { createdAt: 'desc' }, skip: (page - 1) * pageSize, take: pageSize, select: sellerOrderSelect }),
     prisma.order.count({ where }),
   ]);
 
@@ -76,14 +98,10 @@ export async function listUserOrders(args: UserListArgs): Promise<Paged<OrderLis
 
 interface SellerListArgs { sellerId: string; page?: number; pageSize?: number; status?: string; q?: string; }
 
-export async function listSellerOrders(args: SellerListArgs): Promise<Paged<OrderListItem>> {
-  const page = Math.max(1, args.page ?? 1);
-  const pageSize = Math.min(50, Math.max(5, args.pageSize ?? 10));
+function sellerOrderWhere(args: SellerListArgs) {
   const status = normStatus(args.status);
   const q = args.q?.trim();
-  if (!isDatabaseConfigured()) return { items: [], total: 0, page, pageSize, source: 'empty' };
-
-  const where = {
+  return {
     items: { some: { product: { sellerId: args.sellerId } } },
     ...(status ? { status } : {}),
     ...(q ? {
@@ -93,13 +111,46 @@ export async function listSellerOrders(args: SellerListArgs): Promise<Paged<Orde
       ],
     } : {}),
   };
+}
 
+export async function listSellerOrders(args: SellerListArgs): Promise<Paged<OrderListItem>> {
+  const page = Math.max(1, args.page ?? 1);
+  const pageSize = Math.min(50, Math.max(5, args.pageSize ?? 10));
+  if (!isDatabaseConfigured()) return { items: [], total: 0, page, pageSize, source: 'empty' };
+
+  const where = sellerOrderWhere(args);
   const [rows, total] = await Promise.all([
-    prisma.order.findMany({ where, orderBy: { createdAt: 'desc' }, skip: (page - 1) * pageSize, take: pageSize }),
+    prisma.order.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      select: sellerOrderSelect,
+    }),
     prisma.order.count({ where }),
   ]);
 
   return { items: rows.map(mapOrderListItem), total, page, pageSize, source: 'db' };
+}
+
+export async function getSellerOrderSummary(sellerId: string): Promise<SellerOrderSummary> {
+  const empty: SellerOrderSummary = { total: 0, pending: 0, confirmed: 0, processing: 0, shipped: 0, delivered: 0, cancelled: 0 };
+  if (!isDatabaseConfigured()) return empty;
+
+  const base = { items: { some: { product: { sellerId } } } };
+  const [pending, confirmed, processing, shipped, delivered, cancelled] = await Promise.all(
+    STATUSES.map((status) => prisma.order.count({ where: { ...base, status } })),
+  );
+
+  return {
+    total: pending + confirmed + processing + shipped + delivered + cancelled,
+    pending,
+    confirmed,
+    processing,
+    shipped,
+    delivered,
+    cancelled,
+  };
 }
 
 export async function getOrderForViewer(
