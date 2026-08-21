@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Plus } from 'lucide-react';
+import { Plus, Upload } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { DataTable, type Column } from '@/features/admin/components/data-table';
@@ -88,12 +88,20 @@ export default async function SellerProductsPage({ params, searchParams }: Props
             مدیریت محصولات فروشگاه شما — افزودن، ویرایش و حذف
           </p>
         </div>
-        <Link href={`${base}/new`}>
-          <Button size="sm" variant="primary">
-            <Plus className="h-4 w-4" />
-            افزودن محصول
-          </Button>
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href={`${base}/import`}>
+            <Button size="sm" variant="outline">
+              <Upload className="h-4 w-4" />
+              Import انبوه
+            </Button>
+          </Link>
+          <Link href={`${base}/new`}>
+            <Button size="sm" variant="primary">
+              <Plus className="h-4 w-4" />
+              افزودن محصول
+            </Button>
+          </Link>
+        </div>
       </header>
 
       <Card className="space-y-4 p-4">
