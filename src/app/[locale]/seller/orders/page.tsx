@@ -18,8 +18,8 @@ const filters = [
   { key: 'cancelled', label: 'لغو شده' },
 ];
 
-export default async function SellerOrdersPage({ params, searchParams }: Props) {
-  const { locale } = await params;
+export default async function SellerOrdersPage({ params: routeParams, searchParams }: Props) {
+  const { locale } = await routeParams;
   const sp = await searchParams;
   const user = await requireSeller({ locale });
 
@@ -105,8 +105,8 @@ export default async function SellerOrdersPage({ params, searchParams }: Props) 
         <div className="flex items-center justify-between text-sm text-muted-foreground">
           <span>صفحه {result.page.toLocaleString('fa-IR')}</span>
           <div className="flex items-center gap-2">
-            {result.page > 1 && <PagerLink href={`${base}?${params(sp, result.page - 1)}`} label="قبلی" />}
-            {result.page * result.pageSize < result.total && <PagerLink href={`${base}?${params(sp, result.page + 1)}`} label="بعدی" />}
+            {result.page > 1 && <PagerLink href={`${base}?${orderQueryString(sp, result.page - 1)}`} label="قبلی" />}
+            {result.page * result.pageSize < result.total && <PagerLink href={`${base}?${orderQueryString(sp, result.page + 1)}`} label="بعدی" />}
           </div>
         </div>
       )}
@@ -114,7 +114,7 @@ export default async function SellerOrdersPage({ params, searchParams }: Props) 
   );
 }
 
-function params(sp: { q?: string; status?: string }, page: number) {
+function orderQueryString(sp: { q?: string; status?: string }, page: number) {
   const query = new URLSearchParams({ page: String(page) });
   if (sp.q) query.set('q', sp.q);
   if (sp.status) query.set('status', sp.status);
