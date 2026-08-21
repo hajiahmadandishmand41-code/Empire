@@ -1,4 +1,4 @@
-/** Seller reports — server-only Prisma aggregation. */
+/** Seller reports — server-only PostgreSQL aggregation. */
 import { prisma, isDatabaseConfigured } from '@/lib/db';
 
 export interface SellerReport {
@@ -27,55 +27,74 @@ export async function getSellerReport(sellerId: string): Promise<SellerReport> {
   if (!isDatabaseConfigured()) return empty;
 
   try {
-    const items = await prisma.orderItem.findMany({
-      where: { product: { sellerId } },
-      include: { order: { select: { id: true, status: true, currency: true } }, product: { select: { id: true, name: true, slug: true } } },
-    });
-    const orderIds = new Set<string>();
-    const statusCounts = { pending: 0, confirmed: 0, processing: 0, shipped: 0, delivered: 0, cancelled: 0 };
-    const seenOrderStatus = new Map<string, keyof typeof statusCounts>();
-    let unitsSold = 0;
-    let revenue = 0;
-    let currency = 'AFN';
-    const productMap = new Map<string, { productId: string; name: string; slug: string; unitsSold: number; revenue: number }>();
+    const [totalsRow] = await prisma.$queryRaw<Array<{
+      currency: string | null;
+      orders: bigint;
+      unitsSold: bigint | null;
+      revenue: number | null;
+      pendingOrders: bigint;
+      processingOrders: bigint;
+      shippedOrders: bigint;
+      deliveredOrders: bigint;
+      cancelledOrders: bigint;
+    }>>`
+      SELECT
+        MAX(o."currency") AS currency,
+        COUNT(DISTINCT o."id") AS orders,
+        COALESCE(SUM(CASE WHEN o."status" <> 'cancelled' THEN oi."quantity" ELSE 0 END), 0) AS "unitsSold",
+        COALESCE(SUM(CASE WHEN o."status" <> 'cancelled' THEN oi."price" * oi."quantity" ELSE 0 END), 0) AS revenue,
+        COUNT(DISTINCT o."id") FILTER (WHERE o."status" IN ('pending', 'confirmed')) AS "pendingOrders",
+        COUNT(DISTINCT o."id") FILTER (WHERE o."status" = 'processing') AS "processingOrders",
+        COUNT(DISTINCT o."id") FILTER (WHERE o."status" = 'shipped') AS "shippedOrders",
+        COUNT(DISTINCT o."id") FILTER (WHERE o."status" = 'delivered') AS "deliveredOrders",
+        COUNT(DISTINCT o."id") FILTER (WHERE o."status" = 'cancelled') AS "cancelledOrders"
+      FROM "OrderItem" oi
+      INNER JOIN "Order" o ON o."id" = oi."orderId"
+      INNER JOIN "Product" p ON p."id" = oi."productId"
+      WHERE p."sellerId" = ${sellerId}
+    `;
 
-    for (const it of items) {
-      orderIds.add(it.orderId);
-      const status = it.order.status as keyof typeof statusCounts;
-      if (!seenOrderStatus.has(it.orderId)) {
-        seenOrderStatus.set(it.orderId, status);
-        statusCounts[status] = (statusCounts[status] ?? 0) + 1;
-      }
-      if (it.order.currency) currency = it.order.currency;
-      if (status !== 'cancelled') {
-        const lineRevenue = it.price.toNumber() * it.quantity;
-        unitsSold += it.quantity;
-        revenue += lineRevenue;
-        const key = it.productId;
-        const existing = productMap.get(key);
-        if (existing) {
-          existing.unitsSold += it.quantity;
-          existing.revenue += lineRevenue;
-        } else {
-          productMap.set(key, { productId: it.productId, name: it.product?.name ?? it.name, slug: it.product?.slug ?? it.slug, unitsSold: it.quantity, revenue: lineRevenue });
-        }
-      }
-    }
+    const topProducts = await prisma.$queryRaw<Array<{
+      productId: string;
+      name: string;
+      slug: string;
+      unitsSold: bigint;
+      revenue: number;
+    }>>`
+      SELECT
+        oi."productId" AS "productId",
+        MAX(oi."name") AS name,
+        MAX(oi."slug") AS slug,
+        COALESCE(SUM(CASE WHEN o."status" <> 'cancelled' THEN oi."quantity" ELSE 0 END), 0) AS "unitsSold",
+        COALESCE(SUM(CASE WHEN o."status" <> 'cancelled' THEN oi."price" * oi."quantity" ELSE 0 END), 0) AS revenue
+      FROM "OrderItem" oi
+      INNER JOIN "Order" o ON o."id" = oi."orderId"
+      INNER JOIN "Product" p ON p."id" = oi."productId"
+      WHERE p."sellerId" = ${sellerId}
+      GROUP BY oi."productId"
+      ORDER BY "unitsSold" DESC, revenue DESC
+      LIMIT 5
+    `;
 
-    const topProducts = Array.from(productMap.values()).sort((a, b) => b.unitsSold - a.unitsSold).slice(0, 5);
     return {
-      currency,
+      currency: totalsRow?.currency ?? 'AFN',
       totals: {
-        orders: orderIds.size,
-        unitsSold,
-        revenue,
-        pendingOrders: statusCounts.pending + statusCounts.confirmed,
-        processingOrders: statusCounts.processing,
-        shippedOrders: statusCounts.shipped,
-        deliveredOrders: statusCounts.delivered,
-        cancelledOrders: statusCounts.cancelled,
+        orders: Number(totalsRow?.orders ?? 0),
+        unitsSold: Number(totalsRow?.unitsSold ?? 0),
+        revenue: Number(totalsRow?.revenue ?? 0),
+        pendingOrders: Number(totalsRow?.pendingOrders ?? 0),
+        processingOrders: Number(totalsRow?.processingOrders ?? 0),
+        shippedOrders: Number(totalsRow?.shippedOrders ?? 0),
+        deliveredOrders: Number(totalsRow?.deliveredOrders ?? 0),
+        cancelledOrders: Number(totalsRow?.cancelledOrders ?? 0),
       },
-      topProducts,
+      topProducts: topProducts.map((row) => ({
+        productId: row.productId,
+        name: row.name,
+        slug: row.slug,
+        unitsSold: Number(row.unitsSold ?? 0),
+        revenue: Number(row.revenue ?? 0),
+      })),
       source: 'db',
     };
   } catch (err) {
