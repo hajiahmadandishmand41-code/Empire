@@ -1,0 +1,2 @@
+slug,name,shortDescription,description,price,compareAtPrice,categoryId,region,currency,inStock,isActive,stockQuantity,whatsappNumber,videoUrl,isTraditional,weightKg,dimensionsJson,tagsJson,attributesJson
+sample-product,نمونه محصول,توضیح کوتاه,توضیح کامل,1000,1200,CATEGORY_ID,AF,AFN,true,true,10,,,false,1.5,"{""length"":10,""width"":5,""height"":3}","[""sample""]","{""color"": ""red""}"
