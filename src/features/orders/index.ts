@@ -12,7 +12,9 @@ export {
 export {
   listUserOrders,
   listSellerOrders,
+  getSellerOrderSummary,
   getOrderForViewer,
   type OrderListItem,
   type Paged,
+  type SellerOrderSummary,
 } from './lib/queries';
