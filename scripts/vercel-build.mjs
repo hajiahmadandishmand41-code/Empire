@@ -1,6 +1,15 @@
 #!/usr/bin/env node
 /**
  * Vercel build orchestrator.
+ *
+ * Production database handling is deliberately split into three safe states:
+ *  - Existing migration history: run migrate deploy.
+ *  - Existing application schema with no migration history: bootstrap the
+ *    canonical baseline, then run migrate deploy.
+ *  - Empty database: skip baseline and let migrate deploy create the schema.
+ *
+ * A partially-populated database without migration history is still rejected by
+ * the baseline script to avoid guessing what schema state it is in.
  */
 import { spawnSync } from 'node:child_process';
 
@@ -23,6 +32,31 @@ function run(command, args, label) {
   }
 }
 
+function runBaseline() {
+  console.log('[vercel-build] Bootstrapping Prisma migration history');
+  const result = spawnSync('node', ['scripts/baseline-prisma-migrations.mjs'], {
+    stdio: 'inherit',
+    env: process.env,
+  });
+
+  if (result.error) {
+    console.error(`[vercel-build] Failed to start Prisma baseline: ${result.error.message}`);
+    process.exit(1);
+  }
+
+  // Exit code 10 means the database is genuinely empty. In that case there is
+  // no historical schema to baseline; migrate deploy must create it normally.
+  if (result.status === 10) {
+    console.log('[vercel-build] Database is empty — skipping historical baseline and applying migrations normally.');
+    return;
+  }
+
+  if (result.status !== 0) {
+    console.error('[vercel-build] Prisma migration-history bootstrap failed; refusing to continue.');
+    process.exit(result.status ?? 1);
+  }
+}
+
 const isVercelProduction = process.env.VERCEL === '1' && process.env.VERCEL_ENV === 'production';
 
 run('npx', ['prisma', 'generate'], 'Generating Prisma Client');
@@ -35,11 +69,7 @@ if (isVercelProduction) {
     process.exit(1);
   }
 
-  // The Supabase/Vercel Marketplace can provision the current Prisma schema
-  // before Prisma migration history exists. Bootstrap that history once,
-  // non-destructively, only when the migration table is absent and all current
-  // application tables are already present.
-  run('node', ['scripts/baseline-prisma-migrations.mjs'], 'Bootstrapping Prisma migration history');
+  runBaseline();
   run('npm', ['run', 'db:deploy'], 'Applying Prisma migrations');
 
   if (process.env.EMPIRE_PROVISION_ROLES_ON_DEPLOY === 'true') {
