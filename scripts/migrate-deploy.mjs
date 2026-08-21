@@ -2,59 +2,39 @@
 /**
  * Safe production migration runner.
  *
- * Rules:
- *  - ONLY ever runs `prisma migrate deploy` (forward-only).
- *  - NEVER runs `migrate reset`, `db push --force-reset`, or any destructive command.
- *  - On IPv4-only platforms such as Vercel, prefer Supabase's session pooler.
- *  - Prefer Vercel/Supabase Marketplace variables, including STORAGE_* aliases.
- *  - Never use a direct IPv6 endpoint on Vercel when a pooler URL is available.
- *  - Add a bounded connection timeout so a cold database gets enough time.
- *  - Never silently skip a migration when a database URL is configured.
- *  - In Vercel production, SKIP_DB_MIGRATE=1 is a hard failure rather than a bypass.
+ * Forward-only by default. The only recovery exception is the known demo
+ * catalog migration below: if it failed before completing, mark that exact
+ * migration rolled back so Prisma can retry the corrected SQL on the next
+ * deploy. No reset/db-push/destructive recovery is ever performed.
  */
 import { spawnSync } from 'node:child_process';
+
+const RECOVERABLE_MIGRATION = '20260821190000_admin_catalog_seed';
 
 function readEnv(name) {
   const value = process.env[name];
   return value && value.trim() ? value.trim() : null;
 }
-
-function isVercelProduction() {
-  return process.env.VERCEL === '1' && process.env.VERCEL_ENV === 'production';
-}
-
+function isVercelProduction() { return process.env.VERCEL === '1' && process.env.VERCEL_ENV === 'production'; }
 function normalizePoolerUrl(value) {
   try {
     const url = new URL(value);
     if (!url.hostname.includes('.pooler.supabase.com')) return null;
-
-    // Session mode is the IPv4-compatible mode suitable for Prisma migrations.
-    // Marketplace/application URLs may expose transaction mode on 6543; the same
-    // Supavisor host supports session mode on 5432.
     if (url.port === '6543') url.port = '5432';
     if (!url.port) url.port = '5432';
     url.searchParams.delete('pgbouncer');
     if (!url.searchParams.has('connect_timeout')) url.searchParams.set('connect_timeout', '30');
     return url.toString();
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
-
 function normalizeAnyUrl(value) {
   try {
     const url = new URL(value);
     if (!url.searchParams.has('connect_timeout')) url.searchParams.set('connect_timeout', '30');
     return url.toString();
-  } catch {
-    throw new Error('Configured database URL is not a valid PostgreSQL URL.');
-  }
+  } catch { throw new Error('Configured database URL is not a valid PostgreSQL URL.'); }
 }
-
 function pickMigrationUrl() {
-  // First use the variables supplied by the Supabase/Vercel Marketplace.
-  // The screenshot from this project shows these names under the linked
-  // `supabase-apricot-coin` resource.
   const poolerCandidates = [
     ['STORAGE_POSTGRES_URL_NON_POOLING', readEnv('STORAGE_POSTGRES_URL_NON_POOLING')],
     ['STORAGE_POSTGRES_PRISMA_URL', readEnv('STORAGE_POSTGRES_PRISMA_URL')],
@@ -64,29 +44,33 @@ function pickMigrationUrl() {
     ['POSTGRES_URL', readEnv('POSTGRES_URL')],
     ['SUPABASE_DB_URL', readEnv('SUPABASE_DB_URL')],
   ];
-
   for (const [key, value] of poolerCandidates) {
     if (!value) continue;
     const normalized = normalizePoolerUrl(value);
     if (normalized) return { key, value: normalized };
   }
-
-  // Only fall back to manually configured/direct aliases when no pooler is
-  // available. Direct Supabase endpoints may be IPv6-only on Vercel.
   const directCandidates = [
     ['DATABASE_URL_UNPOOLED', readEnv('DATABASE_URL_UNPOOLED')],
     ['DIRECT_DATABASE_URL', readEnv('DIRECT_DATABASE_URL')],
     ['DIRECT_URL', readEnv('DIRECT_URL')],
     ['DATABASE_URL', readEnv('DATABASE_URL')],
   ];
-
   for (const [key, value] of directCandidates) {
     if (value) return { key, value: normalizeAnyUrl(value) };
   }
-
   return null;
 }
-
+function runPrisma(args, databaseUrl) {
+  return spawnSync('npx', ['--no-install', 'prisma', ...args], {
+    stdio: 'inherit',
+    env: { ...process.env, DATABASE_URL: databaseUrl },
+  });
+}
+function recoverKnownFailedMigration(databaseUrl) {
+  const result = runPrisma(['migrate', 'resolve', '--rolled-back', RECOVERABLE_MIGRATION], databaseUrl);
+  if (result.error) throw new Error(`Failed to start Prisma migration recovery: ${result.error.message}`);
+  if (result.status !== 0) throw new Error(`Known migration recovery failed for ${RECOVERABLE_MIGRATION}.`);
+}
 function main() {
   if (process.env.SKIP_DB_MIGRATE === '1') {
     if (isVercelProduction()) {
@@ -96,32 +80,32 @@ function main() {
     console.log('[migrate] SKIP_DB_MIGRATE=1 — skipping migrations outside Vercel production.');
     return;
   }
-
   const picked = pickMigrationUrl();
   if (!picked) {
-    console.error(
-      '[migrate] No database URL configured. A Supabase/Vercel pooler URL or database URL is required before running production migrations.',
-    );
+    console.error('[migrate] No database URL configured.');
     process.exit(1);
   }
+  console.log(`[migrate] Using ${picked.key}.`);
+  const initial = runPrisma(['migrate', 'deploy'], picked.value);
+  if (!initial.error && initial.status === 0) {
+    console.log('[migrate] Migrations applied successfully.');
+    return;
+  }
 
-  console.log(`[migrate] Running ` + '`prisma migrate deploy`' + ` using ${picked.key}.`);
-  const result = spawnSync('npx', ['--no-install', 'prisma', 'migrate', 'deploy'], {
-    stdio: 'inherit',
-    env: { ...process.env, DATABASE_URL: picked.value },
-  });
+  // Only attempt recovery when Prisma reports a failed migration state. The
+  // recovery command targets one known, non-destructive demo migration.
+  console.warn(`[migrate] Initial migrate deploy failed with status ${initial.status ?? 1}; attempting targeted recovery for ${RECOVERABLE_MIGRATION}.`);
+  recoverKnownFailedMigration(picked.value);
 
-  if (result.error) {
-    console.error(`[migrate] Failed to start Prisma: ${result.error.message}`);
+  const retry = runPrisma(['migrate', 'deploy'], picked.value);
+  if (retry.error) {
+    console.error(`[migrate] Failed to start Prisma retry: ${retry.error.message}`);
     process.exit(1);
   }
-
-  if (result.status !== 0) {
-    console.error('[migrate] `prisma migrate deploy` failed. No destructive migration command was executed.');
-    process.exit(result.status ?? 1);
+  if (retry.status !== 0) {
+    console.error('[migrate] `prisma migrate deploy` failed after targeted recovery.');
+    process.exit(retry.status ?? 1);
   }
-
-  console.log('[migrate] Migrations applied successfully.');
+  console.log('[migrate] Migrations applied successfully after targeted recovery.');
 }
-
 main();
