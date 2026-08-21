@@ -30,8 +30,6 @@ function hasValidVideoSignature(buf: Buffer, mime: string): boolean {
   if (mime === 'video/webm') return buf.length >= 4 && buf.subarray(0, 4).equals(Buffer.from([0x1a, 0x45, 0xdf, 0xa3]));
   if (mime === 'video/ogg') return buf.length >= 4 && buf.subarray(0, 4).toString('ascii') === 'OggS';
   if (mime === 'video/mp4') {
-    // ISO BMFF/MP4 has an `ftyp` box near the beginning. Accept common valid
-    // variants without assuming a specific codec or brand.
     const scan = buf.subarray(0, Math.min(buf.length, 64)).toString('ascii');
     return scan.includes('ftyp');
   }
@@ -65,6 +63,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ url: uploaded.secure_url, name: uploaded.public_id, size: file.size, type: file.type });
   } catch (err) {
     logger.error('seller.upload.error', { userId: guard.user.id }, err);
+    const code = err instanceof Error ? err.message : '';
+    if (code === 'PERSISTENT_VIDEO_STORAGE_NOT_CONFIGURED') {
+      return NextResponse.json({ error: 'ذخیره‌سازی ویدیو در محیط فعلی تنظیم نشده است. برای آپلود ویدیو باید Cloudinary فعال باشد.' }, { status: 503 });
+    }
+    if (code === 'PERSISTENT_STORAGE_NOT_CONFIGURED') {
+      return NextResponse.json({ error: 'ذخیره‌سازی رسانه در محیط فعلی تنظیم نشده است.' }, { status: 503 });
+    }
+    if (code.startsWith('STORAGE_UPLOAD_FAILED:')) {
+      return NextResponse.json({ error: 'آپلود رسانه توسط سرویس ذخیره‌سازی ناموفق بود.' }, { status: 503 });
+    }
     return NextResponse.json({ error: 'خطا در آپلود فایل' }, { status: 500 });
   }
 }
