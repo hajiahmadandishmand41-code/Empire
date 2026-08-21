@@ -35,6 +35,11 @@ if (isVercelProduction) {
     process.exit(1);
   }
 
+  // The Supabase/Vercel Marketplace can provision the current Prisma schema
+  // before Prisma migration history exists. Bootstrap that history once,
+  // non-destructively, only when the migration table is absent and all current
+  // application tables are already present.
+  run('node', ['scripts/baseline-prisma-migrations.mjs'], 'Bootstrapping Prisma migration history');
   run('npm', ['run', 'db:deploy'], 'Applying Prisma migrations');
 
   if (process.env.EMPIRE_PROVISION_ROLES_ON_DEPLOY === 'true') {
