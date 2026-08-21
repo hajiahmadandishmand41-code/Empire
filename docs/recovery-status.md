@@ -1,0 +1,1 @@
+Recovery branch is based on the last known-good commit.
