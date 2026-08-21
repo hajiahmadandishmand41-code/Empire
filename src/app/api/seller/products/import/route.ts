@@ -4,12 +4,12 @@ import { Prisma } from '@prisma/client';
 import { prisma, isDatabaseConfigured } from '@/lib/db';
 import { jsonError, jsonOk, jsonPreflight } from '@/lib/api/response';
 import { requireSellerApi } from '@/lib/auth/require-seller-api';
-import { parseProductCsv, type ProductImportRow } from '@/lib/csv/product-import';
+import { parseProductCsv } from '@/lib/csv/product-import';
 
 export const dynamic = 'force-dynamic';
 
 const MAX_FILE_BYTES = 20 * 1024 * 1024;
-const WRITE_BATCH_SIZE = 100;
+const ROW_INSERT_CHUNK = 500;
 
 function hashBuffer(buffer: Buffer): string {
   return createHash('sha256').update(buffer).digest('hex');
@@ -17,54 +17,6 @@ function hashBuffer(buffer: Buffer): string {
 
 function batchId(sellerId: string, sourceHash: string): string {
   return `imp_${createHash('sha256').update(`${sellerId}:${sourceHash}`).digest('hex').slice(0, 32)}`;
-}
-
-function jsonValue(raw: string | null | undefined) {
-  if (!raw || raw.trim() === '') return Prisma.JsonNull;
-  return JSON.parse(raw);
-}
-
-function toProductData(row: ProductImportRow, sellerId: string) {
-  return {
-    slug: row.slug,
-    name: row.name,
-    shortDescription: row.shortDescription,
-    description: row.description ?? null,
-    price: row.price,
-    compareAtPrice: row.compareAtPrice ?? null,
-    categoryId: row.categoryId,
-    sellerId,
-    region: row.region,
-    currency: row.currency,
-    inStock: row.inStock,
-    isActive: row.isActive,
-    stockQuantity: row.stockQuantity,
-    whatsappNumber: row.whatsappNumber ?? null,
-    videoUrl: row.videoUrl ?? null,
-    isTraditional: row.isTraditional,
-    weightKg: row.weightKg ?? null,
-    dimensionsJson: jsonValue(row.dimensionsJson),
-    tagsJson: jsonValue(row.tagsJson),
-    attributesJson: jsonValue(row.attributesJson),
-    badge: row.compareAtPrice != null ? 'sale' : null,
-  };
-}
-
-async function setBatchStatus(
-  id: string,
-  values: { status?: string; processedRows?: number; createdRows?: number; errorJson?: unknown },
-) {
-  await prisma.$executeRaw(
-    Prisma.sql`
-      UPDATE "ProductImportBatch"
-      SET "status" = COALESCE(${values.status ?? null}, "status"),
-          "processedRows" = COALESCE(${values.processedRows ?? null}, "processedRows"),
-          "createdRows" = COALESCE(${values.createdRows ?? null}, "createdRows"),
-          "errorJson" = COALESCE(${values.errorJson == null ? null : JSON.stringify(values.errorJson)}::jsonb, "errorJson"),
-          "updatedAt" = NOW()
-      WHERE "id" = ${id}
-    `,
-  );
 }
 
 export async function OPTIONS() {
@@ -94,7 +46,7 @@ export async function POST(req: NextRequest) {
   const sellerId = guard.user.id;
   const importId = batchId(sellerId, sourceHash);
 
-  let rows: ProductImportRow[];
+  let rows: ReturnType<typeof parseProductCsv>;
   try {
     rows = parseProductCsv(buffer.toString('utf8'));
   } catch (error) {
@@ -102,83 +54,89 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const existing = await prisma.$queryRaw<Array<{ id: string; status: string; processedRows: number; createdRows: number; totalRows: number }>>(
-      Prisma.sql`
-        SELECT "id", "status", "processedRows", "createdRows", "totalRows"
-        FROM "ProductImportBatch"
-        WHERE "sellerId" = ${sellerId} AND "sourceHash" = ${sourceHash}
-        LIMIT 1
-      `,
-    );
+    const current = await prisma.$transaction(async (tx) => {
+      const existing = await tx.$queryRaw<Array<{ id: string; status: string; processedRows: number; createdRows: number; totalRows: number }>>(
+        Prisma.sql`
+          SELECT "id", "status", "processedRows", "createdRows", "totalRows"
+          FROM "ProductImportBatch"
+          WHERE "sellerId" = ${sellerId} AND "sourceHash" = ${sourceHash}
+          LIMIT 1
+        `,
+      );
 
-    if (existing[0]?.status === 'completed') {
-      return jsonOk({
-        id: existing[0].id,
-        status: existing[0].status,
-        totalRows: existing[0].totalRows,
-        processedRows: existing[0].processedRows,
-        createdRows: existing[0].createdRows,
-        resumed: false,
-      });
-    }
+      if (existing[0]) return existing[0];
 
-    if (!existing.length) {
-      await prisma.$executeRaw(
+      await tx.$executeRaw(
         Prisma.sql`
           INSERT INTO "ProductImportBatch" ("id", "sellerId", "sourceName", "sourceHash", "status", "totalRows")
-          VALUES (${importId}, ${sellerId}, ${sourceName}, ${sourceHash}, 'processing', ${rows.length})
+          VALUES (${importId}, ${sellerId}, ${sourceName}, ${sourceHash}, 'queued', ${rows.length})
           ON CONFLICT ("sellerId", "sourceHash") DO NOTHING
         `,
       );
+
+      const created = await tx.$queryRaw<Array<{ id: string; status: string; processedRows: number; createdRows: number; totalRows: number }>>(
+        Prisma.sql`
+          SELECT "id", "status", "processedRows", "createdRows", "totalRows"
+          FROM "ProductImportBatch"
+          WHERE "sellerId" = ${sellerId} AND "sourceHash" = ${sourceHash}
+          LIMIT 1
+        `,
+      );
+      return created[0];
+    }, { timeout: 15000, maxWait: 5000 });
+
+    if (current.status === 'completed') {
+      return jsonOk({ ...current, resumed: false });
     }
 
-    const current = existing[0] ?? {
-      id: importId,
-      processedRows: 0,
-      createdRows: 0,
-      totalRows: rows.length,
-      status: 'processing',
-    };
-
-    await setBatchStatus(current.id, { status: 'processing' });
-
-    let processedRows = current.processedRows;
-    let createdRows = current.createdRows;
-
-    while (processedRows < rows.length) {
-      const chunk = rows.slice(processedRows, processedRows + WRITE_BATCH_SIZE);
-      const inserted = await prisma.$transaction(async (tx) => {
-        const result = await tx.product.createMany({
-          data: chunk.map((row) => toProductData(row, sellerId)),
-          skipDuplicates: true,
-        });
-        return result.count;
-      }, { timeout: 30000, maxWait: 5000 });
-
-      processedRows += chunk.length;
-      createdRows += inserted;
-      await setBatchStatus(current.id, { processedRows, createdRows, status: processedRows >= rows.length ? 'completed' : 'processing' });
+    if (current.processedRows === 0) {
+      for (let start = 0; start < rows.length; start += ROW_INSERT_CHUNK) {
+        const chunk = rows.slice(start, start + ROW_INSERT_CHUNK);
+        await prisma.$transaction(async (tx) => {
+          await tx.$executeRaw(
+            Prisma.sql`
+              INSERT INTO "ProductImportRow" ("id", "batchId", "rowIndex", "payloadJson", "status")
+              SELECT * FROM jsonb_to_recordset(${JSON.stringify(chunk.map((row, index) => ({
+                id: `${current.id}_${start + index}`,
+                batchId: current.id,
+                rowIndex: start + index,
+                payloadJson: row,
+                status: 'pending',
+              }))}::jsonb) AS x("id" text, "batchId" text, "rowIndex" int, "payloadJson" jsonb, "status" text)
+              ON CONFLICT ("batchId", "rowIndex") DO NOTHING
+            `,
+          );
+        }, { timeout: 15000, maxWait: 5000 });
+      }
     }
+
+    await prisma.$executeRaw(
+      Prisma.sql`UPDATE "ProductImportBatch" SET "status" = 'processing', "updatedAt" = NOW() WHERE "id" = ${current.id} AND "status" = 'queued'`,
+    );
 
     return jsonOk({
       id: current.id,
-      status: 'completed',
+      status: 'processing',
       totalRows: rows.length,
-      processedRows,
-      createdRows,
-      skippedRows: processedRows - createdRows,
-      resumed: Boolean(existing.length),
-    }, { status: 201 });
+      processedRows: current.processedRows,
+      createdRows: current.createdRows,
+      resumed: current.processedRows > 0,
+    }, { status: 202 });
   } catch (error) {
     try {
-      await setBatchStatus(importId, {
-        status: 'failed',
-        errorJson: { message: error instanceof Error ? error.message : 'Import failed' },
-      });
+      await prisma.$executeRaw(
+        Prisma.sql`
+          UPDATE "ProductImportBatch"
+          SET "status" = 'failed',
+              "errorJson" = ${JSON.stringify({ message: error instanceof Error ? error.message : 'Import failed' })}::jsonb,
+              "updatedAt" = NOW()
+          WHERE "id" = ${importId}
+        `,
+      );
     } catch {
-      // Keep original import error as the response source.
+      // Preserve the original failure response.
     }
-    console.error('[seller/products/import] failed', error);
-    return jsonError('import_failed', 'Product import failed', { status: 500 });
+    console.error('[seller/products/import] queue failed', error);
+    return jsonError('import_failed', 'Product import could not be queued', { status: 500 });
   }
 }
