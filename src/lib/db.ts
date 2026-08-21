@@ -9,8 +9,8 @@
  * Selection order:
  *   1. STORAGE_POSTGRES_PRISMA_URL / STORAGE_POSTGRES_URL
  *   2. POSTGRES_PRISMA_URL / POSTGRES_URL
- *   3. DATABASE_URL
- *   4. STORAGE_POSTGRES_URL_NON_POOLING / POSTGRES_URL_NON_POOLING
+ *   3. STORAGE_POSTGRES_URL_NON_POOLING / POSTGRES_URL_NON_POOLING
+ *   4. DATABASE_URL
  *   5. DATABASE_URL_UNPOOLED / SUPABASE_DB_URL
  *
  * No secret values are logged.
@@ -22,9 +22,9 @@ const DATABASE_URL_KEYS = [
   'STORAGE_POSTGRES_URL',
   'POSTGRES_PRISMA_URL',
   'POSTGRES_URL',
-  'DATABASE_URL',
   'STORAGE_POSTGRES_URL_NON_POOLING',
   'POSTGRES_URL_NON_POOLING',
+  'DATABASE_URL',
   'DATABASE_URL_UNPOOLED',
   'SUPABASE_DB_URL',
 ] as const;
@@ -38,10 +38,10 @@ function resolveDatabaseUrl(): string | undefined {
 }
 
 // Prisma's datasource is intentionally defined as env("DATABASE_URL").
-// Normalize compatible Vercel/Postgres/Supabase aliases into that canonical
-// variable before the PrismaClient is instantiated.
+// Always normalize the preferred Marketplace-managed URL into the canonical
+// variable, even if a stale/manual DATABASE_URL is also present.
 const resolvedDatabaseUrl = resolveDatabaseUrl();
-if (!process.env.DATABASE_URL && resolvedDatabaseUrl) {
+if (resolvedDatabaseUrl) {
   process.env.DATABASE_URL = resolvedDatabaseUrl;
 }
 
