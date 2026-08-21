@@ -1,20 +1,14 @@
 #!/usr/bin/env node
 /**
  * Safe production migration runner.
- *
- * Forward-only by default. The only recovery exception is the known demo
- * catalog migration below: if it failed before completing, mark that exact
- * migration rolled back so Prisma can retry the corrected SQL on the next
- * deploy. No reset/db-push/destructive recovery is ever performed.
+ * Forward-only by default. A one-time recovery is allowed only when Prisma
+ * explicitly reports the known demo catalog migration as failed.
  */
 import { spawnSync } from 'node:child_process';
 
 const RECOVERABLE_MIGRATION = '20260821190000_admin_catalog_seed';
 
-function readEnv(name) {
-  const value = process.env[name];
-  return value && value.trim() ? value.trim() : null;
-}
+function readEnv(name) { const value = process.env[name]; return value && value.trim() ? value.trim() : null; }
 function isVercelProduction() { return process.env.VERCEL === '1' && process.env.VERCEL_ENV === 'production'; }
 function normalizePoolerUrl(value) {
   try {
@@ -28,11 +22,8 @@ function normalizePoolerUrl(value) {
   } catch { return null; }
 }
 function normalizeAnyUrl(value) {
-  try {
-    const url = new URL(value);
-    if (!url.searchParams.has('connect_timeout')) url.searchParams.set('connect_timeout', '30');
-    return url.toString();
-  } catch { throw new Error('Configured database URL is not a valid PostgreSQL URL.'); }
+  try { const url = new URL(value); if (!url.searchParams.has('connect_timeout')) url.searchParams.set('connect_timeout', '30'); return url.toString(); }
+  catch { throw new Error('Configured database URL is not a valid PostgreSQL URL.'); }
 }
 function pickMigrationUrl() {
   const poolerCandidates = [
@@ -55,16 +46,18 @@ function pickMigrationUrl() {
     ['DIRECT_URL', readEnv('DIRECT_URL')],
     ['DATABASE_URL', readEnv('DATABASE_URL')],
   ];
-  for (const [key, value] of directCandidates) {
-    if (value) return { key, value: normalizeAnyUrl(value) };
-  }
+  for (const [key, value] of directCandidates) if (value) return { key, value: normalizeAnyUrl(value) };
   return null;
 }
-function runPrisma(args, databaseUrl) {
-  return spawnSync('npx', ['--no-install', 'prisma', ...args], {
-    stdio: 'inherit',
-    env: { ...process.env, DATABASE_URL: databaseUrl },
-  });
+function runPrisma(args, databaseUrl, capture = false) {
+  return spawnSync('npx', ['--no-install', 'prisma', ...args], capture
+    ? { encoding: 'utf8', env: { ...process.env, DATABASE_URL: databaseUrl } }
+    : { stdio: 'inherit', env: { ...process.env, DATABASE_URL: databaseUrl } });
+}
+function isKnownMigrationFailed(databaseUrl) {
+  const status = runPrisma(['migrate', 'status'], databaseUrl, true);
+  const output = `${status.stdout ?? ''}\n${status.stderr ?? ''}`;
+  return output.includes(RECOVERABLE_MIGRATION) && (/failed|failed to apply|P3018|P3009/i.test(output));
 }
 function recoverKnownFailedMigration(databaseUrl) {
   const result = runPrisma(['migrate', 'resolve', '--rolled-back', RECOVERABLE_MIGRATION], databaseUrl);
@@ -73,39 +66,24 @@ function recoverKnownFailedMigration(databaseUrl) {
 }
 function main() {
   if (process.env.SKIP_DB_MIGRATE === '1') {
-    if (isVercelProduction()) {
-      console.error('[migrate] SKIP_DB_MIGRATE=1 is forbidden for Vercel production deployments.');
-      process.exit(1);
-    }
+    if (isVercelProduction()) { console.error('[migrate] SKIP_DB_MIGRATE=1 is forbidden for Vercel production deployments.'); process.exit(1); }
     console.log('[migrate] SKIP_DB_MIGRATE=1 — skipping migrations outside Vercel production.');
     return;
   }
   const picked = pickMigrationUrl();
-  if (!picked) {
-    console.error('[migrate] No database URL configured.');
-    process.exit(1);
-  }
+  if (!picked) { console.error('[migrate] No database URL configured.'); process.exit(1); }
   console.log(`[migrate] Using ${picked.key}.`);
   const initial = runPrisma(['migrate', 'deploy'], picked.value);
-  if (!initial.error && initial.status === 0) {
-    console.log('[migrate] Migrations applied successfully.');
-    return;
+  if (!initial.error && initial.status === 0) { console.log('[migrate] Migrations applied successfully.'); return; }
+  if (!isKnownMigrationFailed(picked.value)) {
+    console.error('[migrate] `prisma migrate deploy` failed and no approved recovery case applies.');
+    process.exit(initial.status ?? 1);
   }
-
-  // Only attempt recovery when Prisma reports a failed migration state. The
-  // recovery command targets one known, non-destructive demo migration.
-  console.warn(`[migrate] Initial migrate deploy failed with status ${initial.status ?? 1}; attempting targeted recovery for ${RECOVERABLE_MIGRATION}.`);
+  console.warn(`[migrate] Recovering failed ${RECOVERABLE_MIGRATION}.`);
   recoverKnownFailedMigration(picked.value);
-
   const retry = runPrisma(['migrate', 'deploy'], picked.value);
-  if (retry.error) {
-    console.error(`[migrate] Failed to start Prisma retry: ${retry.error.message}`);
-    process.exit(1);
-  }
-  if (retry.status !== 0) {
-    console.error('[migrate] `prisma migrate deploy` failed after targeted recovery.');
-    process.exit(retry.status ?? 1);
-  }
+  if (retry.error) { console.error(`[migrate] Failed to start Prisma retry: ${retry.error.message}`); process.exit(1); }
+  if (retry.status !== 0) { console.error('[migrate] `prisma migrate deploy` failed after targeted recovery.'); process.exit(retry.status ?? 1); }
   console.log('[migrate] Migrations applied successfully after targeted recovery.');
 }
 main();
