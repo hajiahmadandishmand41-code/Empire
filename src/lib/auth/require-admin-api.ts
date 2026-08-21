@@ -8,7 +8,8 @@ export type AdminPermission =
   | 'dashboard.view' | 'products.view' | 'products.manage' | 'categories.view' | 'categories.manage'
   | 'orders.view' | 'orders.manage' | 'sellers.view' | 'sellers.manage' | 'users.view' | 'users.manage'
   | 'banners.manage' | 'homepage.manage' | 'recommendations.manage' | 'reviews.manage' | 'media.manage'
-  | 'analytics.view' | 'search.view' | 'notifications.manage' | 'audit.view';
+  | 'analytics.view' | 'search.view' | 'notifications.manage' | 'audit.view'
+  | 'payouts.view' | 'payouts.manage' | 'shipping.view' | 'shipping.manage';
 
 export type AdminGuardResult =
   { ok: true; user: CurrentUser; accessRole: AdminAccessRole; permissions: string[] }
@@ -18,18 +19,19 @@ export async function requireAdminApi(permission?: AdminPermission): Promise<Adm
   const user = await getCurrentUser();
   if (!user) return { ok: false, response: jsonError('unauthorized', 'Authentication required', { status: 401 }) };
   if (user.role !== 'admin') return { ok: false, response: jsonError('forbidden', 'Admin access required', { status: 403 }) };
-  let accessRole: AdminAccessRole = 'admin';
-  let permissions = DEFAULT_PERMISSIONS.admin;
+
   try {
     const access = await getAdminAccessRole(user.id);
-    accessRole = access.role;
-    permissions = access.permissions;
+    const accessRole = access.role;
+    const permissions = access.permissions;
+    if (permission && !permissions.includes('*') && !permissions.includes(permission)) {
+      return { ok: false, response: jsonError('forbidden', 'You do not have permission for this operation', { status: 403 }) };
+    }
+    return { ok: true, user, accessRole, permissions };
   } catch {
-    // Existing admin installations may not have the additive RBAC table yet.
-    // Preserve the old admin behavior until the migration is deployed.
+    if (permission) {
+      return { ok: false, response: jsonError('rbac_unavailable', 'Admin permissions are temporarily unavailable', { status: 503 }) };
+    }
+    return { ok: true, user, accessRole: 'admin', permissions: DEFAULT_PERMISSIONS.admin };
   }
-  if (permission && !permissions.includes('*') && !permissions.includes(permission)) {
-    return { ok: false, response: jsonError('forbidden', 'You do not have permission for this operation', { status: 403 }) };
-  }
-  return { ok: true, user, accessRole, permissions };
 }
