@@ -8,9 +8,9 @@ const apiSecret = process.env.CLOUDINARY_API_SECRET;
 
 /**
  * Cloudinary remains the preferred persistent media provider. When its
- * credentials are not configured (for example on a fresh Vercel deployment),
- * uploads fall back to the existing MediaAsset table in PostgreSQL so seller
- * profile images and product images do not become unusable.
+ * credentials are not configured, image uploads fall back to the existing
+ * MediaAsset table in PostgreSQL. Videos still require Cloudinary because
+ * storing large video blobs in the primary database is intentionally disabled.
  */
 export const isPersistentStorageConfigured = Boolean(cloud && apiKey && apiSecret);
 
@@ -39,22 +39,24 @@ function mediaIdFromUrl(url: string): string | null {
 }
 
 async function uploadToDatabase(file: File, folder: string) {
+  if (!file.type.startsWith('image/')) {
+    throw new Error('PERSISTENT_VIDEO_STORAGE_NOT_CONFIGURED');
+  }
   const id = crypto.randomUUID();
   const url = `/api/media/${id}`;
   const buffer = Buffer.from(await file.arrayBuffer());
-  const kind = file.type.startsWith('video/') ? 'video' : 'image';
 
   await prisma.$executeRaw(Prisma.sql`
     INSERT INTO "MediaAsset"
       ("id", "url", "kind", "mimeType", "fileName", "sizeBytes", "folder", "data", "createdAt", "updatedAt")
     VALUES
-      (${id}, ${url}, ${kind}, ${file.type}, ${file.name || null}, ${file.size}, ${folder}, ${buffer}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      (${id}, ${url}, 'image', ${file.type}, ${file.name || null}, ${file.size}, ${folder}, ${buffer}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
   `);
 
   return {
     secure_url: url,
     public_id: `db/${id}`,
-    resource_type: kind,
+    resource_type: 'image',
   };
 }
 
@@ -64,8 +66,6 @@ export async function uploadPersistent(file: File, folder: string) {
   }
 
   const timestamp = Math.floor(Date.now()/1000).toString();
-  // Existing uploads remain valid. New media uses the Eshop namespace unless
-  // CLOUDINARY_UPLOAD_FOLDER is explicitly configured for backward compatibility.
   const folderName = `${process.env.CLOUDINARY_UPLOAD_FOLDER ?? 'eshop'}/${folder}`;
   const signature = sign({ folder: folderName, timestamp }, apiSecret!);
   const form = new FormData();
@@ -102,6 +102,6 @@ export async function deletePersistent(url: string) {
     const timestamp = Math.floor(Date.now()/1000).toString();
     const signature = sign({ invalidate: 'true', public_id: publicId, timestamp }, apiSecret!);
     const form = new URLSearchParams({ public_id: publicId, timestamp, invalidate: 'true', api_key: apiKey!, signature });
-    await fetch(`https://api.cloudinary.com/v1_1/${cloud}/destroy`, { method: 'POST', headers: {'Content-Type':'application/x-www-form-urlencoded'}, body: form });
+    await fetch(`https://api.cloudinary.com/v1_1/${cloud}/${resourceType}/destroy`, { method: 'POST', headers: {'Content-Type':'application/x-www-form-urlencoded'}, body: form });
   } catch { /* best-effort cleanup */ }
 }
