@@ -1,0 +1,1 @@
+Restores the Prisma schema to the last known-good commit before the interrupted idempotency change.
