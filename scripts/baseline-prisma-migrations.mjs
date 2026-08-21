@@ -8,18 +8,14 @@
  * but no `_prisma_migrations` table and refuses `migrate deploy` with P3005.
  *
  * This script only runs the first time `_prisma_migrations` is absent AND all
- * application tables from the pre-baseline schema already exist. It marks only
- * migrations up to and including the dedicated baseline migration as applied.
- * All migrations created after the baseline are deliberately left pending so
- * `prisma migrate deploy` executes them for real (for example Banner and
- * MediaAsset migrations). Nothing is dropped, altered, reset, or recreated.
+ * application tables from the current Prisma schema already exist. It then
+ * marks every migration directory as applied without executing its SQL.
+ * Nothing is dropped, altered, reset, or recreated.
  */
 import { PrismaClient } from '@prisma/client';
 import { readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
-
-const BASELINE_MIGRATION = '202608210227_baseline_existing_supabase_schema';
 
 const REQUIRED_TABLES = [
   'Address',
@@ -141,7 +137,7 @@ async function main() {
 
     if (missing.length > 0) {
       throw new Error(
-        `Refusing automatic baseline because the pre-baseline Prisma schema is not fully present. Missing tables: ${missing.join(', ')}`,
+        `Refusing automatic baseline because the current Prisma schema is not fully present. Missing tables: ${missing.join(', ')}`,
       );
     }
   } finally {
@@ -153,20 +149,14 @@ async function main() {
     .filter((name) => statSync(join(migrationsDir, name)).isDirectory())
     .sort();
 
-  const baselineIndex = migrations.indexOf(BASELINE_MIGRATION);
-  if (baselineIndex < 0) {
-    throw new Error(`Baseline migration ${BASELINE_MIGRATION} was not found in prisma/migrations.`);
-  }
+  if (migrations.length === 0) throw new Error('No Prisma migrations found in prisma/migrations.');
 
-  const baselineCandidates = migrations.slice(0, baselineIndex + 1);
-  console.log(`[baseline] Marking ${baselineCandidates.length} pre-baseline migrations as applied.`);
-  for (const migration of baselineCandidates) {
+  console.log(`[baseline] Found ${migrations.length} Prisma migrations. Marking them as applied without executing SQL.`);
+  for (const migration of migrations) {
     console.log(`[baseline] Marking ${migration} as applied.`);
     runResolve(migration, picked.value);
   }
 
-  const pending = migrations.slice(baselineIndex + 1);
-  console.log(`[baseline] Leaving ${pending.length} post-baseline migrations pending for prisma migrate deploy.`);
   console.log('[baseline] Prisma migration history bootstrapped successfully.');
 }
 
