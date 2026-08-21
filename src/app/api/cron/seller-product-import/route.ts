@@ -16,9 +16,19 @@ export async function GET(req: Request) {
   if (!authorized(req)) return new Response('Unauthorized', { status: 401 });
   if (!isDatabaseConfigured()) return Response.json({ ok: false, error: 'db_unavailable' }, { status: 503 });
 
-  const batches = await prisma.$queryRaw<Array<{ id: string; sellerId: string; status: string }>>(
+  // Recover rows left in-flight by a crashed worker. Normal 100-row chunks
+  // should complete well below ten minutes.
+  await prisma.$executeRaw(
     Prisma.sql`
-      SELECT "id", "sellerId", "status"
+      UPDATE "ProductImportRow"
+      SET "status" = 'pending', "updatedAt" = NOW()
+      WHERE "status" = 'processing' AND "updatedAt" < NOW() - INTERVAL '10 minutes'
+    `,
+  );
+
+  const batches = await prisma.$queryRaw<Array<{ id: string; sellerId: string }>>(
+    Prisma.sql`
+      SELECT "id", "sellerId"
       FROM "ProductImportBatch"
       WHERE "status" IN ('processing', 'queued')
       ORDER BY "updatedAt" ASC
@@ -27,44 +37,54 @@ export async function GET(req: Request) {
   );
 
   let processed = 0;
-  for (const batch of batches) {
-    const rowIds = await prisma.$queryRaw<Array<{ id: string }>>(
-      Prisma.sql`
-        SELECT id
-        FROM "ProductImportRow"
-        WHERE "batchId" = ${batch.id} AND "status" = 'pending'
-        ORDER BY "rowIndex" ASC
-        LIMIT ${CHUNK_SIZE}
-        FOR UPDATE SKIP LOCKED
-      `,
-    );
+  let completedBatches = 0;
 
-    if (!rowIds.length) {
-      await prisma.$executeRaw(
+  for (const batch of batches) {
+    const claimed = await prisma.$transaction(async (tx) => {
+      return tx.$queryRaw<Array<{ id: string; payloadJson: unknown }>>(
         Prisma.sql`
-          UPDATE "ProductImportBatch"
-          SET "status" = CASE WHEN "processedRows" >= "totalRows" THEN 'completed' ELSE 'processing' END,
-              "updatedAt" = NOW()
-          WHERE "id" = ${batch.id}
+          WITH picked AS (
+            SELECT "id"
+            FROM "ProductImportRow"
+            WHERE "batchId" = ${batch.id} AND "status" = 'pending'
+            ORDER BY "rowIndex" ASC
+            LIMIT ${CHUNK_SIZE}
+            FOR UPDATE SKIP LOCKED
+          )
+          UPDATE "ProductImportRow" AS r
+          SET "status" = 'processing', "updatedAt" = NOW()
+          FROM picked
+          WHERE r."id" = picked."id"
+          RETURNING r."id", r."payloadJson"
         `,
       );
+    }, { timeout: 15000, maxWait: 5000 });
+
+    if (!claimed.length) {
+      const pending = await prisma.$queryRaw<Array<{ count: bigint }>>(
+        Prisma.sql`
+          SELECT COUNT(*)::bigint AS count
+          FROM "ProductImportRow"
+          WHERE "batchId" = ${batch.id} AND "status" IN ('pending', 'processing')
+        `,
+      );
+      if (Number(pending[0]?.count ?? 0n) === 0) {
+        await prisma.$executeRaw(
+          Prisma.sql`
+            UPDATE "ProductImportBatch"
+            SET "status" = 'completed', "updatedAt" = NOW()
+            WHERE "id" = ${batch.id}
+          `,
+        );
+        completedBatches += 1;
+      }
       continue;
     }
-
-    const ids = rowIds.map((row) => row.id);
-    const rows = await prisma.$queryRaw<Array<{ id: string; payloadJson: unknown }>>(
-      Prisma.sql`
-        SELECT id, "payloadJson"
-        FROM "ProductImportRow"
-        WHERE id = ANY(${ids})
-        ORDER BY "rowIndex" ASC
-      `,
-    );
 
     let created = 0;
     let failed = 0;
 
-    for (const row of rows) {
+    for (const row of claimed) {
       try {
         const payload = row.payloadJson as Record<string, unknown>;
         await prisma.product.create({
@@ -94,30 +114,51 @@ export async function GET(req: Request) {
         });
         created += 1;
         await prisma.$executeRaw(
-          Prisma.sql`UPDATE "ProductImportRow" SET "status" = 'completed', "updatedAt" = NOW() WHERE id = ${row.id}`,
+          Prisma.sql`
+            UPDATE "ProductImportRow"
+            SET "status" = 'completed', "updatedAt" = NOW()
+            WHERE id = ${row.id}
+          `,
         );
       } catch (error) {
-        failed += 1;
-        await prisma.$executeRaw(
-          Prisma.sql`UPDATE "ProductImportRow" SET "status" = 'failed', "error" = ${error instanceof Error ? error.message : 'row failed'}, "updatedAt" = NOW() WHERE id = ${row.id}`,
-        );
+        const message = error instanceof Error ? error.message : 'row failed';
+        if (message.includes('Unique constraint') || message.includes('duplicate key')) {
+          await prisma.$executeRaw(
+            Prisma.sql`
+              UPDATE "ProductImportRow"
+              SET "status" = 'completed', "error" = 'skipped_duplicate', "updatedAt" = NOW()
+              WHERE id = ${row.id}
+            `,
+          );
+        } else {
+          failed += 1;
+          await prisma.$executeRaw(
+            Prisma.sql`
+              UPDATE "ProductImportRow"
+              SET "status" = 'failed', "error" = ${message}, "updatedAt" = NOW()
+              WHERE id = ${row.id}
+            `,
+          );
+        }
       }
     }
 
     await prisma.$executeRaw(
       Prisma.sql`
         UPDATE "ProductImportBatch"
-        SET "processedRows" = "processedRows" + ${rows.length},
+        SET "processedRows" = "processedRows" + ${claimed.length},
             "createdRows" = "createdRows" + ${created},
             "failedRows" = "failedRows" + ${failed},
-            "status" = CASE WHEN "processedRows" + ${rows.length} >= "totalRows" THEN 'completed' ELSE 'processing' END,
+            "status" = CASE
+              WHEN "processedRows" + ${claimed.length} >= "totalRows" THEN 'completed'
+              ELSE 'processing'
+            END,
             "updatedAt" = NOW()
         WHERE id = ${batch.id}
       `,
     );
-
-    processed += rows.length;
+    processed += claimed.length;
   }
 
-  return Response.json({ ok: true, processed, batches: batches.length });
+  return Response.json({ ok: true, processed, batches: batches.length, completedBatches });
 }
