@@ -1,7 +1,7 @@
 'use client';
 
-import { useRef, useState } from 'react';
-import { Upload, FileText, CheckCircle2, AlertCircle } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Upload, FileText, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
@@ -11,6 +11,7 @@ interface ImportResult {
   totalRows: number;
   processedRows: number;
   createdRows: number;
+  failedRows?: number;
   skippedRows?: number;
   resumed?: boolean;
 }
@@ -21,6 +22,23 @@ export function ProductImportForm() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState<ImportResult | null>(null);
+
+  useEffect(() => {
+    if (!result?.id || result.status === 'completed' || result.status === 'failed') return;
+    const timer = window.setInterval(async () => {
+      try {
+        const response = await fetch(`/api/seller/products/import/status?id=${encodeURIComponent(result.id)}`, { cache: 'no-store' });
+        const body = await response.json();
+        if (response.ok && body.ok) {
+          const next = body.data as ImportResult;
+          setResult({ ...next, skippedRows: next.processedRows - next.createdRows - (next.failedRows ?? 0) });
+        }
+      } catch {
+        // Keep showing the last known progress; the background worker continues independently.
+      }
+    }, 2000);
+    return () => window.clearInterval(timer);
+  }, [result?.id, result?.status]);
 
   async function submit() {
     const file = inputRef.current?.files?.[0];
@@ -36,16 +54,19 @@ export function ProductImportForm() {
       form.append('file', file);
       const response = await fetch('/api/seller/products/import', { method: 'POST', body: form });
       const body = await response.json();
-      if (!response.ok || !body.ok) {
-        throw new Error(body?.error?.message || 'Import ناموفق بود.');
-      }
-      setResult(body.data as ImportResult);
+      if (!response.ok || !body.ok) throw new Error(body?.error?.message || 'Import ناموفق بود.');
+      const initial = body.data as ImportResult;
+      setResult({ ...initial, skippedRows: initial.processedRows - initial.createdRows - (initial.failedRows ?? 0) });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'خطا در Import محصولات');
     } finally {
       setBusy(false);
     }
   }
+
+  const percent = result && result.totalRows > 0
+    ? Math.min(100, Math.round((result.processedRows / result.totalRows) * 100))
+    : 0;
 
   return (
     <div className="space-y-4">
@@ -54,7 +75,7 @@ export function ProductImportForm() {
           <div>
             <h3 className="font-semibold">Import انبوه محصولات</h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              حداکثر ۱۰٬۰۰۰ محصول در هر فایل، با پردازش ۱۰۰تایی و امکان ادامه پس از قطع اتصال.
+              حداکثر ۱۰٬۰۰۰ محصول در هر فایل. پردازش در پس‌زمینه انجام می‌شود و با بسته‌شدن مرورگر متوقف نمی‌شود.
             </p>
           </div>
 
@@ -70,7 +91,7 @@ export function ProductImportForm() {
               <FileText className="h-4 w-4" /> انتخاب CSV
             </Button>
             <Button type="button" variant="primary" disabled={busy || !fileName} onClick={submit}>
-              <Upload className="h-4 w-4" /> {busy ? 'در حال وارد کردن…' : 'شروع Import'}
+              <Upload className="h-4 w-4" /> {busy ? 'در حال آماده‌سازی…' : 'شروع Import'}
             </Button>
             {fileName && <span className="text-sm text-muted-foreground">{fileName}</span>}
           </div>
@@ -82,13 +103,26 @@ export function ProductImportForm() {
             </div>
           )}
 
-          {result && (
+          {result && result.status !== 'completed' && result.status !== 'failed' && (
+            <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-4 space-y-3">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <Loader2 className="h-4 w-4 animate-spin text-emerald-600" />
+                در حال پردازش پس‌زمینه: {result.processedRows.toLocaleString()} از {result.totalRows.toLocaleString()}
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-muted">
+                <div className="h-full rounded-full bg-emerald-600 transition-all" style={{ width: `${percent}%` }} />
+              </div>
+              <p className="text-xs text-muted-foreground">{percent}% — این فرایند مستقل از باز بودن صفحه ادامه دارد.</p>
+            </div>
+          )}
+
+          {result?.status === 'completed' && (
             <div className="flex items-start gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3 text-sm">
               <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
               <div>
-                <p className="font-medium">Import با موفقیت انجام شد.</p>
+                <p className="font-medium">Import کامل شد.</p>
                 <p className="mt-1 text-muted-foreground">
-                  {result.createdRows.toLocaleString()} محصول جدید ثبت شد؛ {result.skippedRows?.toLocaleString() ?? 0} مورد تکراری نادیده گرفته شد.
+                  {result.createdRows.toLocaleString()} محصول ثبت شد؛ {(result.skippedRows ?? 0).toLocaleString()} مورد تکراری و {(result.failedRows ?? 0).toLocaleString()} مورد ناموفق.
                 </p>
               </div>
             </div>
