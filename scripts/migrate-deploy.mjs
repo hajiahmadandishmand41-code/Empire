@@ -6,8 +6,8 @@
  *  - ONLY ever runs `prisma migrate deploy` (forward-only).
  *  - NEVER runs `migrate reset`, `db push --force-reset`, or any destructive command.
  *  - On IPv4-only platforms such as Vercel, prefer Supabase's session pooler.
- *  - Ignore direct IPv6 Supabase endpoints on Vercel when a pooler URL is available.
- *  - Fall back to the configured direct URL only when no pooler URL is available.
+ *  - Prefer Vercel/Supabase Marketplace variables, including STORAGE_* aliases.
+ *  - Never use a direct IPv6 endpoint on Vercel when a pooler URL is available.
  *  - Add a bounded connection timeout so a cold database gets enough time.
  *  - Never silently skip a migration when a database URL is configured.
  *  - In Vercel production, SKIP_DB_MIGRATE=1 is a hard failure rather than a bypass.
@@ -28,8 +28,9 @@ function normalizePoolerUrl(value) {
     const url = new URL(value);
     if (!url.hostname.includes('.pooler.supabase.com')) return null;
 
-    // Supabase session mode is the IPv4-compatible mode suitable for Prisma migrations.
-    // If Marketplace supplies a transaction-mode URL on 6543, convert it to session mode.
+    // Session mode is the IPv4-compatible mode suitable for Prisma migrations.
+    // Marketplace/application URLs may expose transaction mode on 6543; the same
+    // Supavisor host supports session mode on 5432.
     if (url.port === '6543') url.port = '5432';
     if (!url.port) url.port = '5432';
     url.searchParams.delete('pgbouncer');
@@ -51,8 +52,13 @@ function normalizeAnyUrl(value) {
 }
 
 function pickMigrationUrl() {
-  // Prefer an actual Supavisor pooler URL from the Vercel/Supabase integration.
+  // First use the variables supplied by the Supabase/Vercel Marketplace.
+  // The screenshot from this project shows these names under the linked
+  // `supabase-apricot-coin` resource.
   const poolerCandidates = [
+    ['STORAGE_POSTGRES_URL_NON_POOLING', readEnv('STORAGE_POSTGRES_URL_NON_POOLING')],
+    ['STORAGE_POSTGRES_PRISMA_URL', readEnv('STORAGE_POSTGRES_PRISMA_URL')],
+    ['STORAGE_POSTGRES_URL', readEnv('STORAGE_POSTGRES_URL')],
     ['POSTGRES_URL_NON_POOLING', readEnv('POSTGRES_URL_NON_POOLING')],
     ['POSTGRES_PRISMA_URL', readEnv('POSTGRES_PRISMA_URL')],
     ['POSTGRES_URL', readEnv('POSTGRES_URL')],
@@ -65,8 +71,8 @@ function pickMigrationUrl() {
     if (normalized) return { key, value: normalized };
   }
 
-  // Marketplace may expose a direct IPv6 URL under NON_POOLING. On Vercel,
-  // do not choose that URL while a usable pooler is absent unless there is no other option.
+  // Only fall back to manually configured/direct aliases when no pooler is
+  // available. Direct Supabase endpoints may be IPv6-only on Vercel.
   const directCandidates = [
     ['DATABASE_URL_UNPOOLED', readEnv('DATABASE_URL_UNPOOLED')],
     ['DIRECT_DATABASE_URL', readEnv('DIRECT_DATABASE_URL')],
@@ -94,7 +100,7 @@ function main() {
   const picked = pickMigrationUrl();
   if (!picked) {
     console.error(
-      '[migrate] No database URL configured. A Supabase session-pooler URL or database URL is required before running production migrations.',
+      '[migrate] No database URL configured. A Supabase/Vercel pooler URL or database URL is required before running production migrations.',
     );
     process.exit(1);
   }
