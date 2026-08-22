@@ -1,32 +1,25 @@
 import { getLocale, getTranslations } from 'next-intl/server';
 import { CartBadge } from '@/features/cart';
 import { HeaderAuthActions } from '@/features/auth';
-import { Tag, Truck, LayoutGrid, Store, Sparkles } from 'lucide-react';
+import { LayoutGrid, Store, Sparkles } from 'lucide-react';
 import { Link } from '@/i18n/routing';
 import { LanguageSwitcher } from './language-switcher';
 import { HeaderCategoryNav } from './header-category-nav';
 import { EshopLogo } from '@/components/eshop-logo';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { HeaderSearchBar } from './header-search-bar';
+import { AnnouncementBar } from './announcement-bar';
 
 export async function SiteHeader() {
   const locale = await getLocale();
   const t = await getTranslations('siteHeader');
   const brand = locale === 'en' ? 'Eshop' : 'ایشاپ';
-  const topMessage = locale === 'en'
-    ? 'Delivery in Kabul • Verified sellers • Today’s special offers'
-    : locale === 'ps'
-      ? 'په کابل کې سپارنه • تایید شوي پلورونکي • د نن ځانګړي وړاندیزونه'
-      : 'تحویل در کابل • فروشندگان تأییدشده • پیشنهادهای ویژه امروز';
   const storesLabel = locale === 'en' ? 'Stores' : locale === 'ps' ? 'پلورنځي' : 'فروشگاه‌ها';
   const traditionalLabel = locale === 'en' ? 'Local products' : locale === 'ps' ? 'کورني محصولات' : 'محصولات وطنی';
 
   return (
     <header className="sticky top-0 z-50 w-full" role="banner">
-      <div className="hidden overflow-hidden border-b border-orange-300/20 bg-gradient-to-r from-[#a94810] via-[#c56319] to-[#91350f] text-white sm:block">
-        <div className="flex min-h-8 items-center overflow-hidden"><div className="whitespace-nowrap text-[10px] font-bold tracking-wide sm:text-[11px] animate-[marquee_18s_linear_infinite]"><span className="mx-8 inline-flex items-center gap-1.5"><Truck className="h-3.5 w-3.5 text-amber-200" aria-hidden="true" />{topMessage}</span><span className="mx-8 inline-flex items-center gap-1.5"><Tag className="h-3.5 w-3.5 text-amber-200" aria-hidden="true" />{topMessage}</span></div></div>
-        <style>{`@keyframes marquee{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}`}</style>
-      </div>
+      <AnnouncementBar locale={locale} />
       <div className="site-header border-b border-border bg-card/95 backdrop-blur">
         <div className="mx-auto max-w-screen-xl px-2.5 sm:px-6">
           <div className="flex min-h-[3.5rem] items-center gap-1.5 sm:min-h-[4.5rem] sm:gap-4">
