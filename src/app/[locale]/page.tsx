@@ -16,8 +16,120 @@ import { getHomepageData, getHomepageSection, toSliderProduct } from '@/features
 import { listActiveBanners } from '@/server/services/banner.service';
 
 type Locale = 'fa' | 'ps' | 'en';
-type ProductSectionProps = { section: 'featured' | 'bestSelling' | 'newest'; locale: Locale; title: Record<Locale, string>; subtitle?: Record<Locale, string>; href: string; badge: string; accentColor?: string };
-function SectionSkeleton() { return <div className="mx-auto my-5 h-56 max-w-screen-xl animate-pulse rounded-3xl bg-muted/40 sm:my-7" aria-hidden />; }
-async function HomeProductSection({ section, locale, title, subtitle, href, badge, accentColor }: ProductSectionProps) { const products = await getHomepageSection(section, 12); if (products.length === 0) return null; return <ProductSliderSection title={title[locale]} subtitle={subtitle?.[locale]} viewAllHref={href} products={products.map((product) => toSliderProduct(product, badge))} locale={locale} accentColor={accentColor} />; }
-async function LowerRecommendationSections({ locale }: { locale: Locale }) { const data = await getHomepageData(); const seen = new Set<string>(); const uniquePool = [...data.featured, ...data.bestSelling, ...data.popular, ...data.newest].filter((product) => !seen.has(product.id) && seen.add(product.id)).slice(0, 20).map((product) => toSliderProduct(product)); if (uniquePool.length === 0) return null; return <><PersonalizedProductsSection products={uniquePool} locale={locale} /><RecentlyViewedSection products={uniquePool} locale={locale} /></>; }
-export default async function HomePage({ params }: { params: Promise<{ locale: string }> }) { const { locale: rawLocale } = await params; const locale = (['fa','ps','en'].includes(rawLocale) ? rawLocale : 'fa') as Locale; setRequestLocale(locale); const heroBanners = await listActiveBanners('HOME_HERO', 6).catch(() => []); return <div className="min-h-dvh bg-background"><SiteHeader /><main id="main" className="min-h-dvh pb-16 md:pb-0"><HomeDiscoveryStrip locale={locale} /><HomepageHeroCarousel banners={heroBanners} locale={locale} /><Suspense fallback={<div className="h-56 animate-pulse bg-muted/30" />}><CategoriesSection /></Suspense><Suspense fallback={<SectionSkeleton />}><TraditionalProductsBanner locale={locale} /></Suspense><Suspense fallback={<SectionSkeleton />}><HomeProductSection section="featured" locale={locale} title={{ en: 'Today’s picks', ps: 'د نن غوره انتخابونه', fa: 'انتخاب‌های امروز' }} subtitle={{ en: 'A focused set of products worth your attention', ps: 'د پام وړ او غوره محصولات', fa: 'مجموعه‌ای متمرکز از محصولات ارزشمند' }} href="/shop?badge=sale" badge="featured" accentColor="bg-rose-500" /></Suspense><Suspense fallback={<SectionSkeleton />}><HomeProductSection section="bestSelling" locale={locale} title={{ en: 'Best sellers', ps: 'تر ټولو ډېر پلورل شوي', fa: 'پرفروش‌ترین‌ها' }} subtitle={{ en: 'Products customers keep choosing', ps: 'هغه محصولات چې پیرودونکي یې بیا غوره کوي', fa: 'محصولاتی که مشتریان بیشتر انتخاب می‌کنند' }} href="/shop?sort=bestSelling" badge="best" accentColor="bg-amber-500" /></Suspense><DynamicBannerStrip locale={locale} placement="HOME_PROMO_1" /><Suspense fallback={<SectionSkeleton />}><HomeProductSection section="newest" locale={locale} title={{ en: 'Fresh arrivals', ps: 'تازه راغلي محصولات', fa: 'تازه‌واردها' }} subtitle={{ en: 'New products to discover before everyone else', ps: 'نوي محصولات چې لومړی یې تاسو ومومئ', fa: 'محصولات تازه برای کشف زودتر از دیگران' }} href="/shop?sort=newest" badge="new" accentColor="bg-sky-500" /></Suspense><Suspense fallback={<SectionSkeleton />}><LowerRecommendationSections locale={locale} /></Suspense><DynamicBannerStrip locale={locale} placement="HOME_MID" /><BecomeSellerBanner locale={locale} /><Suspense fallback={<div className="h-56 animate-pulse bg-muted/30" />}><TrustSection /></Suspense></main><SiteFooter /><BottomNavigation /></div>; }
+type ProductSectionProps = {
+  section: 'featured' | 'bestSelling' | 'newest';
+  locale: Locale;
+  title: Record<Locale, string>;
+  subtitle?: Record<Locale, string>;
+  href: string;
+  badge: string;
+  accentColor?: string;
+};
+
+function SectionSkeleton() {
+  return <div className="mx-auto my-5 h-56 max-w-screen-xl animate-pulse rounded-3xl bg-muted/40 sm:my-7" aria-hidden />;
+}
+
+function HeroSkeleton() {
+  return (
+    <section className="mx-auto max-w-screen-xl px-3 pt-3 sm:px-6 sm:pt-5" aria-hidden>
+      <div className="relative aspect-[1.6/1] min-h-[300px] overflow-hidden rounded-[28px] border border-border bg-muted/40 sm:aspect-[2.3/1] sm:min-h-[390px]">
+        <div className="absolute inset-x-5 bottom-5 max-w-xl space-y-3 sm:inset-x-8 sm:bottom-8">
+          <div className="h-7 w-24 animate-pulse rounded-full bg-background/60" />
+          <div className="h-10 w-4/5 animate-pulse rounded-xl bg-background/50" />
+          <div className="h-11 w-48 animate-pulse rounded-xl bg-background/50" />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+async function HomeHeroSection({ locale }: { locale: Locale }) {
+  const banners = await listActiveBanners('HOME_HERO', 6).catch(() => []);
+  return <HomepageHeroCarousel banners={banners} locale={locale} />;
+}
+
+async function HomeProductSection({ section, locale, title, subtitle, href, badge, accentColor }: ProductSectionProps) {
+  const products = await getHomepageSection(section, 12);
+  if (products.length === 0) return null;
+  return <ProductSliderSection title={title[locale]} subtitle={subtitle?.[locale]} viewAllHref={href} products={products.map((product) => toSliderProduct(product, badge))} locale={locale} accentColor={accentColor} />;
+}
+
+async function LowerRecommendationSections({ locale }: { locale: Locale }) {
+  const data = await getHomepageData();
+  const seen = new Set<string>();
+  const uniquePool = [...data.featured, ...data.bestSelling, ...data.popular, ...data.newest]
+    .filter((product) => !seen.has(product.id) && seen.add(product.id))
+    .slice(0, 20)
+    .map((product) => toSliderProduct(product));
+  if (uniquePool.length === 0) return null;
+  return <><PersonalizedProductsSection products={uniquePool} locale={locale} /><RecentlyViewedSection products={uniquePool} locale={locale} /></>;
+}
+
+export default async function HomePage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale: rawLocale } = await params;
+  const locale = (['fa', 'ps', 'en'].includes(rawLocale) ? rawLocale : 'fa') as Locale;
+  setRequestLocale(locale);
+
+  return (
+    <div className="min-h-dvh bg-background">
+      <SiteHeader />
+      <main id="main" className="min-h-dvh pb-16 md:pb-0">
+        <HomeDiscoveryStrip locale={locale} />
+        <Suspense fallback={<HeroSkeleton />}>
+          <HomeHeroSection locale={locale} />
+        </Suspense>
+        <Suspense fallback={<div className="h-56 animate-pulse bg-muted/30" />}>
+          <CategoriesSection />
+        </Suspense>
+        <Suspense fallback={<SectionSkeleton />}>
+          <TraditionalProductsBanner locale={locale} />
+        </Suspense>
+        <Suspense fallback={<SectionSkeleton />}>
+          <HomeProductSection
+            section="featured"
+            locale={locale}
+            title={{ en: 'Today’s picks', ps: 'د نن غوره انتخابونه', fa: 'انتخاب‌های امروز' }}
+            subtitle={{ en: 'A focused set of products worth your attention', ps: 'د پام وړ او غوره محصولات', fa: 'مجموعه‌ای متمرکز از محصولات ارزشمند' }}
+            href="/shop?badge=sale"
+            badge="featured"
+            accentColor="bg-rose-500"
+          />
+        </Suspense>
+        <Suspense fallback={<SectionSkeleton />}>
+          <HomeProductSection
+            section="bestSelling"
+            locale={locale}
+            title={{ en: 'Best sellers', ps: 'تر ټولو ډېر پلورل شوي', fa: 'پرفروش‌ترین‌ها' }}
+            subtitle={{ en: 'Products customers keep choosing', ps: 'هغه محصولات چې پیرودونکي یې بیا غوره کوي', fa: 'محصولاتی که مشتریان بیشتر انتخاب می‌کنند' }}
+            href="/shop?sort=bestSelling"
+            badge="best"
+            accentColor="bg-amber-500"
+          />
+        </Suspense>
+        <DynamicBannerStrip locale={locale} placement="HOME_PROMO_1" />
+        <Suspense fallback={<SectionSkeleton />}>
+          <HomeProductSection
+            section="newest"
+            locale={locale}
+            title={{ en: 'Fresh arrivals', ps: 'تازه راغلي محصولات', fa: 'تازه‌واردها' }}
+            subtitle={{ en: 'New products to discover before everyone else', ps: 'نوي محصولات چې لومړی یې تاسو ومومئ', fa: 'محصولات تازه برای کشف زودتر از دیگران' }}
+            href="/shop?sort=newest"
+            badge="new"
+            accentColor="bg-sky-500"
+          />
+        </Suspense>
+        <Suspense fallback={<SectionSkeleton />}>
+          <LowerRecommendationSections locale={locale} />
+        </Suspense>
+        <DynamicBannerStrip locale={locale} placement="HOME_MID" />
+        <BecomeSellerBanner locale={locale} />
+        <Suspense fallback={<div className="h-56 animate-pulse bg-muted/30" />}>
+          <TrustSection />
+        </Suspense>
+      </main>
+      <SiteFooter />
+      <BottomNavigation />
+    </div>
+  );
+}
