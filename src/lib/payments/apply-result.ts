@@ -42,10 +42,41 @@ export async function applyPaymentResult(params: {
       return { order, transaction };
     }
 
-    const nextOrderStatus: POrderStatus | undefined = status === 'paid' ? 'confirmed' : undefined;
+    if (status === 'failed' || status === 'cancelled') {
+      const orderItems = await tx.orderItem.findMany({
+        where: { orderId: transaction.orderId },
+        select: { productId: true, quantity: true },
+      });
+
+      for (const item of orderItems) {
+        const product = await tx.product.findUnique({
+          where: { id: item.productId },
+          select: { stockQuantity: true, salesCount: true },
+        });
+        if (!product) continue;
+
+        await tx.product.update({
+          where: { id: item.productId },
+          data: {
+            stockQuantity: { increment: item.quantity },
+            inStock: true,
+            salesCount: Math.max(0, product.salesCount - item.quantity),
+          },
+        });
+      }
+    }
+
+    const nextOrderStatus: POrderStatus | undefined =
+      status === 'paid' ? 'confirmed' :
+      status === 'failed' || status === 'cancelled' ? 'cancelled' :
+      undefined;
+
     const order = await tx.order.update({
       where: { id: transaction.orderId },
-      data: { paymentStatus: status, ...(nextOrderStatus ? { status: nextOrderStatus } : {}) },
+      data: {
+        paymentStatus: status,
+        ...(nextOrderStatus ? { status: nextOrderStatus } : {}),
+      },
     });
     return { order, transaction };
   });
