@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import { setRequestLocale } from 'next-intl/server';
 import { HomepageHeroCarousel } from '@/features/home/components/homepage-hero-carousel';
 import { HomeDiscoveryStrip } from '@/features/home/components/home-discovery-strip';
+import { TrustedStoreLogos } from '@/features/home/components/trusted-store-logos';
 import { DynamicBannerStrip } from '@/features/home/components/dynamic-banner-strip';
 import { TraditionalProductsBanner } from '@/features/home/components/traditional-products-banner';
 import { CategoriesSection } from '@/features/home/components/categories-section';
@@ -87,6 +88,9 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         </Suspense>
         <Suspense fallback={<div className="h-56 animate-pulse bg-muted/30" />}>
           <CategoriesSection />
+        </Suspense>
+        <Suspense fallback={<div className="h-28 animate-pulse bg-muted/20" />}>
+          <TrustedStoreLogos locale={locale} />
         </Suspense>
         <Suspense fallback={<SectionSkeleton />}>
           <TraditionalProductsBanner locale={locale} />
