@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Image from 'next/image';
-import Link from 'next/link';
+import { Link } from '@/i18n/routing';
 import { ArrowUpRight, MapPin, Package, Search, ShieldCheck, Store } from 'lucide-react';
 import { setRequestLocale } from 'next-intl/server';
 import { getSellerRepository } from '@/server/infrastructure/registry';
@@ -88,7 +88,7 @@ export default async function StoresPage({ params, searchParams }: Props) {
 
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
             <span className="text-xs font-semibold text-muted-foreground">{result.total.toLocaleString(numberLocale)} {t.results}</span>
-            {q ? <Link href={localePath('/stores')} className="text-xs font-bold text-primary hover:underline">{t.clear}</Link> : null}
+            {q ? <Link href="/stores" className="text-xs font-bold text-primary hover:underline">{t.clear}</Link> : null}
           </div>
 
           {stores.length === 0 ? (
