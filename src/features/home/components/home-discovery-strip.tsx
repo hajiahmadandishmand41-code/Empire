@@ -1,4 +1,4 @@
-import { Compass, Store, Sparkles } from 'lucide-react';
+import { Compass, Sparkles, Telescope } from 'lucide-react';
 import { Link } from '@/i18n/routing';
 
 type Locale = 'fa' | 'ps' | 'en';
@@ -6,35 +6,32 @@ type Locale = 'fa' | 'ps' | 'en';
 export function HomeDiscoveryStrip({ locale }: { locale: Locale }) {
   const copy = locale === 'en'
     ? {
-        eyebrow: 'Quick links',
         items: [
           { href: '/categories', label: 'Categories', icon: Compass },
-          { href: '/stores', label: 'Stores', icon: Store },
+          { href: '/discover', label: 'Discover', icon: Telescope },
           { href: '/traditional', label: 'Afghan products', icon: Sparkles },
         ],
       }
     : locale === 'ps'
       ? {
-          eyebrow: 'چټک لینکونه',
           items: [
             { href: '/categories', label: 'وېشنیزې', icon: Compass },
-            { href: '/stores', label: 'پلورنځي', icon: Store },
+            { href: '/discover', label: 'کشف', icon: Telescope },
             { href: '/traditional', label: 'افغاني محصولات', icon: Sparkles },
           ],
         }
       : {
-          eyebrow: 'دسترسی سریع',
           items: [
             { href: '/categories', label: 'دسته‌بندی‌ها', icon: Compass },
-            { href: '/stores', label: 'فروشگاه‌ها', icon: Store },
+            { href: '/discover', label: 'کشف', icon: Telescope },
             { href: '/traditional', label: 'محصولات وطنی', icon: Sparkles },
           ],
         };
 
   return (
-    <section aria-label={copy.eyebrow} className="border-b border-border bg-card/90">
+    <section aria-label={locale === 'en' ? 'Quick links' : locale === 'ps' ? 'چټک لینکونه' : 'دسترسی سریع'} className="border-b border-border bg-card/90">
       <div className="mx-auto max-w-screen-xl px-3 py-2 sm:px-6 sm:py-2.5">
-        <div className="flex items-center gap-2 overflow-x-auto pb-0.5 no-scrollbar snap-x snap-mandatory sm:justify-center sm:gap-4 text-[10px] font-bold text-muted-foreground sm:text-xs">
+        <div className="flex items-center justify-center gap-2 overflow-x-auto pb-0.5 no-scrollbar snap-x snap-mandatory sm:gap-4 text-[10px] font-bold text-muted-foreground sm:text-xs">
           {copy.items.map(({ href, label, icon: Icon }) => (
             <Link
               key={href}
