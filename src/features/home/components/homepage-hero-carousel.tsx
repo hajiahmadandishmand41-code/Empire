@@ -64,12 +64,13 @@ export function HomepageHeroCarousel({ banners = [], locale = 'fa' }: { banners?
   if (count === 0) {
     return (
       <section className="mx-auto max-w-screen-xl px-3 pt-3 sm:px-6 sm:pt-5" aria-label={labels.aria}>
-        <div className="overflow-hidden rounded-[28px] border border-border bg-card px-5 py-10 shadow-premium sm:px-10 lg:min-h-[390px] lg:flex lg:items-center">
-          <div className="max-w-2xl" dir={locale === 'en' ? 'ltr' : 'rtl'}>
+        <div className="relative overflow-hidden rounded-[26px] border border-primary/10 bg-gradient-to-br from-card via-card to-primary/[0.04] px-5 py-7 shadow-premium sm:px-10 sm:py-10 lg:min-h-[360px] lg:flex lg:items-center">
+          <div className="pointer-events-none absolute -end-16 -top-16 h-40 w-40 rounded-full bg-primary/[0.08] blur-2xl" aria-hidden="true" />
+          <div className="relative max-w-2xl" dir={locale === 'en' ? 'ltr' : 'rtl'}>
             <span className="inline-flex items-center gap-2 rounded-full border border-primary/15 bg-accent px-3 py-1.5 text-[10px] font-bold text-accent-foreground"><Sparkles className="h-3.5 w-3.5" />ایشاپ</span>
-            <h1 className="mt-4 text-3xl font-black tracking-tight sm:text-5xl">{labels.emptyTitle}</h1>
-            <p className="mt-3 max-w-xl text-sm leading-7 text-muted-foreground sm:text-base">{labels.emptyText}</p>
-            <Link href="/shop" className="mt-6 inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-extrabold text-primary-foreground">{labels.cta}<ChevronLeft className="h-4 w-4 rtl:rotate-180" /></Link>
+            <h1 className="mt-3 text-[2rem] font-black leading-[1.08] tracking-tight sm:text-5xl">{labels.emptyTitle}</h1>
+            <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground sm:text-base sm:leading-7">{labels.emptyText}</p>
+            <Link href="/shop" className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-extrabold text-primary-foreground shadow-sm shadow-primary/15 transition-transform duration-200 hover:-translate-y-0.5">{labels.cta}<ChevronLeft className="h-4 w-4 rtl:rotate-180" /></Link>
           </div>
         </div>
       </section>
