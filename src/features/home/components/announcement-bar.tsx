@@ -27,15 +27,24 @@ export function AnnouncementBar({ locale }: { locale: string }) {
   return (
     <div className="announcement-bar" role="status" aria-label={safeLocale === 'en' ? 'Store announcements' : safeLocale === 'ps' ? 'د پلورنځي اعلانونه' : 'اعلان‌های فروشگاه'}>
       <div className="announcement-track no-scrollbar">
-        <div className="announcement-marquee">
+        <div className="announcement-marquee" dir="ltr">
           {[...items, ...items].map(({ icon: Icon, text }, index) => (
-            <span key={`${text}-${index}`} className="announcement-item">
+            <span key={`${text}-${index}`} className="announcement-item" dir={safeLocale === 'en' ? 'ltr' : 'rtl'}>
               <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
               <span>{text}</span>
             </span>
           ))}
         </div>
       </div>
+      <style>{`
+        .announcement-bar{overflow:hidden;border-bottom:1px solid hsl(var(--primary-foreground)/.12);background:hsl(var(--primary));color:hsl(var(--primary-foreground))}
+        .announcement-track{overflow:hidden;width:100%;mask-image:linear-gradient(to right,transparent,black 5%,black 95%,transparent)}
+        .announcement-marquee{display:flex;width:max-content;align-items:center;animation:empire-announcement 28s linear infinite;will-change:transform}
+        .announcement-item{display:inline-flex;align-items:center;gap:.5rem;padding:.36rem 2rem;font-size:.69rem;font-weight:700;letter-spacing:.01em;white-space:nowrap}
+        @keyframes empire-announcement{from{transform:translate3d(0,0,0)}to{transform:translate3d(-50%,0,0)}}
+        @media (max-width:639px){.announcement-item{padding:.34rem 1.25rem;font-size:.64rem}.announcement-marquee{animation-duration:24s}}
+        @media (prefers-reduced-motion:reduce){.announcement-marquee{animation:none;transform:none}.announcement-item:nth-child(n+2){display:none}}
+      `}</style>
     </div>
   );
 }
