@@ -3,7 +3,7 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Container } from '@/components/layout/container';
 import { SiteHeader } from '@/features/home/components/site-header';
 import { SiteFooter } from '@/features/home/components/site-footer';
-import { CheckoutView } from '@/features/checkout';
+import { CheckoutViewSafe } from '@/features/checkout/components/checkout-view-safe';
 import { Lock, MapPin, CreditCard, CheckCircle2 } from 'lucide-react';
 
 interface CheckoutPageProps {
@@ -65,7 +65,7 @@ export default async function CheckoutPage({ params }: CheckoutPageProps) {
               </div>
             </div>
           </header>
-          <CheckoutView locale={locale} />
+          <CheckoutViewSafe locale={locale} />
         </Container>
       </main>
       <SiteFooter />
