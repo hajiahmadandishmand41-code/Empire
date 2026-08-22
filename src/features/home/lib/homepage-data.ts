@@ -1,5 +1,6 @@
 import { cache } from 'react';
 import { getProductService } from '@/server/infrastructure/registry';
+import { rankProductsForUser } from './personalized-ranking';
 import type { ProductSummary } from '@/types';
 import type { SliderProduct } from '../components/product-slider-section';
 
@@ -13,17 +14,20 @@ export const getHomepageData = cache(async () => {
   }
 });
 
-export const getHomepageSection = cache(async (section: HomeSection, size = 12): Promise<ProductSummary[]> => {
+export const getHomepageSection = cache(async (section: HomeSection, size = 12, userId?: string | null): Promise<ProductSummary[]> => {
   try {
     const service = getProductService();
+    const personalized = Boolean(userId) && (section === 'popular' || section === 'bestSelling');
+    const candidateSize = personalized ? Math.max(size * 3, 36) : size;
     const result = await service.listProducts({
       isActive: true,
       page: 1,
-      pageSize: size,
+      pageSize: candidateSize,
       sort: section === 'featured' ? 'featured' : section,
       ...(section === 'featured' ? { featured: true } : {}),
     });
-    return result.products;
+    const products = personalized ? await rankProductsForUser(result.products, userId!, section) : result.products;
+    return products.slice(0, size);
   } catch {
     return [];
   }
