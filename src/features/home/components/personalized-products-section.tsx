@@ -23,23 +23,50 @@ function readRecentProducts(): RecentProduct[] {
   }
 }
 
+function personalizedScore(product: SliderProduct, recent: RecentProduct[]): number {
+  const recentBySlug = new Map(recent.map((item) => [item.slug, item]));
+  const exact = recentBySlug.get(product.slug);
+  const categoryRank = recent.findIndex((item) => item.categoryKey && item.categoryKey === product.categoryKey);
+  const ageHours = exact ? Math.max(0, (Date.now() - exact.viewedAt) / 3_600_000) : 9999;
+  const recencyBoost = exact ? Math.max(0, 120 - ageHours * 2.5) : 0;
+  const categoryBoost = categoryRank >= 0 ? Math.max(0, 90 - categoryRank * 12) : 0;
+  const salesBoost = Math.min(70, (product.salesCount ?? 0) / 20);
+  const viewsBoost = Math.min(45, (product.viewCount ?? 0) / 200);
+  const ratingBoost = Math.min(35, (product.rating ?? 0) * 7);
+  const reviewBoost = Math.min(20, (product.reviewCount ?? 0) / 10);
+  const freshBoost = product.badge === 'new' ? 12 : 0;
+  const stockBoost = product.inStock === false ? -500 : 20;
+  return exact ? 1000 + recencyBoost + categoryBoost + salesBoost + viewsBoost + ratingBoost + reviewBoost + freshBoost + stockBoost : categoryBoost + salesBoost + viewsBoost + ratingBoost + reviewBoost + freshBoost + stockBoost;
+}
+
+function selectPersonalized(products: SliderProduct[], recent: RecentProduct[]): SliderProduct[] {
+  const ranked = [...products].sort((a, b) => personalizedScore(b, recent) - personalizedScore(a, recent));
+  const chosen: SliderProduct[] = [];
+  const categoryCounts = new Map<string, number>();
+  for (const product of ranked) {
+    const category = product.categoryKey ?? product.category?.name ?? 'other';
+    const count = categoryCounts.get(category) ?? 0;
+    if (count >= 3 && chosen.length < 6) continue;
+    chosen.push(product);
+    categoryCounts.set(category, count + 1);
+    if (chosen.length >= 8) break;
+  }
+  return chosen;
+}
+
 export function PersonalizedProductsSection({ products, locale = 'fa', currency = 'AFN' }: { products: SliderProduct[]; locale?: string; currency?: string }) {
   const [recent, setRecent] = React.useState<RecentProduct[]>([]);
 
   React.useEffect(() => { setRecent(readRecentProducts()); }, []);
 
-  const recentCategories = new Set(recent.map((item) => item.categoryKey).filter(Boolean));
-  const personalized = recentCategories.size
-    ? products.filter((product) => product.category?.name && recentCategories.has(product.category.name)).slice(0, 8)
-    : [];
-  const selected = personalized.length >= 3 ? personalized : products.slice(0, 8);
-
+  const selected = selectPersonalized(products, recent);
   if (selected.length === 0) return null;
 
+  const hasHistory = recent.length > 0;
   const title = locale === 'en' ? 'Picked for you' : locale === 'ps' ? 'ستاسو لپاره غوره شوي' : 'پیشنهاد مناسب شما';
-  const subtitle = recentCategories.size
-    ? locale === 'en' ? 'Based on what you recently explored' : locale === 'ps' ? 'ستاسو د وروستیو لیدنو پر بنسټ' : 'بر اساس چیزهایی که اخیراً دیده‌اید'
-    : locale === 'en' ? 'A smart starting point from popular products' : locale === 'ps' ? 'د مشهورو محصولاتو څخه هوښیار پیل' : 'یک شروع هوشمند بر اساس محصولات محبوب';
+  const subtitle = hasHistory
+    ? locale === 'en' ? 'Your recent interests lead the ranking, with popular and highly rated products mixed in' : locale === 'ps' ? 'ستاسو وروستي شوقونه لومړیتوب لري او مشهور او لوړ امتیاز لرونکي محصولات هم ورسره ګډ شوي' : 'علاقه‌های اخیر شما اولویت دارند و محصولات محبوب و پُرامتیاز هم در رتبه‌بندی ترکیب می‌شوند'
+    : locale === 'en' ? 'Popular, highly rated and fresh products form the starting ranking' : locale === 'ps' ? 'مشهور، لوړ امتیاز لرونکي او نوي محصولات د پیل درجه بندي جوړوي' : 'محبوب‌ترین، پُرامتیازترین و تازه‌ترین محصولات، رتبه‌بندی اولیه را می‌سازند';
 
   return <ProductSliderSection title={title} subtitle={subtitle} products={selected} locale={locale} currency={currency} accentColor="bg-violet-500" />;
 }
