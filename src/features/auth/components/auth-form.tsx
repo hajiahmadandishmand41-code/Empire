@@ -11,7 +11,7 @@ import { AlertCircle, CheckCircle2, Eye, EyeOff, Loader2, Lock, Mail, User } fro
 import Link from 'next/link';
 
 type Mode = 'login' | 'register';
-type ApiUser = { id: string; fullName?: string | null; email?: string | null; phone?: string | null; role?: 'user' | 'seller' | 'admin' };
+type ApiUser = { id: string; fullName?: string | null; email?: string | null; phone?: string | null; role?: 'user' | 'customer' | 'seller' | 'admin' };
 type ApiResult = { ok: boolean; user?: ApiUser; error?: { code?: string; message?: string } };
 
 export function AuthForm({ mode }: { mode: Mode }) {
@@ -79,13 +79,16 @@ export function AuthForm({ mode }: { mode: Mode }) {
       }
 
       setSuccess(true);
-      const destination = mode === 'register'
-        ? '/profile'
+      const requested = safeRedirect();
+      const destination = requested !== '/'
+        ? requested
         : data.user?.role === 'admin'
           ? '/admin'
           : data.user?.role === 'seller'
             ? '/seller'
-            : safeRedirect();
+            : mode === 'register'
+              ? '/profile'
+              : '/';
       router.replace(destination);
       router.refresh();
     } catch {
