@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useEffect, useState } from 'react';
-import { Home, LayoutGrid, Search, ShoppingCart, User, X, ClipboardList, Heart, MapPin, Settings, Phone, Info, LogOut, ShieldCheck, Briefcase } from 'lucide-react';
+import { Home, LayoutGrid, Compass, ShoppingCart, User, X, ClipboardList, Heart, MapPin, Settings, Phone, Info, LogOut, ShieldCheck, Briefcase } from 'lucide-react';
 import { Link, usePathname, useRouter } from '@/i18n/routing';
 import { useLocale, useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
@@ -54,7 +54,7 @@ export function MarketplaceMobileNavigation() {
 
   const isHome = pathname === '/';
   const isCategories = pathname.includes('/categories') || pathname.includes('/category/');
-  const isSearch = pathname.includes('/search');
+  const isExplore = pathname.includes('/discover');
   const isCart = pathname.includes('/cart') || pathname.includes('/checkout');
   const isAccount = pathname.includes('/profile') || pathname.includes('/orders') || pathname.includes('/settings') || pathname.includes('/seller') || pathname.includes('/admin');
 
@@ -79,7 +79,7 @@ export function MarketplaceMobileNavigation() {
   }
 
   const accountLabel = locale === 'en' ? 'Account' : locale === 'ps' ? 'حساب' : 'حساب';
-  const searchLabel = locale === 'en' ? 'Search' : locale === 'ps' ? 'لټون' : 'جستجو';
+  const exploreLabel = locale === 'en' ? 'Explore' : locale === 'ps' ? 'کشف' : 'کشف';
   const categoriesLabel = locale === 'en' ? 'Categories' : locale === 'ps' ? 'وېشنیزې' : 'دسته‌ها';
 
   return <>
@@ -87,7 +87,7 @@ export function MarketplaceMobileNavigation() {
       <div className="mx-auto grid max-w-md grid-cols-5 items-stretch px-1">
         <NavItem href="/" active={isHome} label={t('home')}><Home className="h-5 w-5" /></NavItem>
         <NavItem href="/categories" active={isCategories} label={categoriesLabel}><LayoutGrid className="h-5 w-5" /></NavItem>
-        <NavItem href="/search" active={isSearch} label={searchLabel}><Search className="h-5 w-5" /></NavItem>
+        <NavItem href="/discover" active={isExplore} label={exploreLabel}><Compass className="h-5 w-5" /></NavItem>
         <NavItem href="/cart" active={isCart} label={t('cart')}>
           <span className="relative flex h-6 w-6 items-center justify-center">
             <ShoppingCart className="h-5 w-5" />
