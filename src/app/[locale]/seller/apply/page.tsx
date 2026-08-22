@@ -14,7 +14,9 @@ export default async function SellerApplyPage() {
   const user = await getCurrentUser();
 
   if (!user) {
-    redirect(`/${locale}/auth/login?redirect=${encodeURIComponent(`/${locale}/seller/apply`)}`);
+    // `AuthForm` uses the localized router, so the redirect target must be
+    // an unlocalized application path to avoid a `/fa/fa/...` style URL.
+    redirect(`/${locale}/auth/login?redirect=${encodeURIComponent('/seller/apply')}`);
   }
   if (user.role === 'seller') redirect(`/${locale}/seller`);
 
