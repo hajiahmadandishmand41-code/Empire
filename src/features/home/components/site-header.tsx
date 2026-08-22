@@ -1,7 +1,7 @@
 import { getLocale, getTranslations } from 'next-intl/server';
 import { CartBadge } from '@/features/cart';
 import { HeaderAuthActions } from '@/features/auth';
-import { LayoutGrid, Store, Sparkles } from 'lucide-react';
+import { LayoutGrid, Telescope, Sparkles } from 'lucide-react';
 import { Link } from '@/i18n/routing';
 import { LanguageSwitcher } from './language-switcher';
 import { HeaderCategoryNav } from './header-category-nav';
@@ -14,7 +14,7 @@ export async function SiteHeader() {
   const locale = await getLocale();
   const t = await getTranslations('siteHeader');
   const brand = locale === 'en' ? 'Eshop' : 'ایشاپ';
-  const storesLabel = locale === 'en' ? 'Stores' : locale === 'ps' ? 'پلورنځي' : 'فروشگاه‌ها';
+  const discoverLabel = locale === 'en' ? 'Discover' : locale === 'ps' ? 'کشف' : 'کشف';
   const traditionalLabel = locale === 'en' ? 'Local products' : locale === 'ps' ? 'کورني محصولات' : 'محصولات وطنی';
 
   return (
@@ -29,7 +29,7 @@ export async function SiteHeader() {
             </Link>
             <div className="hidden shrink-0 items-center gap-1.5 lg:flex">
               <Link href="/categories" className="inline-flex items-center gap-2 rounded-xl border border-border bg-secondary px-3.5 py-2 text-xs font-bold text-secondary-foreground transition-colors hover:border-primary/30 hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><LayoutGrid className="h-3.5 w-3.5" aria-hidden="true" />{t('categories')}</Link>
-              <Link href="/stores" className="inline-flex items-center gap-2 rounded-xl border border-border bg-secondary px-3.5 py-2 text-xs font-bold text-secondary-foreground transition-colors hover:border-primary/30 hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><Store className="h-3.5 w-3.5" aria-hidden="true" />{storesLabel}</Link>
+              <Link href="/discover" className="inline-flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 px-3.5 py-2 text-xs font-bold text-primary transition-colors hover:border-primary/35 hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><Telescope className="h-3.5 w-3.5" aria-hidden="true" />{discoverLabel}</Link>
               <Link href="/traditional" className="inline-flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 px-3.5 py-2 text-xs font-bold text-primary transition-colors hover:border-primary/35 hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><Sparkles className="h-3.5 w-3.5" aria-hidden="true" />{traditionalLabel}</Link>
             </div>
             <div className="flex min-w-0 flex-1 items-center"><HeaderSearchBar locale={locale} /></div>
