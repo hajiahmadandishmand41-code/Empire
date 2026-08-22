@@ -1,16 +1,18 @@
 import Link from 'next/link';
 import { getTranslations } from 'next-intl/server';
-import { Store, UserCheck, UserX, Clock3, Plus } from 'lucide-react';
+import { Store, UserCheck, UserX, Clock3, MapPin, Phone, FileText } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { DataTable, type Column } from '@/features/admin/components/data-table';
 import { SearchForm } from '@/features/admin/components/search-form';
 import { Pagination } from '@/features/admin/components/pagination';
 import { EmptyState } from '@/features/admin/components/empty-state';
 import { SellerActions, SellerStatusBadge } from '@/features/admin/components/seller-actions';
+import { SellerApplicationActions } from '@/features/admin/components/seller-application-actions';
 import { CreateSellerButton } from '@/features/admin/components/create-seller-button';
 import { listAdminSellers } from '@/features/admin/lib/queries';
+import { listPendingSellerApplications } from '@/features/admin/lib/seller-applications';
 import type { AdminSellerRow, SellerStatus } from '@/features/admin/lib/mock-data';
-import { formatDate } from '@/features/admin/lib/format';
+import { formatDate, formatDateTime } from '@/features/admin/lib/format';
 
 export const dynamic = 'force-dynamic';
 interface Props { params: Promise<{ locale: string }>; searchParams: Promise<{ q?: string; page?: string; status?: string }> }
@@ -28,7 +30,10 @@ export default async function AdminSellersPage({ params, searchParams }: Props) 
   const t = await getTranslations('admin.sellersPage');
   const page = Math.max(1, parseInt(sp.page ?? '1', 10) || 1);
   const status = (sp.status as SellerStatus | 'all' | undefined) ?? 'all';
-  const result = await listAdminSellers({ q: sp.q, page, pageSize: 10, status });
+  const [result, pendingApplications] = await Promise.all([
+    listAdminSellers({ q: sp.q, page, pageSize: 10, status }),
+    listPendingSellerApplications(12),
+  ]);
 
   const columns: Column<AdminSellerRow>[] = [
     {
@@ -60,6 +65,42 @@ export default async function AdminSellersPage({ params, searchParams }: Props) 
         </div>
         <CreateSellerButton />
       </header>
+
+      {pendingApplications.length > 0 ? (
+        <Card className="overflow-hidden p-0">
+          <div className="border-b border-border bg-gradient-to-l from-amber-500/10 via-card to-card px-5 py-4 sm:px-6">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <div className="inline-flex items-center gap-2 rounded-full bg-amber-500/10 px-3 py-1 text-[11px] font-extrabold text-amber-700 dark:text-amber-300"><FileText className="h-3.5 w-3.5" /> درخواست‌های جدید فروشندگی</div>
+                <p className="mt-2 text-xs text-muted-foreground">این درخواست‌ها مستقیماً از فرم فروشندگی ثبت شده‌اند و هنوز بررسی نشده‌اند.</p>
+              </div>
+              <span className="rounded-full bg-amber-500 px-2.5 py-1 text-xs font-black text-white">{pendingApplications.length} در انتظار</span>
+            </div>
+          </div>
+          <div className="divide-y divide-border">
+            {pendingApplications.map((application) => (
+              <article key={application.id} className="grid gap-4 p-5 lg:grid-cols-[1fr_auto] sm:p-6">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-base font-black text-foreground">{application.shopName}</h3>
+                    <span className="rounded-full bg-amber-500/10 px-2 py-1 text-[10px] font-bold text-amber-700 dark:text-amber-300">در انتظار بررسی</span>
+                  </div>
+                  <p className="mt-1 text-sm text-muted-foreground">مالک: {application.ownerName} · حساب: {application.user.fullName}</p>
+                  <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3 text-xs text-muted-foreground">
+                    <span className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2"><Phone className="h-3.5 w-3.5" />{application.phone}</span>
+                    <span className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2"><MapPin className="h-3.5 w-3.5" />{application.address}</span>
+                    <span className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2">ثبت‌شده: {formatDateTime(application.createdAt)}</span>
+                  </div>
+                  {application.description ? <p className="mt-3 rounded-2xl bg-muted/40 p-3 text-sm leading-6 text-foreground">{application.description}</p> : null}
+                </div>
+                <div className="flex items-end lg:items-center">
+                  <SellerApplicationActions applicationId={application.id} />
+                </div>
+              </article>
+            ))}
+          </div>
+        </Card>
+      ) : null}
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {statusItems.map((item) => {
