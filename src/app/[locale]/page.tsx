@@ -14,6 +14,7 @@ import { SiteFooter } from '@/features/home/components/site-footer';
 import { BottomNavigation } from '@/features/home/components/bottom-navigation';
 import { getHomepageData, getHomepageSection, toSliderProduct } from '@/features/home/lib/homepage-data';
 import { listActiveBanners } from '@/server/services/banner.service';
+import { getCurrentUser } from '@/lib/auth/current-user';
 
 type Locale = 'fa' | 'ps' | 'en';
 type ProductSectionProps = {
@@ -24,6 +25,7 @@ type ProductSectionProps = {
   href: string;
   badge: string;
   accentColor?: string;
+  userId?: string | null;
 };
 
 function SectionSkeleton() {
@@ -49,18 +51,21 @@ async function HomeHeroSection({ locale }: { locale: Locale }) {
   return <HomepageHeroCarousel banners={banners} locale={locale} />;
 }
 
-async function HomeProductSection({ section, locale, title, subtitle, href, badge, accentColor }: ProductSectionProps) {
-  const products = await getHomepageSection(section, 12);
+async function HomeProductSection({ section, locale, title, subtitle, href, badge, accentColor, userId }: ProductSectionProps) {
+  const products = await getHomepageSection(section, 12, userId);
   if (products.length === 0) return null;
   return <ProductSliderSection title={title[locale]} subtitle={subtitle?.[locale]} viewAllHref={href} products={products.map((product) => toSliderProduct(product, badge))} locale={locale} accentColor={accentColor} />;
 }
 
-async function LowerRecommendationSections({ locale }: { locale: Locale }) {
-  const data = await getHomepageData();
+async function LowerRecommendationSections({ locale, userId }: { locale: Locale; userId?: string | null }) {
+  const [data, personalizedPopular] = await Promise.all([
+    getHomepageData(),
+    userId ? getHomepageSection('popular', 24, userId) : Promise.resolve([]),
+  ]);
   const seen = new Set<string>();
-  const uniquePool = [...data.featured, ...data.bestSelling, ...data.popular, ...data.newest]
+  const uniquePool = [...personalizedPopular, ...data.featured, ...data.bestSelling, ...data.popular, ...data.newest]
     .filter((product) => !seen.has(product.id) && seen.add(product.id))
-    .slice(0, 20)
+    .slice(0, 24)
     .map((product) => toSliderProduct(product));
   if (uniquePool.length === 0) return null;
   return <><PersonalizedProductsSection products={uniquePool} locale={locale} /><RecentlyViewedSection products={uniquePool} locale={locale} /></>;
@@ -70,6 +75,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   const { locale: rawLocale } = await params;
   const locale = (['fa', 'ps', 'en'].includes(rawLocale) ? rawLocale : 'fa') as Locale;
   setRequestLocale(locale);
+  const user = await getCurrentUser();
 
   return (
     <div className="min-h-dvh bg-background">
@@ -86,41 +92,17 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           <TraditionalProductsBanner locale={locale} />
         </Suspense>
         <Suspense fallback={<SectionSkeleton />}>
-          <HomeProductSection
-            section="featured"
-            locale={locale}
-            title={{ en: 'Today’s picks', ps: 'د نن غوره انتخابونه', fa: 'انتخاب‌های امروز' }}
-            subtitle={{ en: 'A focused set of products worth your attention', ps: 'د پام وړ او غوره محصولات', fa: 'مجموعه‌ای متمرکز از محصولات ارزشمند' }}
-            href="/shop?badge=sale"
-            badge="featured"
-            accentColor="bg-rose-500"
-          />
+          <HomeProductSection section="featured" locale={locale} userId={user?.id} title={{ en: 'Today’s picks', ps: 'د نن غوره انتخابونه', fa: 'انتخاب‌های امروز' }} subtitle={{ en: 'A focused set of products worth your attention', ps: 'د پام وړ او غوره محصولات', fa: 'مجموعه‌ای متمرکز از محصولات ارزشمند' }} href="/shop?badge=sale" badge="featured" accentColor="bg-rose-500" />
         </Suspense>
         <Suspense fallback={<SectionSkeleton />}>
-          <HomeProductSection
-            section="bestSelling"
-            locale={locale}
-            title={{ en: 'Best sellers', ps: 'تر ټولو ډېر پلورل شوي', fa: 'پرفروش‌ترین‌ها' }}
-            subtitle={{ en: 'Products customers keep choosing', ps: 'هغه محصولات چې پیرودونکي یې بیا غوره کوي', fa: 'محصولاتی که مشتریان بیشتر انتخاب می‌کنند' }}
-            href="/shop?sort=bestSelling"
-            badge="best"
-            accentColor="bg-amber-500"
-          />
+          <HomeProductSection section="bestSelling" locale={locale} userId={user?.id} title={{ en: 'Best sellers', ps: 'تر ټولو ډېر پلورل شوي', fa: 'پرفروش‌ترین‌ها' }} subtitle={{ en: 'Products customers keep choosing', ps: 'هغه محصولات چې پیرودونکي یې بیا غوره کوي', fa: 'محصولاتی که مشتریان بیشتر انتخاب می‌کنند' }} href="/shop?sort=bestSelling" badge="best" accentColor="bg-amber-500" />
         </Suspense>
         <DynamicBannerStrip locale={locale} placement="HOME_PROMO_1" />
         <Suspense fallback={<SectionSkeleton />}>
-          <HomeProductSection
-            section="newest"
-            locale={locale}
-            title={{ en: 'Fresh arrivals', ps: 'تازه راغلي محصولات', fa: 'تازه‌واردها' }}
-            subtitle={{ en: 'New products to discover before everyone else', ps: 'نوي محصولات چې لومړی یې تاسو ومومئ', fa: 'محصولات تازه برای کشف زودتر از دیگران' }}
-            href="/shop?sort=newest"
-            badge="new"
-            accentColor="bg-sky-500"
-          />
+          <HomeProductSection section="newest" locale={locale} userId={user?.id} title={{ en: 'Fresh arrivals', ps: 'تازه راغلي محصولات', fa: 'تازه‌واردها' }} subtitle={{ en: 'New products to discover before everyone else', ps: 'نوي محصولات چې لومړی یې تاسو ومومئ', fa: 'محصولات تازه برای کشف زودتر از دیگران' }} href="/shop?sort=newest" badge="new" accentColor="bg-sky-500" />
         </Suspense>
         <Suspense fallback={<SectionSkeleton />}>
-          <LowerRecommendationSections locale={locale} />
+          <LowerRecommendationSections locale={locale} userId={user?.id} />
         </Suspense>
         <DynamicBannerStrip locale={locale} placement="HOME_MID" />
         <BecomeSellerBanner locale={locale} />
