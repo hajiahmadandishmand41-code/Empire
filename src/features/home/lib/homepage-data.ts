@@ -1,6 +1,7 @@
 import { cache } from 'react';
 import { getProductService } from '@/server/infrastructure/registry';
 import { rankProductsForUser } from './personalized-ranking';
+import { getCurrentUser } from '@/lib/auth/current-user';
 import type { ProductSummary } from '@/types';
 import type { SliderProduct } from '../components/product-slider-section';
 
@@ -17,8 +18,10 @@ export const getHomepageData = cache(async () => {
 export const getHomepageSection = cache(async (section: HomeSection, size = 12, userId?: string | null): Promise<ProductSummary[]> => {
   try {
     const service = getProductService();
-    const personalized = Boolean(userId) && (section === 'popular' || section === 'bestSelling');
-    const candidateSize = personalized ? Math.max(size * 3, 36) : size;
+    const personalized = section === 'popular' || section === 'bestSelling';
+    const effectiveUserId = userId ?? (personalized ? (await getCurrentUser())?.id ?? null : null);
+    const usePersonalization = Boolean(effectiveUserId) && personalized;
+    const candidateSize = usePersonalization ? Math.max(size * 3, 36) : size;
     const result = await service.listProducts({
       isActive: true,
       page: 1,
@@ -26,7 +29,7 @@ export const getHomepageSection = cache(async (section: HomeSection, size = 12, 
       sort: section === 'featured' ? 'featured' : section,
       ...(section === 'featured' ? { featured: true } : {}),
     });
-    const products = personalized ? await rankProductsForUser(result.products, userId!, section) : result.products;
+    const products = usePersonalization ? await rankProductsForUser(result.products, effectiveUserId!, section) : result.products;
     return products.slice(0, size);
   } catch {
     return [];
