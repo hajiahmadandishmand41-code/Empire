@@ -56,7 +56,7 @@ export async function applyPaymentResult(params: {
       // Only an order still waiting for payment may release its reservation.
       // A stale failure must never move an already-confirmed order backwards.
       if (order.status === 'pending') {
-        for (const item of order.items) {
+        for (const item of current.order.items) {
           await tx.product.update({
             where: { id: item.productId },
             data: {
