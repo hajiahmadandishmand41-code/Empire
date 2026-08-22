@@ -9,7 +9,7 @@ export function HomeDiscoveryStrip({ locale }: { locale: Locale }) {
         eyebrow: 'Discover more',
         items: [
           { href: '/categories', label: 'Browse categories', icon: Compass },
-          { href: '/stores', label: 'Explore stores', icon: Store },
+          { href: '/discover#stores', label: 'Explore stores', icon: Store },
           { href: '/traditional', label: 'Afghan products', icon: Sparkles },
         ],
       }
@@ -18,7 +18,7 @@ export function HomeDiscoveryStrip({ locale }: { locale: Locale }) {
           eyebrow: 'نور هم ومومئ',
           items: [
             { href: '/categories', label: 'وېشنیزې وپلټئ', icon: Compass },
-            { href: '/stores', label: 'پلورنځي وپلټئ', icon: Store },
+            { href: '/discover#stores', label: 'پلورنځي وپلټئ', icon: Store },
             { href: '/traditional', label: 'افغاني محصولات', icon: Sparkles },
           ],
         }
@@ -26,7 +26,7 @@ export function HomeDiscoveryStrip({ locale }: { locale: Locale }) {
           eyebrow: 'بیشتر کشف کنید',
           items: [
             { href: '/categories', label: 'دسته‌بندی‌ها', icon: Compass },
-            { href: '/stores', label: 'کشف فروشگاه‌ها', icon: Store },
+            { href: '/discover#stores', label: 'کشف فروشگاه‌ها', icon: Store },
             { href: '/traditional', label: 'محصولات وطنی', icon: Sparkles },
           ],
         };
