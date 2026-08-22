@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useEffect, useState } from 'react';
-import { Home, LayoutGrid, Search, ShoppingCart, User, X, ClipboardList, Heart, MapPin, Settings, Phone, Info, LogOut, ShieldCheck, Briefcase } from 'lucide-react';
+import { Home, LayoutGrid, Compass, ShoppingCart, User, X, ClipboardList, Heart, MapPin, Settings, Phone, Info, LogOut, ShieldCheck, Briefcase } from 'lucide-react';
 import { Link, usePathname, useRouter } from '@/i18n/routing';
 import { useLocale, useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
@@ -54,7 +54,7 @@ export function MarketplaceMobileNavigation() {
 
   const isHome = pathname === '/';
   const isCategories = pathname.includes('/categories') || pathname.includes('/category/');
-  const isSearch = pathname.includes('/search');
+  const isExplore = pathname.includes('/discover');
   const isCart = pathname.includes('/cart') || pathname.includes('/checkout');
   const isAccount = pathname.includes('/profile') || pathname.includes('/orders') || pathname.includes('/settings') || pathname.includes('/seller') || pathname.includes('/admin');
 
@@ -71,30 +71,30 @@ export function MarketplaceMobileNavigation() {
   ] : [];
 
   function NavItem({ href, active, label, children }: { href: string; active: boolean; label: string; children: React.ReactNode }) {
-    return <Link href={href as never} aria-label={label} className={cn('relative flex flex-1 flex-col items-center gap-1 py-2.5 text-[10px] font-semibold transition-colors duration-150', active ? 'text-primary' : 'text-muted-foreground')}>
+    return <Link href={href as never} aria-label={label} className={cn('relative flex flex-1 flex-col items-center gap-1 py-2 text-[10px] font-semibold transition-colors duration-150', active ? 'text-primary' : 'text-muted-foreground')}>
       {active && <span className="absolute inset-x-4 top-0 h-[2px] rounded-b-full bg-primary" aria-hidden />}
-      <span className={cn('flex h-9 w-9 items-center justify-center rounded-xl transition-colors', active ? 'bg-accent' : '')}>{children}</span>
+      <span className={cn('flex h-9 w-9 items-center justify-center rounded-xl transition-colors', active ? 'bg-accent' : 'group-hover:bg-muted')}>{children}</span>
       <span className="max-w-[72px] truncate">{label}</span>
     </Link>;
   }
 
   const accountLabel = locale === 'en' ? 'Account' : locale === 'ps' ? 'حساب' : 'حساب';
-  const searchLabel = locale === 'en' ? 'Search' : locale === 'ps' ? 'لټون' : 'جستجو';
+  const exploreLabel = locale === 'en' ? 'Explore' : locale === 'ps' ? 'کشف' : 'کشف';
   const categoriesLabel = locale === 'en' ? 'Categories' : locale === 'ps' ? 'وېشنیزې' : 'دسته‌ها';
 
   return <>
-    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/95 shadow-[0_-6px_24px_hsl(var(--foreground)/.06)] backdrop-blur-xl md:hidden" aria-label="Mobile navigation">
-      <div className="mx-auto grid max-w-md grid-cols-5 items-stretch px-1">
+    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border/80 bg-card/90 shadow-[0_-10px_30px_hsl(var(--foreground)/.08)] backdrop-blur-xl md:hidden" aria-label="Mobile navigation">
+      <div className="mx-auto grid max-w-md grid-cols-5 items-stretch px-1 py-0.5">
         <NavItem href="/" active={isHome} label={t('home')}><Home className="h-5 w-5" /></NavItem>
         <NavItem href="/categories" active={isCategories} label={categoriesLabel}><LayoutGrid className="h-5 w-5" /></NavItem>
-        <NavItem href="/search" active={isSearch} label={searchLabel}><Search className="h-5 w-5" /></NavItem>
+        <NavItem href="/discover" active={isExplore} label={exploreLabel}><Compass className="h-5 w-5" /></NavItem>
         <NavItem href="/cart" active={isCart} label={t('cart')}>
           <span className="relative flex h-6 w-6 items-center justify-center">
             <ShoppingCart className="h-5 w-5" />
             {cartCount > 0 && <span aria-hidden="true" className="absolute -end-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold leading-none text-white">{cartCount > 9 ? '۹+' : cartCount}</span>}
           </span>
         </NavItem>
-        <button type="button" onClick={() => user ? setAccountOpen(true) : userLoaded && router.push('/auth/login')} className={cn('relative flex flex-1 flex-col items-center gap-1 py-2.5 text-[10px] font-semibold', isAccount ? 'text-primary' : 'text-muted-foreground')} aria-label={user ? accountLabel : h('login')}>
+        <button type="button" onClick={() => user ? setAccountOpen(true) : userLoaded && router.push('/auth/login')} className={cn('relative flex flex-1 flex-col items-center gap-1 py-2 text-[10px] font-semibold', isAccount ? 'text-primary' : 'text-muted-foreground')} aria-label={user ? accountLabel : h('login')}>
           {isAccount && <span className="absolute inset-x-4 top-0 h-[2px] rounded-b-full bg-primary" aria-hidden />}
           <span className={cn('flex h-9 w-9 items-center justify-center rounded-xl', isAccount ? 'bg-accent' : '')}>{user ? <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">{user.fullName.charAt(0)}</span> : <User className="h-5 w-5" />}</span>
           <span className="max-w-[72px] truncate">{user ? accountLabel : userLoaded ? h('login') : c('loading')}</span>
