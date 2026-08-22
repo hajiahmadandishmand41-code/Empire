@@ -10,22 +10,16 @@ import { Input } from '@/components/ui/input';
 export function SellerApplicationForm({ initial }: { initial?: { shopName?: string | null; ownerName?: string | null; phone?: string | null; address?: string | null; description?: string | null } }) {
   const locale = useLocale();
   const router = useRouter();
-  const [values, setValues] = React.useState({
-    shopName: initial?.shopName ?? '',
-    ownerName: initial?.ownerName ?? '',
-    phone: initial?.phone ?? '',
-    address: initial?.address ?? '',
-    description: initial?.description ?? '',
-  });
+  const [values, setValues] = React.useState({ shopName: initial?.shopName ?? '', ownerName: initial?.ownerName ?? '', phone: initial?.phone ?? '', address: initial?.address ?? '', description: initial?.description ?? '' });
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState('');
   const [success, setSuccess] = React.useState(false);
 
   const copy = locale === 'en'
-    ? { title: 'Seller application', shop: 'Shop name', owner: 'Owner name', phone: 'Phone', address: 'Business address', description: 'What do you sell?', submit: 'Submit application', success: 'Application submitted. Our team will review it.', error: 'Could not submit the application.' }
+    ? { title: 'Seller application', shop: 'Shop name', owner: 'Owner name', phone: 'Phone', address: 'Business address', description: 'What do you sell?', submit: 'Send application to admin', success: 'Your application was sent to the admin team and is now waiting for review.', error: 'Could not submit the application.' }
     : locale === 'ps'
-      ? { title: 'د پلورونکي غوښتنلیک', shop: 'د پلورنځي نوم', owner: 'د مالک نوم', phone: 'تلیفون', address: 'د کاروبار پته', description: 'تاسو څه شی پلورئ؟', submit: 'غوښتنلیک ولېږئ', success: 'غوښتنلیک ولېږل شو. زموږ ټیم به یې وڅېړي.', error: 'غوښتنلیک ونه لېږل شو.' }
-      : { title: 'درخواست فروشندگی', shop: 'نام فروشگاه', owner: 'نام مالک', phone: 'شماره تماس', address: 'آدرس کسب‌وکار', description: 'چه محصولاتی می‌فروشید؟', submit: 'ارسال درخواست', success: 'درخواست شما ثبت شد و تیم ما آن را بررسی می‌کند.', error: 'ارسال درخواست ناموفق بود.' };
+      ? { title: 'د پلورونکي غوښتنلیک', shop: 'د پلورنځي نوم', owner: 'د مالک نوم', phone: 'تلیفون', address: 'د کاروبار پته', description: 'تاسو څه شی پلورئ؟', submit: 'ادارې ته غوښتنلیک ولېږئ', success: 'ستاسو غوښتنلیک ادارې ته ولېږل شو او اوس د کتنې په تمه دی.', error: 'غوښتنلیک ونه لېږل شو.' }
+      : { title: 'درخواست فروشندگی', shop: 'نام فروشگاه', owner: 'نام مالک', phone: 'شماره تماس', address: 'آدرس کسب‌وکار', description: 'چه محصولاتی می‌فروشید؟', submit: 'ارسال درخواست به مدیریت', success: 'درخواست شما برای مدیریت ارسال شد و اکنون در انتظار بررسی است.', error: 'ارسال درخواست ناموفق بود.' };
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -33,12 +27,7 @@ export function SellerApplicationForm({ initial }: { initial?: { shopName?: stri
     setSuccess(false);
     setLoading(true);
     try {
-      const response = await fetch('/api/seller/apply', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'same-origin',
-        body: JSON.stringify(values),
-      });
+      const response = await fetch('/api/seller/apply', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(values) });
       const data = await response.json().catch(() => null) as { ok?: boolean; error?: { message?: string } } | null;
       if (!response.ok || !data?.ok) {
         setError(data?.error?.message ?? copy.error);
@@ -61,7 +50,7 @@ export function SellerApplicationForm({ initial }: { initial?: { shopName?: stri
     <form onSubmit={submit} className="rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-7" noValidate>
       <div className="mb-6 flex items-start gap-3">
         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary"><Store className="h-5 w-5" /></span>
-        <div><h1 className="text-xl font-extrabold tracking-tight sm:text-2xl">{copy.title}</h1><p className="mt-1 text-sm text-muted-foreground">{copy.description}</p></div>
+        <div><h1 className="text-xl font-extrabold tracking-tight sm:text-2xl">{copy.title}</h1><p className="mt-1 text-sm text-muted-foreground">{locale === 'fa' ? 'اطلاعات را کامل کنید؛ درخواست در پنل مدیریت ثبت و برای بررسی ارسال می‌شود.' : locale === 'ps' ? 'معلومات بشپړ کړئ؛ غوښتنلیک د ادارې په پینل کې ثبت او د کتنې لپاره لېږل کېږي.' : 'Complete the form; the application is saved in the admin panel for review.'}</p></div>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="space-y-1.5 text-sm font-medium"><span>{copy.shop} *</span><Input required value={values.shopName} onChange={(e) => set('shopName', e.target.value)} /></label>
