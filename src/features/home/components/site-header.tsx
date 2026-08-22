@@ -39,7 +39,7 @@ export async function SiteHeader() {
             <Link href="/traditional" className="inline-flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 px-3.5 py-2 text-xs font-bold text-primary transition-colors hover:border-primary/35 hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><Sparkles className="h-3.5 w-3.5" aria-hidden="true" />{traditionalLabel}</Link>
           </div>
           <div className="flex min-w-0 flex-1 items-center"><HeaderSearchBar locale={locale} /></div>
-          <div className="flex shrink-0 items-center gap-0.5 sm:gap-1.5"><LanguageSwitcher /><ThemeToggle variant="icon" lang={locale} /><div className="hidden md:flex"><HeaderAuthActions /></div><CartBadge /></div>
+          <div className="flex shrink-0 items-center gap-0.5 sm:gap-1.5"><LanguageSwitcher /><ThemeToggle variant="icon" lang={locale} /><div className="hidden md:flex"><HeaderAuthActions /></div><div className="hidden md:flex"><CartBadge /></div></div>
         </div></div>
       </div>
       <HeaderCategoryNav />
