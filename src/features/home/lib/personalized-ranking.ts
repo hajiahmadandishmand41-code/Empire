@@ -2,7 +2,7 @@ import { prisma, isDatabaseConfigured } from '@/lib/db';
 import { computeProductScore, RANKING_PRESETS } from '@/server/algorithms/product-ranking';
 import type { ProductSummary } from '@/types';
 
-const COMPLETED_ORDER_STATUSES = ['confirmed', 'processing', 'shipped', 'delivered'] as const;
+const COMPLETED_ORDER_STATUSES = ['confirmed', 'processing', 'shipped', 'delivered'];
 
 type Preference = { category: number; seller: number };
 
