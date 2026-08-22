@@ -7,6 +7,19 @@ type CategoryKey = CategoryItem['key'];
 
 interface CategoryCardProps { item: CategoryItem; }
 
+const categoryEmoji: Record<CategoryKey, string> = {
+  clothing: '👕',
+  digital: '📱',
+  homeAppliances: '🏠',
+  beauty: '✨',
+  sports: '🏃',
+  footwear: '👟',
+  baby: '🧸',
+  books: '📚',
+  electronics: '⚡',
+  watches: '⌚',
+};
+
 export async function CategoryCard({ item }: CategoryCardProps) {
   const { key, Icon, accent } = item;
   const t = await getTranslations('home.categories.items');
@@ -21,8 +34,13 @@ export async function CategoryCard({ item }: CategoryCardProps) {
         'dark:border-gray-700/50 dark:bg-gray-800/60 dark:hover:border-rose-700/60 dark:hover:bg-gray-700/70',
       )}
     >
-      <div className={cn('flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br shadow-sm transition-transform duration-250 group-hover:scale-110 group-hover:rotate-3', accent.from, accent.to)}>
-        <Icon className="h-6 w-6 sm:h-7 sm:w-7 text-gray-700 dark:text-gray-100 drop-shadow-sm" aria-hidden />
+      <div className="relative">
+        <div className={cn('flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br shadow-sm transition-transform duration-250 group-hover:scale-110 group-hover:rotate-3', accent.from, accent.to)}>
+          <Icon className="h-6 w-6 sm:h-7 sm:w-7 text-gray-700 dark:text-gray-100 drop-shadow-sm" aria-hidden />
+        </div>
+        <span className="absolute -end-2 -top-2 flex h-6 min-w-6 items-center justify-center rounded-full border border-card bg-background px-1 text-sm shadow-sm transition-transform duration-200 group-hover:scale-110" aria-hidden="true">
+          {categoryEmoji[key]}
+        </span>
       </div>
       <span className={cn('text-[11px] sm:text-xs font-bold leading-tight transition-colors line-clamp-2', 'text-foreground group-hover:text-rose-600', 'dark:text-gray-200 dark:group-hover:text-rose-300')}>
         {title}
