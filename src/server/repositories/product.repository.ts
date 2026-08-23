@@ -15,18 +15,10 @@ import { buildSearchWhereClause } from '../algorithms/search-scoring';
 function jsonValue(raw: string | null | undefined): Prisma.InputJsonValue | typeof Prisma.JsonNull {
   if (raw == null || raw.trim() === '') return Prisma.JsonNull;
   let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw) as unknown;
-  } catch {
-    throw new Error('Invalid JSON product field');
-  }
-
+  try { parsed = JSON.parse(raw) as unknown; } catch { throw new Error('Invalid JSON product field'); }
   const normalize = (value: unknown): Prisma.InputJsonValue => {
     if (typeof value === 'string' || typeof value === 'boolean') return value;
-    if (typeof value === 'number') {
-      if (!Number.isFinite(value)) throw new Error('Invalid non-finite JSON number');
-      return value;
-    }
+    if (typeof value === 'number') { if (!Number.isFinite(value)) throw new Error('Invalid non-finite JSON number'); return value; }
     if (Array.isArray(value)) return value.map(normalize) as Prisma.InputJsonArray;
     if (value !== null && typeof value === 'object') {
       const object: Record<string, Prisma.InputJsonValue> = {};
@@ -35,7 +27,6 @@ function jsonValue(raw: string | null | undefined): Prisma.InputJsonValue | type
     }
     throw new Error('Product JSON must contain only JSON-compatible values');
   };
-
   return normalize(parsed);
 }
 
@@ -66,15 +57,8 @@ export interface UpdateProductInput {
   primaryImageIndex?: number;
 }
 
-const PRODUCT_LIST_INCLUDE = {
-  category: true,
-  seller: { select: { id: true, sellerShopName: true, sellerWhatsapp: true } },
-} satisfies Prisma.ProductInclude;
-
-const PRODUCT_DETAIL_INCLUDE = {
-  category: true,
-  seller: { select: { id: true, sellerShopName: true, sellerWhatsapp: true, sellerBio: true, sellerLogoUrl: true } },
-} satisfies Prisma.ProductInclude;
+const PRODUCT_LIST_INCLUDE = { category: true, seller: { select: { id: true, sellerShopName: true, sellerWhatsapp: true } } } satisfies Prisma.ProductInclude;
+const PRODUCT_DETAIL_INCLUDE = { category: true, seller: { select: { id: true, sellerShopName: true, sellerWhatsapp: true, sellerBio: true, sellerLogoUrl: true } } } satisfies Prisma.ProductInclude;
 
 export interface IProductRepository {
   findMany(filter: ProductListFilter): Promise<PaginatedResult<ProductRow>>;
@@ -106,18 +90,14 @@ export class PrismaProductRepository implements IProductRepository {
     const pageSize = Math.min(100, Math.max(1, filter.pageSize ?? 24));
     const where = this.buildWhereClause(filter);
     const orderBy = buildProductOrderBy(filter.sort);
-    const [rows, total] = await Promise.all([
-      this.prisma.product.findMany({ where, include: PRODUCT_LIST_INCLUDE, orderBy, take: pageSize, skip: (page - 1) * pageSize }),
-      this.prisma.product.count({ where }),
-    ]);
+    const rows = await this.prisma.product.findMany({ where, include: PRODUCT_LIST_INCLUDE, orderBy, take: pageSize, skip: (page - 1) * pageSize });
+    const total = await this.prisma.product.count({ where });
     return toPaginated(rows as unknown as ProductRow[], total, page, pageSize);
   }
 
   async findSearchCandidates(where: Prisma.ProductWhereInput, take: number, skip: number): Promise<{ rows: ProductRow[]; total: number }> {
-    const [rows, total] = await Promise.all([
-      this.prisma.product.findMany({ where, include: PRODUCT_LIST_INCLUDE, orderBy: [{ inStock: 'desc' }, { salesCount: 'desc' }, { createdAt: 'desc' }], take, skip }),
-      this.prisma.product.count({ where }),
-    ]);
+    const rows = await this.prisma.product.findMany({ where, include: PRODUCT_LIST_INCLUDE, orderBy: [{ inStock: 'desc' }, { salesCount: 'desc' }, { createdAt: 'desc' }], take, skip });
+    const total = await this.prisma.product.count({ where });
     return { rows: rows as unknown as ProductRow[], total };
   }
 
@@ -178,9 +158,7 @@ export class PrismaProductRepository implements IProductRepository {
 
   async update(id: string, input: UpdateProductInput): Promise<ProductDetailRow> {
     const data: Record<string, unknown> = { ...input };
-    for (const field of ['imagesJson', 'featuresJson', 'dimensionsJson', 'tagsJson', 'attributesJson'] as const) {
-      if (field in input) data[field] = jsonValue(input[field]);
-    }
+    for (const field of ['imagesJson', 'featuresJson', 'dimensionsJson', 'tagsJson', 'attributesJson'] as const) if (field in input) data[field] = jsonValue(input[field]);
     if (input.compareAtPrice !== undefined) data.badge = input.compareAtPrice != null ? 'sale' : null;
     if (typeof input.stockQuantity === 'number' && input.inStock === undefined) data.inStock = input.stockQuantity > 0;
     const row = await this.prisma.product.update({ where: { id }, data: data as never, include: PRODUCT_DETAIL_INCLUDE });
@@ -188,10 +166,7 @@ export class PrismaProductRepository implements IProductRepository {
   }
 
   async delete(id: string): Promise<void> { await this.prisma.product.delete({ where: { id } }); }
-
-  async incrementViewCount(id: string): Promise<void> {
-    await this.prisma.product.update({ where: { id }, data: { viewCount: { increment: 1 } }, select: { id: true } });
-  }
+  async incrementViewCount(id: string): Promise<void> { await this.prisma.product.update({ where: { id }, data: { viewCount: { increment: 1 } }, select: { id: true } }); }
 
   async getRatings(productIds: string[]): Promise<Map<string, { average: number; count: number }>> {
     if (productIds.length === 0) return new Map();
@@ -206,12 +181,9 @@ export class PrismaProductRepository implements IProductRepository {
     const base: Prisma.ProductWhereInput = { isActive: filter.isActive !== false };
     if (filter.inStock !== undefined) base.inStock = filter.inStock;
     if (filter.isTraditional !== undefined) (base as Record<string, unknown>).isTraditional = filter.isTraditional;
-    if (filter.categoryKey) base.category = { key: filter.categoryKey };
-    else if (filter.categoryId) base.categoryId = filter.categoryId;
+    if (filter.categoryKey) base.category = { key: filter.categoryKey }; else if (filter.categoryId) base.categoryId = filter.categoryId;
     if (filter.sellerId) base.sellerId = filter.sellerId;
-    if (filter.priceMin !== undefined || filter.priceMax !== undefined) {
-      base.price = { ...(filter.priceMin !== undefined ? { gte: filter.priceMin } : {}), ...(filter.priceMax !== undefined ? { lte: filter.priceMax } : {}) };
-    }
+    if (filter.priceMin !== undefined || filter.priceMax !== undefined) base.price = { ...(filter.priceMin !== undefined ? { gte: filter.priceMin } : {}), ...(filter.priceMax !== undefined ? { lte: filter.priceMax } : {}) };
     if (filter.badge) base.badge = filter.badge;
     if (filter.hasDiscount) base.compareAtPrice = { not: null };
     if (filter.featured) base.OR = [{ compareAtPrice: { not: null } }, { salesCount: { gt: 0 } }];
