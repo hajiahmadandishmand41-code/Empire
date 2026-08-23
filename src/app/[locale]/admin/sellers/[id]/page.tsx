@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ArrowRight, Mail, Phone, Store, Package, CalendarDays, ShieldCheck } from 'lucide-react';
+import { ArrowRight, Mail, Phone, Store, Package, CalendarDays, ShieldCheck, Tag } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { SellerActions, SellerStatusBadge } from '@/features/admin/components/seller-actions';
 import { getAdminSeller } from '@/features/admin/lib/queries';
@@ -61,10 +61,14 @@ export default async function AdminSellerDetailPage({ params }: Props) {
         </Card>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-3">
+      <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Link href={`/${locale}/store/${seller.id}`} className="rounded-2xl border border-border bg-card p-5 transition hover:-translate-y-0.5 hover:bg-muted/30"><Store className="h-5 w-5 text-primary" /><p className="mt-3 font-bold">مشاهده فروشگاه</p><p className="mt-1 text-xs text-muted-foreground">پیش‌نمایش فروشگاه عمومی این فروشنده.</p></Link>
+        <Link href={`/${locale}/brands`} className="rounded-2xl border border-border bg-card p-5 transition hover:-translate-y-0.5 hover:bg-muted/30"><Tag className="h-5 w-5 text-primary" /><p className="mt-3 font-bold">برندهای فروشگاه</p><p className="mt-1 text-xs text-muted-foreground">مشاهده فهرست برندهای عمومی فروشگاه‌ها.</p></Link>
         <Link href={`/${locale}/admin/products?q=${encodeURIComponent(seller.shopName ?? seller.fullName)}`} className="rounded-2xl border border-border bg-card p-5 transition hover:-translate-y-0.5 hover:bg-muted/30"><Package className="h-5 w-5 text-primary" /><p className="mt-3 font-bold">محصولات فروشنده</p><p className="mt-1 text-xs text-muted-foreground">مشاهده و مدیریت محصولات این فروشنده.</p></Link>
         <Link href={`/${locale}/admin/orders`} className="rounded-2xl border border-border bg-card p-5 transition hover:-translate-y-0.5 hover:bg-muted/30"><Store className="h-5 w-5 text-primary" /><p className="mt-3 font-bold">سفارش‌ها</p><p className="mt-1 text-xs text-muted-foreground">رفتن به مرکز مدیریت سفارش‌ها.</p></Link>
-        <Link href={`/${locale}/admin/payouts`} className="rounded-2xl border border-border bg-card p-5 transition hover:-translate-y-0.5 hover:bg-muted/30"><ShieldCheck className="h-5 w-5 text-primary" /><p className="mt-3 font-bold">برداشت‌ها</p><p className="mt-1 text-xs text-muted-foreground">بررسی وضعیت پرداخت و برداشت فروشندگان.</p></Link>
+      </section>
+      <section>
+        <Link href={`/${locale}/admin/payouts`} className="inline-flex rounded-2xl border border-border bg-card px-5 py-3 text-sm font-bold transition hover:bg-muted/30"><ShieldCheck className="me-2 h-5 w-5 text-primary" />برداشت‌ها</Link>
       </section>
     </div>
   );
