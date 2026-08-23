@@ -34,7 +34,7 @@ export interface ProductListFilter {
   q?: string; categoryKey?: string; categoryId?: string; sellerId?: string;
   priceMin?: number; priceMax?: number; inStock?: boolean; featured?: boolean;
   badge?: string; isActive?: boolean; isTraditional?: boolean; hasDiscount?: boolean;
-  sort?: string; page?: number; pageSize?: number;
+  minRating?: number; sort?: string; page?: number; pageSize?: number;
 }
 
 export interface CreateProductInput {
@@ -88,7 +88,7 @@ export class PrismaProductRepository implements IProductRepository {
   async findMany(filter: ProductListFilter): Promise<PaginatedResult<ProductRow>> {
     const page = Math.max(1, filter.page ?? 1);
     const pageSize = Math.min(100, Math.max(1, filter.pageSize ?? 24));
-    const where = this.buildWhereClause(filter);
+    const where = await this.buildWhereClause(filter);
     const orderBy = buildProductOrderBy(filter.sort);
     const rows = await this.prisma.product.findMany({ where, include: PRODUCT_LIST_INCLUDE, orderBy, take: pageSize, skip: (page - 1) * pageSize });
     const total = await this.prisma.product.count({ where });
@@ -177,7 +177,7 @@ export class PrismaProductRepository implements IProductRepository {
   async countByCategory(categoryId: string): Promise<number> { return this.prisma.product.count({ where: { categoryId, isActive: true } }); }
   async countBySeller(sellerId: string): Promise<number> { return this.prisma.product.count({ where: { sellerId } }); }
 
-  private buildWhereClause(filter: ProductListFilter): Prisma.ProductWhereInput {
+  private async buildWhereClause(filter: ProductListFilter): Promise<Prisma.ProductWhereInput> {
     const base: Prisma.ProductWhereInput = { isActive: filter.isActive !== false };
     if (filter.inStock !== undefined) base.inStock = filter.inStock;
     if (filter.isTraditional !== undefined) (base as Record<string, unknown>).isTraditional = filter.isTraditional;
@@ -186,6 +186,10 @@ export class PrismaProductRepository implements IProductRepository {
     if (filter.priceMin !== undefined || filter.priceMax !== undefined) base.price = { ...(filter.priceMin !== undefined ? { gte: filter.priceMin } : {}), ...(filter.priceMax !== undefined ? { lte: filter.priceMax } : {}) };
     if (filter.badge) base.badge = filter.badge;
     if (filter.hasDiscount) base.compareAtPrice = { not: null };
+    if (filter.minRating !== undefined) {
+      const ids = await this.findProductIdsWithMinRating(filter.minRating);
+      base.id = { in: ids };
+    }
     if (filter.featured) base.OR = [{ compareAtPrice: { not: null } }, { salesCount: { gt: 0 } }];
     if (filter.q) return { ...base, ...buildSearchWhereClause(filter.q) };
     return base;
