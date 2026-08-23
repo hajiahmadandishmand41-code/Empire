@@ -3,7 +3,7 @@
 import * as React from 'react';
 import Image from 'next/image';
 import { Link } from '@/i18n/routing';
-import { ChevronLeft, ChevronRight, Home, Compass, Sparkles, Store, Tags } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Home, Compass, Sparkles, Store, Tags, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type CampaignBanner = {
@@ -26,7 +26,7 @@ type VisualSlide = {
   ctaLabel: string;
   href: string;
   theme: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: LucideIcon;
 };
 
 type ImageSlide = CampaignBanner & { kind: 'image' };
@@ -39,12 +39,12 @@ function bannerCopy(locale: string) {
 }
 
 function fallbackSlides(locale: string): VisualSlide[] {
-  const fa = [
-    { id: 'local', title: 'محصولات وطنی', subtitle: 'حمایت از تولید ملی با انتخاب‌های باکیفیت و اصیل.', ctaLabel: 'مشاهده محصولات', href: '/traditional', theme: 'from-rose-100 via-pink-50 to-orange-100', icon: Sparkles },
-    { id: 'home', title: 'محصولات خانه و زندگی', subtitle: 'برای خانه‌ای زیباتر و خریدی کاربردی‌تر، انتخاب‌های تازه را ببینید.', ctaLabel: 'خرید برای خانه', href: '/categories', theme: 'from-amber-100 via-yellow-50 to-lime-100', icon: Home },
-    { id: 'stores', title: 'فروشگاه‌های ایشاپ', subtitle: 'فروشگاه‌های معتبر و فروشندگان را یکجا کشف کنید.', ctaLabel: 'مشاهده فروشگاه‌ها', href: '/stores', theme: 'from-violet-100 via-fuchsia-50 to-purple-100', icon: Store },
-    { id: 'discounts', title: 'تخفیف‌های ویژه', subtitle: 'قیمت‌های جذاب و پیشنهادهایی که ارزش خرید بیشتری دارند.', ctaLabel: 'مشاهده تخفیف‌ها', href: '/shop?badge=sale', theme: 'from-emerald-100 via-teal-50 to-cyan-100', icon: Tags },
-    { id: 'discover', title: 'کشف بهترین‌ها', subtitle: 'پیشنهادهای هوشمند بر اساس محبوبیت، تازگی و سلیقه شما.', ctaLabel: 'شروع کشف', href: '/discover', theme: 'from-sky-100 via-blue-50 to-indigo-100', icon: Compass },
+  const fa: VisualSlide[] = [
+    { id: 'local', kind: 'visual', title: 'محصولات وطنی', subtitle: 'حمایت از تولید ملی با انتخاب‌های باکیفیت و اصیل.', ctaLabel: 'مشاهده محصولات', href: '/traditional', theme: 'from-rose-100 via-pink-50 to-orange-100', icon: Sparkles },
+    { id: 'home', kind: 'visual', title: 'محصولات خانه و زندگی', subtitle: 'برای خانه‌ای زیباتر و خریدی کاربردی‌تر، انتخاب‌های تازه را ببینید.', ctaLabel: 'خرید برای خانه', href: '/categories', theme: 'from-amber-100 via-yellow-50 to-lime-100', icon: Home },
+    { id: 'stores', kind: 'visual', title: 'فروشگاه‌های ایشاپ', subtitle: 'فروشگاه‌های معتبر و فروشندگان را یکجا کشف کنید.', ctaLabel: 'مشاهده فروشگاه‌ها', href: '/stores', theme: 'from-violet-100 via-fuchsia-50 to-purple-100', icon: Store },
+    { id: 'discounts', kind: 'visual', title: 'تخفیف‌های ویژه', subtitle: 'قیمت‌های جذاب و پیشنهادهایی که ارزش خرید بیشتری دارند.', ctaLabel: 'مشاهده تخفیف‌ها', href: '/shop?badge=sale', theme: 'from-emerald-100 via-teal-50 to-cyan-100', icon: Tags },
+    { id: 'discover', kind: 'visual', title: 'کشف بهترین‌ها', subtitle: 'پیشنهادهای هوشمند بر اساس محبوبیت، تازگی و سلیقه شما.', ctaLabel: 'شروع کشف', href: '/discover', theme: 'from-sky-100 via-blue-50 to-indigo-100', icon: Compass },
   ];
   if (locale === 'en') return fa.map((item) => ({ ...item, title: item.id === 'local' ? 'Afghan products' : item.id === 'home' ? 'Home & lifestyle' : item.id === 'stores' ? 'Eshop stores' : item.id === 'discounts' ? 'Special discounts' : 'Discover the best', subtitle: item.id === 'local' ? 'Support local production with authentic, quality choices.' : item.id === 'home' ? 'Fresh practical picks for a more beautiful everyday life.' : item.id === 'stores' ? 'Discover trusted stores and sellers in one place.' : item.id === 'discounts' ? 'Find offers with prices worth taking a second look at.' : 'Smart picks ranked by popularity, freshness and your taste.', ctaLabel: item.id === 'local' ? 'View products' : item.id === 'home' ? 'Shop for home' : item.id === 'stores' ? 'View stores' : item.id === 'discounts' ? 'View discounts' : 'Start discovering' }));
   if (locale === 'ps') return fa.map((item) => ({ ...item, title: item.id === 'local' ? 'افغاني محصولات' : item.id === 'home' ? 'د کور او ژوند محصولات' : item.id === 'stores' ? 'د ایشاپ پلورنځي' : item.id === 'discounts' ? 'ځانګړي تخفیفونه' : 'غوره توکي ومومئ', ctaLabel: item.id === 'local' ? 'محصولات وګورئ' : item.id === 'home' ? 'د کور لپاره واخلئ' : item.id === 'stores' ? 'پلورنځي وګورئ' : item.id === 'discounts' ? 'تخفیفونه وګورئ' : 'کشف پیل کړئ' }));
