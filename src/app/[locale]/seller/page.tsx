@@ -31,7 +31,7 @@ async function getRecentOrders(sellerId: string) {
 async function getLowStockProducts(sellerId: string) {
   if (!isDatabaseConfigured()) return [];
   try {
-    return prisma.product.findMany({ where: { sellerId, isActive: true, stockQuantity: { lte: 5 } }, select: { id: true, name: true, slug: true, stockQuantity: true }, orderBy: { stockQuantity: 'asc' }, take: 5 });
+    return await prisma.product.findMany({ where: { sellerId, isActive: true, stockQuantity: { lte: 5 } }, select: { id: true, name: true, slug: true, stockQuantity: true }, orderBy: { stockQuantity: 'asc' }, take: 5 });
   } catch { return []; }
 }
 
