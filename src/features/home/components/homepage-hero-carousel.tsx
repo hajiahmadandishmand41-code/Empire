@@ -97,6 +97,7 @@ export function HomepageHeroCarousel({ banners = [], locale = 'fa' }: { banners?
   }
 
   const slide = slides[index] ?? visualFallbacks[0];
+  const SlideIcon = slide.kind === 'visual' ? slide.icon : Sparkles;
 
   return (
     <section className="mx-auto max-w-screen-xl px-3 pt-3 sm:px-6 sm:pt-5" aria-label={labels.aria}>
@@ -137,7 +138,7 @@ export function HomepageHeroCarousel({ banners = [], locale = 'fa' }: { banners?
                 <Link href={slide.href as never} className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-extrabold text-white shadow-md transition-transform duration-200 hover:-translate-y-0.5">{slide.ctaLabel}<ChevronLeft className="h-4 w-4" /></Link>
               </div>
               <div className="hidden h-36 w-36 shrink-0 items-center justify-center rounded-[32px] border border-white/50 bg-white/45 shadow-xl backdrop-blur-sm sm:flex lg:h-48 lg:w-48" aria-hidden="true">
-                <slide.icon className="h-20 w-20 text-slate-800 lg:h-24 lg:w-24" />
+                <SlideIcon className="h-20 w-20 text-slate-800 lg:h-24 lg:w-24" />
               </div>
             </div>
           </div>
