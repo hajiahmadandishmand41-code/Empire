@@ -9,7 +9,7 @@ export function HomeDiscoveryStrip({ locale }: { locale: Locale }) {
         items: [
           { href: '/stores', label: 'Stores', icon: Store },
           { href: '/brands', label: 'Brands', icon: BadgeCheck },
-          { href: '/shop?badge=sale', label: 'Discounts', icon: Tags },
+          { href: '/discounts', label: '20%+ Discounts', icon: Tags },
         ],
       }
     : locale === 'ps'
@@ -17,14 +17,14 @@ export function HomeDiscoveryStrip({ locale }: { locale: Locale }) {
           items: [
             { href: '/stores', label: 'پلورنځي', icon: Store },
             { href: '/brands', label: 'برانډونه', icon: BadgeCheck },
-            { href: '/shop?badge=sale', label: 'تخفیفونه', icon: Tags },
+            { href: '/discounts', label: '۲۰٪+ تخفیفونه', icon: Tags },
           ],
         }
       : {
           items: [
             { href: '/stores', label: 'فروشگاه‌ها', icon: Store },
             { href: '/brands', label: 'برندها', icon: BadgeCheck },
-            { href: '/shop?badge=sale', label: 'تخفیف‌ها', icon: Tags },
+            { href: '/discounts', label: 'تخفیف ۲۰٪+', icon: Tags },
           ],
         };
 
