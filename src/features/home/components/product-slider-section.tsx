@@ -69,24 +69,24 @@ function toProductSummary(product: SliderProduct): ProductSummary {
 
 export function ProductSliderSection({ title, subtitle, viewAllHref, accentColor = 'bg-rose-600', products, locale = 'fa', currency = 'AFN', skeleton = false }: ProductSliderSectionProps) {
   const trackRef = React.useRef<HTMLDivElement>(null);
-  const scroll = (dir: 1 | -1) => trackRef.current?.scrollBy({ left: dir * 620, behavior: 'smooth' });
+  const scroll = (dir: 1 | -1) => trackRef.current?.scrollBy({ left: dir * 540, behavior: 'smooth' });
   const allLabel = locale === 'en' ? 'View all' : locale === 'ps' ? 'ټول' : 'همه';
   if (products.length === 0 && !skeleton) return null;
 
-  return <section className="border-b border-border bg-background py-6 sm:py-8" aria-label={title || undefined}>
+  return <section className="border-b border-border bg-background py-5 sm:py-7" aria-label={title || undefined}>
     <div className="mx-auto max-w-screen-xl px-3 sm:px-6">
-      <div className="mb-4 flex items-end justify-between gap-3">
-        <div className="flex items-center gap-2.5">
-          {title && <span className={cn('h-8 w-1 rounded-full', accentColor)} />}
-          <div>{title && <h2 className="text-sm font-black tracking-tight sm:text-base">{title}</h2>}{subtitle && <p className="mt-0.5 text-[11px] text-muted-foreground">{subtitle}</p>}</div>
+      <div className="mb-3.5 flex items-end justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2">
+          {title && <span className={cn('h-7 w-1 rounded-full', accentColor)} />}
+          <div className="min-w-0">{title && <h2 className="truncate text-sm font-black tracking-tight sm:text-base">{title}</h2>}{subtitle && <p className="mt-0.5 line-clamp-1 text-[10px] text-muted-foreground sm:text-[11px]">{subtitle}</p>}</div>
         </div>
-        <div className="flex items-center gap-1.5">
-          <button type="button" onClick={() => scroll(-1)} aria-label={locale === 'en' ? 'Previous products' : locale === 'ps' ? 'مخکني محصولات' : 'محصولات قبلی'} className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"><ChevronRight className="h-4 w-4 rtl:rotate-180" /></button>
-          <button type="button" onClick={() => scroll(1)} aria-label={locale === 'en' ? 'Next products' : locale === 'ps' ? 'راتلونکي محصولات' : 'محصولات بعدی'} className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"><ChevronLeft className="h-4 w-4 rtl:rotate-180" /></button>
-          {viewAllHref && <Link href={viewAllHref as never} className="rounded-lg border border-border bg-card px-3 py-2 text-[11px] font-bold transition-colors hover:bg-muted">{allLabel}</Link>}
+        <div className="flex shrink-0 items-center gap-1.5">
+          <button type="button" onClick={() => scroll(-1)} aria-label={locale === 'en' ? 'Previous products' : locale === 'ps' ? 'مخکني محصولات' : 'محصولات قبلی'} className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-card text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"><ChevronRight className="h-4 w-4 rtl:rotate-180" /></button>
+          <button type="button" onClick={() => scroll(1)} aria-label={locale === 'en' ? 'Next products' : locale === 'ps' ? 'راتلونکي محصولات' : 'محصولات بعدی'} className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-card text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"><ChevronLeft className="h-4 w-4 rtl:rotate-180" /></button>
+          {viewAllHref && <Link href={viewAllHref as never} className="rounded-full border border-border bg-card px-3 py-1.5 text-[10px] font-bold transition-colors hover:bg-muted sm:text-[11px]">{allLabel}</Link>}
         </div>
       </div>
-      <div ref={trackRef} className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 no-scrollbar" dir={locale === 'en' ? 'ltr' : 'rtl'}>
+      <div ref={trackRef} className="flex snap-x snap-mandatory gap-2.5 overflow-x-auto pb-1 no-scrollbar" dir={locale === 'en' ? 'ltr' : 'rtl'}>
         {skeleton ? Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />) : products.map((product) => (
           <div key={product.id} className="snap-start">
             <MarketplaceProductCard product={toProductSummary(product)} locale={locale} currency={currency} view="rail" />
