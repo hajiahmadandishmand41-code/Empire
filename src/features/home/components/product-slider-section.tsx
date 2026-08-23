@@ -40,7 +40,7 @@ interface ProductSliderSectionProps {
 }
 
 export function SkeletonCard() {
-  return <div className="w-[168px] flex-none overflow-hidden rounded-2xl border border-border bg-card sm:w-[188px] md:w-[204px]" aria-hidden="true"><div className="aspect-square animate-pulse bg-muted" /><div className="space-y-2 p-3"><div className="h-2 w-16 animate-pulse rounded bg-muted" /><div className="h-3 w-full animate-pulse rounded bg-muted" /><div className="h-3 w-3/4 animate-pulse rounded bg-muted" /><div className="h-7 w-20 animate-pulse rounded bg-muted" /></div></div>;
+  return <div className="w-[calc((100vw-2.75rem)/2)] max-w-[204px] flex-none overflow-hidden rounded-2xl border border-border bg-card sm:w-[188px] md:w-[204px]" aria-hidden="true"><div className="aspect-square animate-pulse bg-muted" /><div className="space-y-2 p-2.5 sm:p-3"><div className="h-2 w-16 animate-pulse rounded bg-muted" /><div className="h-3 w-full animate-pulse rounded bg-muted" /><div className="h-3 w-3/4 animate-pulse rounded bg-muted" /><div className="h-7 w-20 animate-pulse rounded-full bg-muted" /></div></div>;
 }
 
 function toProductSummary(product: SliderProduct): ProductSummary {
@@ -69,15 +69,15 @@ function toProductSummary(product: SliderProduct): ProductSummary {
 
 export function ProductSliderSection({ title, subtitle, viewAllHref, accentColor = 'bg-rose-600', products, locale = 'fa', currency = 'AFN', skeleton = false }: ProductSliderSectionProps) {
   const trackRef = React.useRef<HTMLDivElement>(null);
-  const scroll = (dir: 1 | -1) => trackRef.current?.scrollBy({ left: dir * 540, behavior: 'smooth' });
+  const scroll = (dir: 1 | -1) => trackRef.current?.scrollBy({ left: dir * 520, behavior: 'smooth' });
   const allLabel = locale === 'en' ? 'View all' : locale === 'ps' ? 'ټول' : 'همه';
   if (products.length === 0 && !skeleton) return null;
 
-  return <section className="border-b border-border bg-background py-5 sm:py-7" aria-label={title || undefined}>
+  return <section className="border-b border-border bg-background py-4 sm:py-6" aria-label={title || undefined}>
     <div className="mx-auto max-w-screen-xl px-3 sm:px-6">
-      <div className="mb-3.5 flex items-end justify-between gap-3">
+      <div className="mb-3 flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
-          {title && <span className={cn('h-7 w-1 rounded-full', accentColor)} />}
+          {title && <span className={cn('h-6 w-1 rounded-full', accentColor)} />}
           <div className="min-w-0">{title && <h2 className="truncate text-sm font-black tracking-tight sm:text-base">{title}</h2>}{subtitle && <p className="mt-0.5 line-clamp-1 text-[10px] text-muted-foreground sm:text-[11px]">{subtitle}</p>}</div>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
