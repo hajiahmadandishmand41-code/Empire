@@ -19,10 +19,10 @@ export class ProductServiceError extends Error {
   constructor(public readonly code: string, message: string, public readonly httpStatus = 400) { super(message); this.name = 'ProductServiceError'; }
 }
 
-function readJsonArray(raw: string | null | undefined): string[] {
-  if (!raw) return [];
+function readJsonArray(raw: unknown): string[] {
+  if (raw == null) return [];
   try {
-    const value: unknown = JSON.parse(raw);
+    const value: unknown = typeof raw === 'string' ? JSON.parse(raw) : raw;
     return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
   } catch { return []; }
 }
@@ -118,9 +118,12 @@ export class ProductService {
     const viewedResult = await this.products.findMany({ ...baseFilter, sort: 'mostViewed', page: 1 });
     const popularResult = await this.products.findMany({ ...baseFilter, sort: 'popular', page: 1 });
     const featuredResult = await this.products.findMany({ ...baseFilter, featured: true, sort: 'featured', page: 1 });
-    const allIds = [...newResult.items, ...bestResult.items, ...viewedResult.items, ...popularResult.items, ...featuredResult.items].map((r) => r.id);
-    const ratings = await this.products.getRatings([...new Set(allIds)]);
-    const toSummaries = (rows: ProductRow[]): ProductSummary[] => rows.map((row) => { const rating = ratings.get(row.id); return mapProductSummary(row as never, { averageRating: rating?.average ?? 0, reviewCount: rating?.count ?? 0 }); });
-    return { newest: toSummaries(newResult.items), bestSelling: toSummaries(bestResult.items), mostViewed: toSummaries(viewedResult.items), popular: toSummaries(popularResult.items), featured: toSummaries(featuredResult.items) };
+    return {
+      newest: newResult.items.map((r) => mapProductSummary(r as never)),
+      bestSelling: bestResult.items.map((r) => mapProductSummary(r as never)),
+      mostViewed: viewedResult.items.map((r) => mapProductSummary(r as never)),
+      popular: popularResult.items.map((r) => mapProductSummary(r as never)),
+      featured: featuredResult.items.map((r) => mapProductSummary(r as never)),
+    };
   }
 }
