@@ -1,50 +1,40 @@
-/**
- * Route-level fallback: render the storefront shell immediately while
- * page data and imagery stream in behind Suspense boundaries.
- */
+import { EshopLogo } from '@/components/eshop-logo';
+
+/** Route-level loading UI used during App Router navigations and streamed page transitions. */
 export default function Loading() {
   return (
-    <div className="min-h-dvh bg-background" role="status" aria-live="polite" aria-label="در حال بارگذاری…">
-      <header className="border-b border-border bg-card">
-        <div className="mx-auto max-w-screen-xl space-y-3 px-3 py-3 sm:px-6">
-          <div className="h-4 w-40 animate-pulse rounded-full bg-muted" />
-          <div className="flex items-center gap-3">
-            <div className="h-12 w-12 shrink-0 animate-pulse rounded-2xl bg-muted" />
-            <div className="h-12 flex-1 animate-pulse rounded-2xl bg-muted" />
-            <div className="hidden h-11 w-11 animate-pulse rounded-full bg-muted sm:block" />
-            <div className="hidden h-11 w-11 animate-pulse rounded-full bg-muted sm:block" />
-          </div>
+    <div
+      className="fixed inset-0 z-[100] flex min-h-dvh items-center justify-center overflow-hidden bg-background"
+      role="status"
+      aria-live="polite"
+      aria-label="در حال بارگذاری…"
+    >
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,hsl(var(--primary)/0.12),transparent_36%)]" aria-hidden="true" />
+      <div className="absolute -top-24 start-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-primary/[0.08] blur-3xl" aria-hidden="true" />
+
+      <div className="relative flex w-full max-w-sm flex-col items-center px-6 text-center">
+        <div className="relative flex h-28 w-28 items-center justify-center sm:h-32 sm:w-32">
+          <span className="absolute inset-0 rounded-[2rem] border border-primary/15 bg-card/60 shadow-[0_20px_70px_hsl(var(--primary)/0.15)] backdrop-blur-xl" />
+          <span className="absolute inset-2 rounded-[1.6rem] border border-primary/10" />
+          <span className="absolute inset-0 animate-ping rounded-[2rem] border border-primary/20" style={{ animationDuration: '2.4s' }} />
+          <span className="absolute -inset-1 animate-spin rounded-[2.25rem] border border-transparent border-t-primary/70 border-e-primary/20" style={{ animationDuration: '1.7s' }} />
+          <span className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-primary shadow-lg shadow-primary/25 sm:h-20 sm:w-20">
+            <EshopLogo size={52} variant="color" className="sm:hidden" />
+            <EshopLogo size={60} variant="color" className="hidden sm:block" />
+          </span>
         </div>
-      </header>
 
-      <main className="min-h-[70vh]">
-        <div className="mx-auto max-w-screen-xl px-3 py-2 sm:px-6">
-          <div className="flex gap-2 overflow-hidden">
-            <div className="h-9 w-36 shrink-0 animate-pulse rounded-full bg-muted" />
-            <div className="h-9 w-40 shrink-0 animate-pulse rounded-full bg-muted" />
-            <div className="h-9 w-36 shrink-0 animate-pulse rounded-full bg-muted" />
-          </div>
+        <div className="mt-7 space-y-2">
+          <p className="font-display text-lg font-black tracking-tight text-foreground sm:text-xl">ایشاپ</p>
+          <p className="text-xs font-semibold text-muted-foreground sm:text-sm">در حال باز کردن صفحه…</p>
         </div>
 
-        <section className="mx-auto max-w-screen-xl px-3 pt-3 sm:px-6 sm:pt-5" aria-hidden="true">
-          <div className="aspect-[1.6/1] min-h-[300px] animate-pulse rounded-[28px] border border-border bg-muted/45 sm:aspect-[2.3/1] sm:min-h-[390px]" />
-        </section>
-
-        <section className="border-y border-border bg-card py-6 sm:py-8" aria-hidden="true">
-          <div className="mx-auto max-w-screen-xl px-3 sm:px-6">
-            <div className="mb-5 flex items-center justify-between gap-3">
-              <div className="space-y-2">
-                <div className="h-5 w-40 animate-pulse rounded-full bg-muted" />
-                <div className="h-3 w-64 animate-pulse rounded-full bg-muted" />
-              </div>
-              <div className="h-10 w-32 animate-pulse rounded-xl bg-muted" />
-            </div>
-            <div className="flex gap-3 overflow-hidden">
-              {Array.from({ length: 4 }).map((_, index) => <div key={index} className="h-36 w-28 shrink-0 animate-pulse rounded-2xl bg-muted" />)}
-            </div>
-          </div>
-        </section>
-      </main>
+        <div className="mt-6 flex items-center gap-1.5" aria-hidden="true">
+          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary [animation-delay:-0.2s]" />
+          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary [animation-delay:-0.1s]" />
+          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary" />
+        </div>
+      </div>
     </div>
   );
 }
