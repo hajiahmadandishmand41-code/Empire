@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import Link from 'next/link';
 import { MapPin, MessageCircle, ShoppingCart, Star, Store, Video } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { cn, formatPrice } from '@/lib/utils';
@@ -47,7 +48,7 @@ export function MarketplaceProductCard({ product, currency = 'AFN', locale = 'fa
     <div className={cn('relative', view === 'list' ? 'shrink-0' : 'w-full')}><Link href={`/shop/${product.slug}` as never} className="block">{imageBlock}</Link><WishlistButton slug={product.slug} productId={product.id} size="sm" labelOn={tCard('wishlistLabel')} labelOff={tCard('wishlistLabel')} className="absolute end-2 top-2 z-10 border-0 bg-card/90 backdrop-blur-sm" /></div>
     <div className={cn('min-w-0', view === 'list' ? 'flex flex-1 flex-col justify-center gap-2 p-3 sm:p-4' : 'flex min-h-0 flex-1 flex-col gap-1.5 p-3 sm:p-4')}>
       <p className={cn('truncate font-bold uppercase tracking-wider text-primary', 'h-4 text-[9px] sm:text-[10px]')}>{categoryLabel}</p>
-      <h3 className={cn('h-10 font-bold leading-snug text-foreground', view === 'list' ? 'line-clamp-2 text-sm sm:text-base' : 'line-clamp-2 text-[12px] sm:text-sm') }><Link href={`/shop/${product.slug}` as never} className="transition-colors hover:text-primary">{product.name}</Link></h3>
+      <h3 className={cn('h-10 font-bold leading-snug text-foreground', view === 'list' ? 'line-clamp-2 text-sm sm:text-base' : 'line-clamp-2 text-[12px] sm:text-sm')}><Link href={`/shop/${product.slug}` as never} className="transition-colors hover:text-primary">{product.name}</Link></h3>
       <div className="min-h-5">{product.sellerId && product.sellerShopName ? <Link href={`/store/${product.sellerId}` as never} className="flex min-w-0 items-center gap-1.5 text-[10px] font-semibold text-muted-foreground transition-colors hover:text-primary sm:text-[11px]"><Store className="h-3 w-3 shrink-0" aria-hidden="true" /><span className="truncate">{product.sellerShopName}</span></Link> : null}</div>
       {showDescription && product.shortDescription ? <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">{product.shortDescription}</p> : <div className="h-0" aria-hidden="true" />}
       {product.region ? <div className={cn('min-w-0 items-center gap-1 text-[10px] text-muted-foreground', view === 'rail' ? 'hidden' : 'flex')}><MapPin className="h-3 w-3 shrink-0" aria-hidden="true" /><span className="truncate">{product.region}</span></div> : null}
