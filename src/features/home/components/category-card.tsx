@@ -14,27 +14,18 @@ export async function CategoryCard({ item }: CategoryCardProps) {
     <Link
       href={`/category/${key}` as never}
       aria-label={title}
-      className={cn(
-        'group flex min-h-[102px] flex-col items-center justify-center gap-2 rounded-2xl border p-3 text-center shadow-sm transition-[transform,box-shadow,border-color,background-color] duration-200 category-card',
-        'border-border/60 bg-card hover:-translate-y-0.5 hover:border-rose-200 hover:bg-rose-50/40 hover:shadow-md',
-        'dark:border-gray-700/50 dark:bg-gray-800/60 dark:hover:border-rose-700/60 dark:hover:bg-gray-700/70',
-      )}
+      className="group flex min-w-0 flex-col items-center gap-2 rounded-2xl p-1.5 text-center transition-transform duration-200 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
     >
       <span
         className={cn(
-          'flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br shadow-sm ring-1 ring-black/5 transition-transform duration-200 group-hover:scale-105',
+          'flex h-16 w-16 items-center justify-center rounded-full border border-border/70 bg-gradient-to-br shadow-sm ring-2 ring-background transition-[transform,box-shadow,border-color] duration-200 group-hover:scale-105 group-hover:border-primary/25 group-hover:shadow-md sm:h-[72px] sm:w-[72px]',
           accent.from,
           accent.to,
         )}
       >
-        <Icon className="h-6 w-6 text-gray-800 dark:text-gray-100" aria-hidden />
+        <Icon className="h-7 w-7 text-gray-800 dark:text-gray-100 sm:h-8 sm:w-8" aria-hidden />
       </span>
-      <span
-        className={cn(
-          'text-[11px] font-bold leading-tight sm:text-xs',
-          'text-foreground group-hover:text-rose-600 dark:text-gray-200 dark:group-hover:text-rose-300',
-        )}
-      >
+      <span className="w-full line-clamp-2 text-[10px] font-bold leading-5 text-foreground group-hover:text-primary sm:text-xs">
         {title}
       </span>
     </Link>
