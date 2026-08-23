@@ -31,8 +31,7 @@ function fallbackFor(slug: string): FallbackCategory {
 async function getCategory(slug: string) {
   try {
     return await getCategoryRepository().findBySlug(slug);
-  } catch (error) {
-    console.error('[category-page] failed to load category', { slug, error });
+  } catch {
     return null;
   }
 }
