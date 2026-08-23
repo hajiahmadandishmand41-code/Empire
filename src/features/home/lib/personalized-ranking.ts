@@ -1,8 +1,9 @@
 import { prisma, isDatabaseConfigured } from '@/lib/db';
 import { computeProductScore, RANKING_PRESETS } from '@/server/algorithms/product-ranking';
 import type { ProductSummary } from '@/types';
+import type { OrderStatus } from '@/types/order';
 
-const COMPLETED_ORDER_STATUSES = ['confirmed', 'processing', 'shipped', 'delivered'] as const;
+const COMPLETED_ORDER_STATUSES: OrderStatus[] = ['confirmed', 'processing', 'shipped', 'delivered'];
 
 type Preference = { category: number; seller: number };
 
@@ -26,9 +27,18 @@ export async function rankProductsForUser(products: ProductSummary[], userId: st
       }),
       prisma.orderItem.findMany({
         where: { order: { userId, status: { in: COMPLETED_ORDER_STATUSES } } },
-        select: { productId: true, quantity: true, product: { select: { category: { select: { key: true } }, sellerId: true } } },
+        select: { productId: true, quantity: true },
       }),
     ]);
+
+    const orderProductIds = [...new Set(orders.map((item) => item.productId))];
+    const orderedProducts = orderProductIds.length
+      ? await prisma.product.findMany({
+          where: { id: { in: orderProductIds } },
+          select: { id: true, category: { select: { key: true } }, sellerId: true },
+        })
+      : [];
+    const orderedProductById = new Map(orderedProducts.map((product) => [product.id, product]));
 
     const preferences = new Map<string, Preference>();
     const wishlistIds = new Set(wishlist.map((item) => item.productId));
@@ -46,7 +56,10 @@ export async function rankProductsForUser(products: ProductSummary[], userId: st
 
     wishlist.forEach((item) => addPreference(item.product.category?.key, item.product.sellerId, 3));
     reviews.forEach((item) => addPreference(item.product.category?.key, item.product.sellerId, Math.max(1, item.rating / 2)));
-    orders.forEach((item) => addPreference(item.product.category?.key, item.product.sellerId, Math.min(8, item.quantity * 3)));
+    orders.forEach((item) => {
+      const product = orderedProductById.get(item.productId);
+      addPreference(product?.category?.key, product?.sellerId, Math.min(8, item.quantity * 3));
+    });
 
     const categoryScores = new Map<string, number>();
     const sellerScores = new Map<string, number>();
