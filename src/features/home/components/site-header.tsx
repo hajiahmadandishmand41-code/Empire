@@ -1,7 +1,7 @@
 import { getLocale, getTranslations } from 'next-intl/server';
 import { CartBadge } from '@/features/cart';
 import { HeaderAuthActions } from '@/features/auth';
-import { LayoutGrid, Telescope, Sparkles } from 'lucide-react';
+import { Heart, LayoutGrid, Telescope, Sparkles } from 'lucide-react';
 import { Link } from '@/i18n/routing';
 import { LanguageSwitcher } from './language-switcher';
 import { HeaderCategoryNav } from './header-category-nav';
@@ -16,6 +16,7 @@ export async function SiteHeader() {
   const brand = locale === 'en' ? 'Eshop' : 'ایشاپ';
   const discoverLabel = locale === 'en' ? 'Discover' : locale === 'ps' ? 'کشف' : 'کشف';
   const traditionalLabel = locale === 'en' ? 'Local products' : locale === 'ps' ? 'کورني محصولات' : 'محصولات وطنی';
+  const wishlistLabel = locale === 'en' ? 'Wishlist' : locale === 'ps' ? 'خوښې' : 'علاقه‌مندی‌ها';
 
   return (
     <header className="sticky top-0 z-50 w-full" role="banner">
@@ -34,6 +35,7 @@ export async function SiteHeader() {
             </div>
             <div className="flex min-w-0 flex-1 items-center"><HeaderSearchBar locale={locale} /></div>
             <div className="flex shrink-0 items-center gap-0.5 sm:gap-1.5">
+              <Link href="/wishlist" aria-label={wishlistLabel} title={wishlistLabel} className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-background text-muted-foreground transition-colors hover:border-primary/30 hover:bg-primary/5 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-10 sm:w-10"><Heart className="h-4 w-4" /></Link>
               <LanguageSwitcher />
               <ThemeToggle variant="icon" lang={locale} />
               <div className="hidden md:flex"><HeaderAuthActions /></div>
