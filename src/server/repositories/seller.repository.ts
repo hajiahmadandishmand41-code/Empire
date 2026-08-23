@@ -75,7 +75,7 @@ export class PrismaSellerRepository implements ISellerRepository {
 
   async findPublicProfile(sellerId: string): Promise<SellerPublicProfile | null> {
     const user = await this.prisma.user.findUnique({
-      where: { id: sellerId, role: 'seller', isActive: true },
+      where: { id: sellerId, role: 'seller', sellerStatus: 'approved', isActive: true },
       select: {
         id: true,
         sellerShopName: true,
