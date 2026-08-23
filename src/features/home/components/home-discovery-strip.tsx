@@ -1,4 +1,4 @@
-import { Store, Tags } from 'lucide-react';
+import { Store, Tags, BadgeCheck } from 'lucide-react';
 import { Link } from '@/i18n/routing';
 
 type Locale = 'fa' | 'ps' | 'en';
@@ -8,6 +8,7 @@ export function HomeDiscoveryStrip({ locale }: { locale: Locale }) {
     ? {
         items: [
           { href: '/stores', label: 'Stores', icon: Store },
+          { href: '/brands', label: 'Brands', icon: BadgeCheck },
           { href: '/shop?badge=sale', label: 'Discounts', icon: Tags },
         ],
       }
@@ -15,12 +16,14 @@ export function HomeDiscoveryStrip({ locale }: { locale: Locale }) {
       ? {
           items: [
             { href: '/stores', label: 'پلورنځي', icon: Store },
+            { href: '/brands', label: 'برانډونه', icon: BadgeCheck },
             { href: '/shop?badge=sale', label: 'تخفیفونه', icon: Tags },
           ],
         }
       : {
           items: [
             { href: '/stores', label: 'فروشگاه‌ها', icon: Store },
+            { href: '/brands', label: 'برندها', icon: BadgeCheck },
             { href: '/shop?badge=sale', label: 'تخفیف‌ها', icon: Tags },
           ],
         };
