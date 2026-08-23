@@ -52,12 +52,13 @@ export async function GET(req: NextRequest) {
       inStock: query.inStock,
       featured: query.featured,
       hasDiscount: query.hasDiscount,
+      minRating: query.minRating,
       badge: query.badge,
       sort: query.sort,
       page: query.page ?? 1,
       pageSize: effectiveLimit,
       rerank: Boolean(query.q),
-      isTraditional: (query as { isTraditional?: boolean }).isTraditional,
+      isTraditional: query.isTraditional,
     });
 
     const localized = await getProductLocalizedTexts(
