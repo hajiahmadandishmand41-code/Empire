@@ -13,8 +13,18 @@ import type { Product, ProductSummary } from '@/types';
 export interface ProductListOptions extends ProductListFilter { rerank?: boolean; }
 export interface ProductListResult { products: ProductSummary[]; total: number; page: number; pageSize: number; hasMore: boolean; source: 'db'; }
 
+const SMART_FEED_CANDIDATE_LIMIT = 300;
+
 export class ProductServiceError extends Error {
   constructor(public readonly code: string, message: string, public readonly httpStatus = 400) { super(message); this.name = 'ProductServiceError'; }
+}
+
+function readJsonArray(raw: string | null | undefined): string[] {
+  if (!raw) return [];
+  try {
+    const value: unknown = JSON.parse(raw);
+    return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+  } catch { return []; }
 }
 
 export class ProductService {
@@ -23,22 +33,65 @@ export class ProductService {
   async listProducts(opts: ProductListOptions): Promise<ProductListResult> {
     const page = Math.max(1, opts.page ?? 1);
     const pageSize = Math.min(100, Math.max(1, opts.pageSize ?? 24));
-    const useSmartFeed = !opts.q && (!opts.sort || opts.sort === 'default' || opts.sort === 'recommended');
-    const candidatePageSize = useSmartFeed && page === 1 ? Math.min(72, pageSize * 3) : pageSize;
-    const paginated = await this.products.findMany({ ...opts, page, pageSize: candidatePageSize, isActive: true });
-    const ids = paginated.items.map((r) => r.id);
-    const ratings = await this.products.getRatings(ids);
-    let summaries: ProductSummary[] = paginated.items.map((row) => { const rating = ratings.get(row.id); return mapProductSummary(row as never, { averageRating: rating?.average ?? 0, reviewCount: rating?.count ?? 0 }); });
-    if (opts.q && opts.rerank !== false) {
-      summaries = summaries
-        .map((s) => ({ product: s, score: computeSearchScore({ id: s.id, name: s.name, shortDescription: s.shortDescription, categoryName: s.categoryKey }, opts.q!) }))
+    const isSearch = Boolean(opts.q?.trim());
+    const useSmartFeed = !isSearch && (!opts.sort || opts.sort === 'default' || opts.sort === 'recommended');
+    const useCandidateRanking = isSearch || useSmartFeed;
+    const candidatePageSize = useCandidateRanking ? SMART_FEED_CANDIDATE_LIMIT : pageSize;
+    const candidatePage = useCandidateRanking ? 1 : page;
+
+    // Ranked/search results are intentionally built from one stable candidate pool.
+    // This prevents page 2 from overlapping page 1 after in-memory reranking and
+    // gives the user deterministic "load more" pagination.
+    const paginated = await this.products.findMany({ ...opts, page: candidatePage, pageSize: candidatePageSize, isActive: true });
+    const ratings = await this.products.getRatings(paginated.items.map((r) => r.id));
+    const mapped = paginated.items.map((row) => {
+      const rating = ratings.get(row.id);
+      return { row, summary: mapProductSummary(row as never, { averageRating: rating?.average ?? 0, reviewCount: rating?.count ?? 0 }) };
+    });
+
+    let ranked: ProductSummary[];
+    if (isSearch && opts.q && opts.rerank !== false) {
+      ranked = mapped
+        .map(({ row, summary }) => ({
+          product: summary,
+          score: computeSearchScore({
+            id: row.id,
+            name: row.name,
+            shortDescription: row.shortDescription,
+            description: row.description,
+            categoryName: row.category?.name,
+            region: row.region,
+            sellerShopName: row.seller?.sellerShopName,
+            tags: readJsonArray(row.tagsJson),
+          }, opts.q!),
+        }))
         .filter((x) => x.score > 0)
-        .sort((a, b) => b.score - a.score)
+        .sort((a, b) => b.score - a.score || b.product.salesCount! - a.product.salesCount! || b.product.id.localeCompare(a.product.id))
         .map((x) => x.product);
-    } else if (useSmartFeed && page === 1) {
-      summaries = rankProducts(summaries.map((s) => ({ ...s, averageRating: s.averageRating ?? 0, reviewCount: s.reviewCount ?? 0, salesCount: s.salesCount ?? 0, viewCount: s.viewCount ?? 0, compareAtPrice: s.comparePrice ?? null, createdAt: s.createdAt ?? undefined })), DEFAULT_RANKING_CONFIG).slice(0, pageSize);
+    } else if (useSmartFeed) {
+      ranked = rankProducts(
+        mapped.map(({ summary }) => ({
+          ...summary,
+          averageRating: summary.averageRating ?? 0,
+          reviewCount: summary.reviewCount ?? 0,
+          salesCount: summary.salesCount ?? 0,
+          viewCount: summary.viewCount ?? 0,
+          compareAtPrice: summary.comparePrice ?? null,
+          createdAt: summary.createdAt ?? undefined,
+        })),
+        DEFAULT_RANKING_CONFIG,
+      );
+    } else {
+      ranked = mapped.map(({ summary }) => summary);
     }
-    return { products: summaries, total: paginated.total, page: paginated.page, pageSize, hasMore: page === 1 && useSmartFeed ? paginated.total > pageSize : paginated.hasMore, source: 'db' };
+
+    const start = useCandidateRanking ? (page - 1) * pageSize : 0;
+    const products = ranked.slice(start, start + pageSize);
+    const hasMore = useCandidateRanking
+      ? start + products.length < Math.min(paginated.total, candidatePageSize)
+      : paginated.hasMore;
+
+    return { products, total: paginated.total, page, pageSize, hasMore, source: 'db' };
   }
 
   async getProductBySlug(slug: string): Promise<Product | null> { const row = await this.products.findBySlug(slug); if (!row) return null; void this.products.incrementViewCount(row.id).catch(() => undefined); const agg = await this.reviews.summarize(row.id); return mapProduct(row as never, { averageRating: agg.average, reviewCount: agg.count }); }
@@ -60,9 +113,6 @@ export class ProductService {
 
   async getHomepageSections(sectionSize = 8): Promise<{ newest: ProductSummary[]; bestSelling: ProductSummary[]; mostViewed: ProductSummary[]; popular: ProductSummary[]; featured: ProductSummary[]; }> {
     const baseFilter: ProductListFilter = { isActive: true, pageSize: sectionSize };
-    // Query catalog sections sequentially: the home page is rendered through
-    // serverless functions where excessive parallel Prisma queries can exhaust
-    // the connection pool even though each query is individually lightweight.
     const newResult = await this.products.findMany({ ...baseFilter, sort: 'newest', page: 1 });
     const bestResult = await this.products.findMany({ ...baseFilter, sort: 'bestSelling', page: 1 });
     const viewedResult = await this.products.findMany({ ...baseFilter, sort: 'mostViewed', page: 1 });
