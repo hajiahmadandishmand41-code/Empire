@@ -18,7 +18,7 @@ export const productListQuerySchema = z.object({
   page: z.coerce.number().int().positive().max(1000).optional(),
   pageSize: z.coerce.number().int().positive().max(100).optional(),
   limit: z.coerce.number().int().positive().max(100).optional(),
-  sort: z.enum(['recommended','newest','priceAsc','priceDesc','bestSelling','bestseller','mostViewed','popular','featured']).optional(),
+  sort: z.enum(['recommended','newest','priceAsc','priceDesc','rating','bestSelling','bestseller','mostViewed','popular','featured']).optional(),
 }).refine((v) => v.priceMin === undefined || v.priceMax === undefined || v.priceMin <= v.priceMax, { message: 'priceMin must be <= priceMax', path: ['priceMin'] });
 
 export type ProductListQuery = z.infer<typeof productListQuerySchema>;
