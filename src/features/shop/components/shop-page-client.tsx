@@ -10,12 +10,18 @@ import { ShopToolbar, type ShopCategoryOption } from './shop-toolbar';
 import { ShopFilters, type ShopFiltersValue, type ShopOption } from './shop-filters';
 import type { ProductSummary, Category } from '@/types';
 
-interface ShopPageClientProps { locale: string; currency?: string; initialCategoryKey?: string; }
+interface ApiMeta { total?: number; page?: number; pageSize?: number; hasMore?: boolean; }
+interface SellerOption { id: string; shopName: string; }
+interface ShopPageClientProps {
+  locale: string;
+  currency?: string;
+  initialCategoryKey?: string;
+  initialProducts?: ProductSummary[];
+  initialMeta?: ApiMeta | null;
+}
 const PAGE_SIZE = 40;
 const DEBOUNCE_MS = 350;
 const DEFAULT_FILTERS: ShopFiltersValue = { subcategoryKey: '', sellerId: '', badge: '', priceMin: '', priceMax: '', inStockOnly: false, hasDiscountOnly: false, minRating: '', sort: 'recommended' };
-interface ApiMeta { total?: number; page?: number; pageSize?: number; hasMore?: boolean; }
-interface SellerOption { id: string; shopName: string; }
 
 const COPY = {
   fa: { allProducts: 'همه محصولات', shown: 'نمایش', of: 'از', products: 'محصول', loading: 'در حال بارگذاری…', more: 'محصول دیگر', allShown: 'همه محصولات نمایش داده شد', notFound: 'محصولی یافت نشد', tryAgain: 'کلمه دیگری امتحان کنید یا بخشی از فیلترها را بردارید.', clear: 'پاک کردن فیلترها', grid: 'نمای شبکه‌ای', list: 'نمای فهرستی' },
@@ -35,28 +41,31 @@ function stateFromUrl(url: URL, initialCategoryKey?: string) {
   return { search: p.get('q') ?? '', category: p.get('categoryKey') ?? p.get('category') ?? initialCategoryKey ?? 'all', filters, view: p.get('view') === 'list' ? 'list' as const : 'grid' as const };
 }
 
-export function ShopPageClient({ locale, currency = 'AFN', initialCategoryKey }: ShopPageClientProps) {
+export function ShopPageClient({ locale, currency = 'AFN', initialCategoryKey, initialProducts = [], initialMeta = null }: ShopPageClientProps) {
   const searchParams = useSearchParams();
   const [search, setSearch] = React.useState('');
   const [debouncedSearch, setDebouncedSearch] = React.useState('');
   const [category, setCategory] = React.useState<string | 'all'>('all');
   const [filters, setFilters] = React.useState<ShopFiltersValue>(DEFAULT_FILTERS);
-  const [allProducts, setAllProducts] = React.useState<ProductSummary[]>([]);
+  const [allProducts, setAllProducts] = React.useState<ProductSummary[]>(initialProducts);
   const [categories, setCategories] = React.useState<Category[]>([]);
   const [sellers, setSellers] = React.useState<SellerOption[]>([]);
-  const [loading, setLoading] = React.useState(true);
+  const [loading, setLoading] = React.useState(initialProducts.length === 0);
   const [loadingMore, setLoadingMore] = React.useState(false);
   const [page, setPage] = React.useState(1);
-  const [meta, setMeta] = React.useState<ApiMeta | null>(null);
+  const [meta, setMeta] = React.useState<ApiMeta | null>(initialMeta);
   const [view, setView] = React.useState<'grid' | 'list'>('grid');
   const hydratedRef = React.useRef(false);
   const skipUrlSyncRef = React.useRef(false);
+  const skipInitialResetRef = React.useRef(initialProducts.length > 0);
   const copy = copyFor(locale);
 
   React.useEffect(() => {
     const state = stateFromUrl(new URL(window.location.href), initialCategoryKey);
     skipUrlSyncRef.current = true;
-    setSearch(state.search); setDebouncedSearch(state.search); setCategory(state.category); setFilters(state.filters); setView(state.view); setPage(1); setAllProducts([]); hydratedRef.current = true;
+    setSearch(state.search); setDebouncedSearch(state.search); setCategory(state.category); setFilters(state.filters); setView(state.view); setPage(1);
+    if (!skipInitialResetRef.current) setAllProducts([]);
+    hydratedRef.current = true;
   }, [searchParams, initialCategoryKey]);
 
   React.useEffect(() => {
@@ -104,10 +113,16 @@ export function ShopPageClient({ locale, currency = 'AFN', initialCategoryKey }:
     return () => controller.abort();
   }, [locale]);
 
-  React.useEffect(() => { setPage(1); setAllProducts([]); }, [debouncedSearch, category, filters]);
+  React.useEffect(() => {
+    if (skipInitialResetRef.current) { skipInitialResetRef.current = false; return; }
+    setPage(1); setAllProducts([]);
+  }, [debouncedSearch, category, filters]);
 
   React.useEffect(() => {
-    const controller = new AbortController(); const isLoadMore = page > 1; if (isLoadMore) setLoadingMore(true); else setLoading(true);
+    const controller = new AbortController();
+    const isLoadMore = page > 1;
+    if (isLoadMore) setLoadingMore(true);
+    else if (allProducts.length === 0) setLoading(true);
     const params = new URLSearchParams(); if (debouncedSearch.trim()) params.set('q', debouncedSearch.trim()); if (category !== 'all') params.set('categoryKey', category); if (filters.subcategoryKey) params.set('subcategoryKey', filters.subcategoryKey); if (filters.sellerId) params.set('sellerId', filters.sellerId); if (filters.badge) params.set('badge', filters.badge); if (filters.priceMin !== '') params.set('priceMin', String(filters.priceMin)); if (filters.priceMax !== '') params.set('priceMax', String(filters.priceMax)); if (filters.inStockOnly) params.set('inStock', 'true'); if (filters.hasDiscountOnly) params.set('hasDiscount', 'true'); if (filters.minRating !== '') params.set('minRating', String(filters.minRating)); params.set('sort', toApiSort(filters.sort)); params.set('page', String(page)); params.set('pageSize', String(PAGE_SIZE)); params.set('locale', locale);
     fetch(`/api/products?${params.toString()}`, { cache: 'no-store', signal: controller.signal }).then((res) => res.json()).then((body) => {
       const newProducts = unwrap<ProductSummary[]>(body, []); setMeta((body as { meta?: ApiMeta }).meta ?? null);
@@ -128,7 +143,7 @@ export function ShopPageClient({ locale, currency = 'AFN', initialCategoryKey }:
     <ShopToolbar search={search} category={category} resultCount={totalCount} categories={categoryOptions} onSearchChange={setSearch} onCategoryChange={changeCategory} onClear={clear} />
     <ShopFilters value={filters} onChange={(newFilters) => { setFilters(newFilters); setPage(1); setAllProducts([]); }} onReset={() => { setFilters(DEFAULT_FILTERS); setPage(1); setAllProducts([]); }} subcategories={subcategories} sellers={sellerOptions} locale={locale} />
     {allProducts.length > 0 && <div className="flex items-center justify-between gap-2" role="group" aria-label={locale === 'en' ? 'Product view' : locale === 'ps' ? 'د محصولاتو بڼه' : 'نمایش محصولات'}><p className="text-xs text-muted-foreground">{copy.shown} {allProducts.length.toLocaleString(locale === 'en' ? 'en-US' : locale === 'ps' ? 'ps-AF' : 'fa-IR')} {copy.of} {totalCount.toLocaleString(locale === 'en' ? 'en-US' : locale === 'ps' ? 'ps-AF' : 'fa-IR')} {copy.products}</p><div className="flex items-center gap-1"><button type="button" onClick={() => setView('grid')} aria-pressed={view === 'grid'} aria-label={copy.grid} className={`rounded-lg p-2 ${view === 'grid' ? 'bg-primary text-primary-foreground' : 'border border-border bg-card text-muted-foreground'}`}><LayoutGrid className="h-4 w-4" aria-hidden /></button><button type="button" onClick={() => setView('list')} aria-pressed={view === 'list'} aria-label={copy.list} className={`rounded-lg p-2 ${view === 'list' ? 'bg-primary text-primary-foreground' : 'border border-border bg-card text-muted-foreground'}`}><List className="h-4 w-4" aria-hidden /></button></div></div>}
-    {loading && page === 1 ? <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4 xl:grid-cols-5" aria-label={copy.loading}>{Array.from({ length: 9 }).map((_, i) => <div key={i} className="overflow-hidden rounded-xl border border-border bg-card"><div className="aspect-square animate-pulse bg-muted" /><div className="space-y-2 p-2.5"><div className="h-3 w-2/3 animate-pulse rounded bg-muted" /><div className="h-4 w-full animate-pulse rounded bg-muted" /><div className="h-4 w-1/2 animate-pulse rounded bg-muted" /></div></div>)}</div> : allProducts.length > 0 ? <>
+    {loading && page === 1 && allProducts.length === 0 ? <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4 xl:grid-cols-5" aria-label={copy.loading}>{Array.from({ length: 9 }).map((_, i) => <div key={i} className="overflow-hidden rounded-xl border border-border bg-card"><div className="aspect-square animate-pulse bg-muted" /><div className="space-y-2 p-2.5"><div className="h-3 w-2/3 animate-pulse rounded bg-muted" /><div className="h-4 w-full animate-pulse rounded bg-muted" /><div className="h-4 w-1/2 animate-pulse rounded bg-muted" /></div></div>)}</div> : allProducts.length > 0 ? <>
       {view === 'grid' ? <Grid cols={3} sm={3} lg={4} xl={5} gap="2" className="sm:gap-3"><>{allProducts.map((product) => <ShopProductCard key={product.id} product={product} currency={currency} locale={locale} />)}</></Grid> : <div className="grid gap-3">{allProducts.map((product) => <ShopProductCard key={product.id} product={product} currency={currency} locale={locale} view="list" />)}</div>}
       {hasMore && <div className="flex justify-center pt-2"><button type="button" disabled={loadingMore} onClick={() => setPage((p) => p + 1)} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border bg-card px-6 py-2.5 text-sm font-semibold text-foreground shadow-sm transition-all hover:border-primary/40 hover:text-primary disabled:cursor-not-allowed disabled:opacity-60">{loadingMore ? copy.loading : `${PAGE_SIZE.toLocaleString(locale === 'en' ? 'en-US' : locale === 'ps' ? 'ps-AF' : 'fa-IR')} ${copy.more}`}</button></div>}
       {!hasMore && meta && <p className="pt-2 text-center text-xs text-muted-foreground">{copy.allShown}: {totalCount.toLocaleString(locale === 'en' ? 'en-US' : locale === 'ps' ? 'ps-AF' : 'fa-IR')}</p>}
