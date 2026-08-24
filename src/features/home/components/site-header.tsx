@@ -44,16 +44,12 @@ export async function SiteHeader() {
 
             <div className="flex min-w-0 flex-1 items-center"><HeaderSearchBar locale={locale} /></div>
 
-            <Link href="/wishlist" aria-label={wishlistLabel} title={wishlistLabel} className="absolute left-1.5 top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-xl border border-border bg-background text-muted-foreground transition-colors hover:border-primary/30 hover:bg-primary/5 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:hidden sm:left-2">
-              <Heart className="h-4 w-4" aria-hidden="true" />
-            </Link>
-
             <div className="flex shrink-0 items-center gap-0.5 sm:gap-1.5">
               <Link href="/wishlist" aria-label={wishlistLabel} title={wishlistLabel} className="hidden h-9 w-9 items-center justify-center rounded-xl border border-border bg-background text-muted-foreground transition-colors hover:border-primary/30 hover:bg-primary/5 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:flex sm:h-10 sm:w-10"><Heart className="h-4 w-4" aria-hidden="true" /></Link>
               <LanguageSwitcher />
               <ThemeToggle variant="icon" lang={locale} />
               <div className="hidden md:flex"><HeaderAuthActions /></div>
-              <div className="hidden md:flex"><CartBadge /></div>
+              <CartBadge className="h-9 w-9 justify-center p-0 sm:h-10 sm:w-10" />
             </div>
           </div>
         </div>
