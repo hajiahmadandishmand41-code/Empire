@@ -1,5 +1,4 @@
 import { getLocale, getTranslations } from 'next-intl/server';
-import { CartBadge } from '@/features/cart';
 import { HeaderAuthActions } from '@/features/auth';
 import { Heart, Compass, Sparkles, Tags, Store } from 'lucide-react';
 import { Link } from '@/i18n/routing';
@@ -45,11 +44,10 @@ export async function SiteHeader() {
             <div className="flex min-w-0 flex-1 items-center"><HeaderSearchBar locale={locale} /></div>
 
             <div className="flex shrink-0 items-center gap-0.5 sm:gap-1.5">
-              <Link href="/wishlist" aria-label={wishlistLabel} title={wishlistLabel} className="hidden h-9 w-9 items-center justify-center rounded-xl border border-border bg-background text-muted-foreground transition-colors hover:border-primary/30 hover:bg-primary/5 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:flex sm:h-10 sm:w-10"><Heart className="h-4 w-4" aria-hidden="true" /></Link>
+              <Link href="/wishlist" aria-label={wishlistLabel} title={wishlistLabel} className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-background text-muted-foreground transition-colors hover:border-primary/30 hover:bg-primary/5 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-10 sm:w-10"><Heart className="h-4 w-4" aria-hidden="true" /></Link>
               <LanguageSwitcher />
               <ThemeToggle variant="icon" lang={locale} />
               <div className="hidden md:flex"><HeaderAuthActions /></div>
-              <CartBadge className="h-9 w-9 justify-center p-0 sm:h-10 sm:w-10" />
             </div>
           </div>
         </div>
