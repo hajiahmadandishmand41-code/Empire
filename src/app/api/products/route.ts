@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
       page: query.page ?? 1,
       pageSize: effectiveLimit,
       rerank: Boolean(query.q),
-      isTraditional: query.isTraditional,
+      isTraditional: query.isTraditional ?? false,
     });
     const localized = await getProductLocalizedTexts(result.products.map((product) => product.id), locale);
     const products = result.products.map((product) => {
