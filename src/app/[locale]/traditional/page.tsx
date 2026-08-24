@@ -1,12 +1,10 @@
 import type { Metadata } from 'next';
-import { setRequestLocale } from 'next-intl/server';
 import { SiteHeader } from '@/features/home/components/site-header';
 import { SiteFooter } from '@/features/home/components/site-footer';
 import { BottomNavigation } from '@/features/home/components/bottom-navigation';
 import { TraditionalPageContent } from '@/features/traditional/components/traditional-page-content';
 
 const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? '').replace(/\/$/, '');
-
 type Props = { params: Promise<{ locale: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -18,22 +16,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     description,
     alternates: {
       canonical: `${SITE_URL}/${locale}/traditional`,
-      languages: {
-        fa: `${SITE_URL}/fa/traditional`,
-        ps: `${SITE_URL}/ps/traditional`,
-        en: `${SITE_URL}/en/traditional`,
-      },
+      languages: { fa: `${SITE_URL}/fa/traditional`, ps: `${SITE_URL}/ps/traditional`, en: `${SITE_URL}/en/traditional` },
     },
   };
 }
 
 export default async function TraditionalPage({ params }: Props) {
   const { locale } = await params;
-  setRequestLocale(locale);
   return (
     <>
       <SiteHeader />
-      <main id="main" className="min-h-dvh bg-background pb-16 md:pb-0">
+      <main id="main" className="traditional-page min-h-dvh bg-background pb-16 md:pb-0">
         <TraditionalPageContent locale={locale} />
       </main>
       <SiteFooter />
