@@ -14,6 +14,8 @@ import { TrustSection } from '@/features/home/components/trust-section';
 import { SiteHeader } from '@/features/home/components/site-header';
 import { SiteFooter } from '@/features/home/components/site-footer';
 import { BottomNavigation } from '@/features/home/components/bottom-navigation';
+import { MarketplaceProductCard } from '@/components/marketplace-product-card';
+import { getCategoryRepository } from '@/server/infrastructure/registry';
 import { getHomepageData, getHomepageSection, toSliderProduct } from '@/features/home/lib/homepage-data';
 import { listActiveBanners } from '@/server/services/banner.service';
 import { getCurrentUser } from '@/lib/auth/current-user';
@@ -39,7 +41,22 @@ async function LowerRecommendationSections({ locale, userId, catalog }: { locale
     .filter((product) => !seen.has(product.id) && seen.add(product.id))
     .slice(0, 24);
   if (!uniquePool.length) return null;
-  return <><PersonalizedProductsSection products={uniquePool.map((product) => toSliderProduct(product))} locale={locale} /><RecentlyViewedSection products={uniquePool.map((product) => toSliderProduct(product))} locale={locale} /><HomeCatalogGrid products={uniquePool} locale={locale} /></>;
+  return <><PersonalizedProductsSection products={uniquePool.map((product) => toSliderProduct(product))} locale={locale} /><RecentlyViewedSection products={uniquePool.map((product) => toSliderProduct(product))} locale={locale} /><HomeCatalogGrid products={uniquePool} locale={locale} /><HomeBottomProductList products={uniquePool} locale={locale} /></>;
+}
+
+function HomeBottomProductList({ products, locale }: { products: Awaited<ReturnType<typeof getHomepageData>>['featured']; locale: Locale }) {
+  const unique = Array.from(new Map(products.map((product) => [product.id, product])).values()).slice(0, 10);
+  if (!unique.length) return null;
+  const copy = locale === 'en' ? { title: 'More products to discover', subtitle: 'A compact marketplace-style view', all: 'View all' } : locale === 'ps' ? { title: 'نور محصولات د کشف لپاره', subtitle: 'د بازار په سبک منظم لنډه ننداره', all: 'ټول وګورئ' } : { title: 'محصولات بیشتر برای کشف', subtitle: 'نمایش جمع‌وجور و حرفه‌ای شبیه فروشگاه‌های بزرگ', all: 'مشاهده همه' };
+  return <section className="border-y border-border bg-background py-4 sm:py-7" aria-label={copy.title}><div className="mx-auto max-w-screen-2xl px-2.5 sm:px-6"><div className="mb-3 flex items-center justify-between gap-2 sm:mb-4"><div className="min-w-0"><h2 className="text-sm font-black tracking-tight sm:text-lg">{copy.title}</h2><p className="mt-0.5 text-[9px] leading-4 text-muted-foreground sm:text-xs">{copy.subtitle}</p></div><a href={locale === 'en' ? '/en/shop' : locale === 'ps' ? '/ps/shop' : '/fa/shop'} className="min-h-8 shrink-0 rounded-full border border-border bg-card px-3 py-1.5 text-[10px] font-bold sm:text-[11px]">{copy.all}</a></div><div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3">{unique.map((product) => <MarketplaceProductCard key={product.id} product={product} locale={locale} currency="AFN" view="list" />)}</div></div></section>;
+}
+
+async function PopularCategoryRanking({ locale }: { locale: Locale }) {
+  const categories = await getCategoryRepository().findAll(true, true).catch(() => []);
+  const top = categories.filter((category) => !category.parentId).sort((a, b) => Number(b.productCount ?? 0) - Number(a.productCount ?? 0)).slice(0, 2);
+  if (!top.length) return null;
+  const title = locale === 'en' ? 'Popular categories' : locale === 'ps' ? 'مشهورې کټګورۍ' : 'دسته‌های محبوب';
+  return <section className="border-b border-border bg-card py-4 sm:py-6" aria-label={title}><div className="mx-auto max-w-screen-xl px-2.5 sm:px-6"><div className="mb-3 flex items-center gap-2 sm:mb-4"><span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary text-sm font-black">★</span><h2 className="text-sm font-black sm:text-lg">{title}</h2></div><div className="grid grid-cols-2 gap-2 sm:gap-3">{top.map((category, index) => <a key={category.id} href={locale === 'en' ? `/en/category/${category.slug}` : locale === 'ps' ? `/ps/category/${category.slug}` : `/fa/category/${category.slug}`} className="relative flex min-h-20 items-center gap-2 overflow-hidden rounded-2xl border border-border bg-background p-2.5 transition hover:border-primary/30 hover:shadow-sm sm:min-h-24 sm:p-3"><span className="absolute start-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-[11px] font-black text-primary-foreground">{index + 1}</span><span className="relative ms-8 h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-muted sm:h-16 sm:w-16">{category.imageUrl ? <img src={category.imageUrl} alt="" className="h-full w-full object-cover" loading="lazy" /> : null}</span><span className="min-w-0"><strong className="block truncate text-xs font-black sm:text-sm">{category.name}</strong><span className="mt-1 block text-[9px] text-muted-foreground sm:text-[10px]">{Number(category.productCount ?? 0).toLocaleString(locale === 'en' ? 'en-US' : locale === 'ps' ? 'ps-AF' : 'fa-IR')} {locale === 'en' ? 'products' : locale === 'ps' ? 'محصولات' : 'محصول'}</span></span></a>)}</div></div></section>;
 }
 
 export default async function HomePage({ params }: { params: Promise<{ locale: string }> }) {
@@ -61,6 +78,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
     <Suspense fallback={<SectionSkeleton />}><HomeProductSection section="newest" locale={locale} catalog={catalog} title={{ en: 'Fresh arrivals', ps: 'تازه راغلي محصولات', fa: 'تازه‌واردها' }} subtitle={{ en: 'New products to discover before everyone else', ps: 'نوي محصولات چې لومړی یې تاسو ومومئ', fa: 'محصولات تازه برای کشف زودتر از دیگران' }} href="/shop?sort=newest" badge="new" accentColor="bg-sky-500" /></Suspense>
     <DynamicBannerStrip locale={locale} placement="HOME_MID" />
     <Suspense fallback={<SectionSkeleton />}><LowerRecommendationSections locale={locale} userId={user?.id} catalog={catalog} /></Suspense>
+    <Suspense fallback={<SectionSkeleton />}><PopularCategoryRanking locale={locale} /></Suspense>
     <Suspense fallback={<div className="h-44 animate-pulse bg-muted/30" />}><TrustSection /></Suspense>
   </main><SiteFooter /><BottomNavigation /></div>;
 }
