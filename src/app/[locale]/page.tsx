@@ -1,4 +1,6 @@
 import { Suspense } from 'react';
+import Image from 'next/image';
+import { Star } from 'lucide-react';
 import { setRequestLocale } from 'next-intl/server';
 import { HomepageHeroCarousel } from '@/features/home/components/homepage-hero-carousel';
 import { HomeDiscoveryStrip } from '@/features/home/components/home-discovery-strip';
@@ -9,12 +11,12 @@ import { TraditionalProductsBanner } from '@/features/home/components/traditiona
 import { CategoriesSection } from '@/features/home/components/categories-section';
 import { ProductSliderSection } from '@/features/home/components/product-slider-section';
 import { PersonalizedProductsSection, RecentlyViewedSection } from '@/features/home/components/personalized-products-section';
+import { MarketplaceProductCard } from '@/components/marketplace-product-card';
 import { HomeCatalogGrid } from '@/features/home/components/home-catalog-grid';
 import { TrustSection } from '@/features/home/components/trust-section';
 import { SiteHeader } from '@/features/home/components/site-header';
 import { SiteFooter } from '@/features/home/components/site-footer';
 import { BottomNavigation } from '@/features/home/components/bottom-navigation';
-import { MarketplaceProductCard } from '@/components/marketplace-product-card';
 import { getCategoryRepository } from '@/server/infrastructure/registry';
 import { getHomepageData, getHomepageSection, toSliderProduct } from '@/features/home/lib/homepage-data';
 import { listActiveBanners } from '@/server/services/banner.service';
@@ -48,7 +50,7 @@ function HomeBottomProductList({ products, locale }: { products: Awaited<ReturnT
   const unique = Array.from(new Map(products.map((product) => [product.id, product])).values()).slice(0, 10);
   if (!unique.length) return null;
   const copy = locale === 'en' ? { title: 'More products to discover', subtitle: 'A compact marketplace-style view', all: 'View all' } : locale === 'ps' ? { title: 'نور محصولات د کشف لپاره', subtitle: 'د بازار په سبک منظم لنډه ننداره', all: 'ټول وګورئ' } : { title: 'محصولات بیشتر برای کشف', subtitle: 'نمایش جمع‌وجور و حرفه‌ای شبیه فروشگاه‌های بزرگ', all: 'مشاهده همه' };
-  return <section className="border-y border-border bg-background py-4 sm:py-7" aria-label={copy.title}><div className="mx-auto max-w-screen-2xl px-2.5 sm:px-6"><div className="mb-3 flex items-center justify-between gap-2 sm:mb-4"><div className="min-w-0"><h2 className="text-sm font-black tracking-tight sm:text-lg">{copy.title}</h2><p className="mt-0.5 text-[9px] leading-4 text-muted-foreground sm:text-xs">{copy.subtitle}</p></div><a href={locale === 'en' ? '/en/shop' : locale === 'ps' ? '/ps/shop' : '/fa/shop'} className="min-h-8 shrink-0 rounded-full border border-border bg-card px-3 py-1.5 text-[10px] font-bold sm:text-[11px]">{copy.all}</a></div><div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3">{unique.map((product) => <MarketplaceProductCard key={product.id} product={product} locale={locale} currency="AFN" view="list" />)}</div></div></section>;
+  return <section className="border-y border-border bg-background py-4 sm:py-7" aria-label={copy.title}><div className="mx-auto max-w-screen-2xl px-2.5 sm:px-6"><div className="mb-3 flex items-center justify-between gap-2 sm:mb-4"><div className="min-w-0"><h2 className="text-sm font-black tracking-tight sm:text-lg">{copy.title}</h2><p className="mt-0.5 text-[10px] leading-4 text-muted-foreground sm:text-xs">{copy.subtitle}</p></div><a href={locale === 'en' ? '/en/shop' : locale === 'ps' ? '/ps/shop' : '/fa/shop'} className="min-h-8 shrink-0 rounded-full border border-border bg-card px-3 py-1.5 text-[10px] font-bold sm:text-[11px]">{copy.all}</a></div><div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3">{unique.map((product) => <MarketplaceProductCard key={product.id} product={product} locale={locale} currency="AFN" view="list" />)}</div></div></section>;
 }
 
 async function PopularCategoryRanking({ locale }: { locale: Locale }) {
@@ -56,7 +58,9 @@ async function PopularCategoryRanking({ locale }: { locale: Locale }) {
   const top = categories.filter((category) => !category.parentId).sort((a, b) => Number(b.productCount ?? 0) - Number(a.productCount ?? 0)).slice(0, 2);
   if (!top.length) return null;
   const title = locale === 'en' ? 'Popular categories' : locale === 'ps' ? 'مشهورې کټګورۍ' : 'دسته‌های محبوب';
-  return <section className="border-b border-border bg-card py-4 sm:py-6" aria-label={title}><div className="mx-auto max-w-screen-xl px-2.5 sm:px-6"><div className="mb-3 flex items-center gap-2 sm:mb-4"><span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary text-sm font-black">★</span><h2 className="text-sm font-black sm:text-lg">{title}</h2></div><div className="grid grid-cols-2 gap-2 sm:gap-3">{top.map((category, index) => <a key={category.id} href={locale === 'en' ? `/en/category/${category.slug}` : locale === 'ps' ? `/ps/category/${category.slug}` : `/fa/category/${category.slug}`} className="relative flex min-h-20 items-center gap-2 overflow-hidden rounded-2xl border border-border bg-background p-2.5 transition hover:border-primary/30 hover:shadow-sm sm:min-h-24 sm:p-3"><span className="absolute start-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-[11px] font-black text-primary-foreground">{index + 1}</span><span className="relative ms-8 h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-muted sm:h-16 sm:w-16">{category.imageUrl ? <img src={category.imageUrl} alt="" className="h-full w-full object-cover" loading="lazy" /> : null}</span><span className="min-w-0"><strong className="block truncate text-xs font-black sm:text-sm">{category.name}</strong><span className="mt-1 block text-[9px] text-muted-foreground sm:text-[10px]">{Number(category.productCount ?? 0).toLocaleString(locale === 'en' ? 'en-US' : locale === 'ps' ? 'ps-AF' : 'fa-IR')} {locale === 'en' ? 'products' : locale === 'ps' ? 'محصولات' : 'محصول'}</span></span></a>)}</div></div></section>;
+  const productLabel = locale === 'en' ? 'products' : locale === 'ps' ? 'محصولات' : 'محصول';
+  const numberLocale = locale === 'en' ? 'en-US' : locale === 'ps' ? 'ps-AF' : 'fa-IR';
+  return <section className="border-b border-border bg-card py-4 sm:py-6" aria-label={title}><div className="mx-auto max-w-screen-xl px-2.5 sm:px-6"><div className="mb-3 flex items-center gap-2 sm:mb-4"><span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-sm font-black text-primary"><Star className="h-4 w-4" aria-hidden="true" /></span><h2 className="text-sm font-black sm:text-lg">{title}</h2></div><div className="grid grid-cols-2 gap-2 sm:gap-3">{top.map((category, index) => <a key={category.id} href={locale === 'en' ? `/en/category/${category.slug}` : locale === 'ps' ? `/ps/category/${category.slug}` : `/fa/category/${category.slug}`} className="relative flex min-h-20 items-center gap-2 overflow-hidden rounded-2xl border border-border bg-background p-2.5 transition hover:border-primary/30 hover:shadow-sm sm:min-h-24 sm:p-3"><span className="absolute start-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-[11px] font-black text-primary-foreground">{index + 1}</span><span className="relative ms-8 h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-muted sm:h-16 sm:w-16">{category.imageUrl ? <Image src={category.imageUrl} alt={category.name} fill sizes="64px" loading="lazy" className="object-cover" /> : <span className="flex h-full w-full items-center justify-center text-sm font-black text-muted-foreground">{index + 1}</span>}</span><span className="min-w-0"><strong className="block truncate text-xs font-black sm:text-sm">{category.name}</strong><span className="mt-1 block text-[10px] text-muted-foreground sm:text-[10px]">{Number(category.productCount ?? 0).toLocaleString(numberLocale)} {productLabel}</span></span></a>)}</div></div></section>;
 }
 
 export default async function HomePage({ params }: { params: Promise<{ locale: string }> }) {
