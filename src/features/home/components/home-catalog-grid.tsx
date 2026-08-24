@@ -16,24 +16,14 @@ export function HomeCatalogGrid({ products, locale = 'fa', currency = 'AFN' }: {
       <div className="mx-auto max-w-screen-2xl px-2.5 sm:px-6">
         <div className="mb-3 flex items-end justify-between gap-2 sm:mb-4 sm:gap-3">
           <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="h-6 w-1 rounded-full bg-gradient-to-b from-fuchsia-300 via-rose-300 to-sky-300" aria-hidden="true" />
-              <h2 className="text-sm font-black tracking-tight sm:text-lg">{copy.title}</h2>
-            </div>
+            <div className="flex items-center gap-2"><span className="h-6 w-1 rounded-full bg-gradient-to-b from-fuchsia-300 via-rose-300 to-sky-300" aria-hidden="true" /><h2 className="text-sm font-black tracking-tight sm:text-lg">{copy.title}</h2></div>
             <p className="mt-0.5 text-[10px] leading-4 text-muted-foreground sm:mt-1 sm:text-xs sm:leading-5">{copy.subtitle}</p>
           </div>
-          <a
-            href={locale === 'en' ? '/en/shop' : locale === 'ps' ? '/ps/shop' : '/fa/shop'}
-            className="shrink-0 rounded-full border border-border bg-card px-2.5 py-1.5 text-[10px] font-bold transition-colors hover:bg-muted sm:px-3 sm:py-1.5 sm:text-[11px]"
-          >
-            {copy.all}
-          </a>
+          <a href={locale === 'en' ? '/en/shop' : locale === 'ps' ? '/ps/shop' : '/fa/shop'} className="shrink-0 rounded-full border border-border bg-card px-2.5 py-1.5 text-[10px] font-bold transition-colors hover:bg-muted sm:px-3 sm:py-1.5 sm:text-[11px]">{copy.all}</a>
         </div>
 
-        <div className="product-grid grid grid-cols-[repeat(3,minmax(0,1fr))] gap-2 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4 xl:grid-cols-5">
-          {unique.map((product) => (
-            <MarketplaceProductCard key={product.id} product={product} locale={locale} currency={currency} view="grid" />
-          ))}
+        <div className="grid grid-cols-3 gap-2 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4 xl:grid-cols-5">
+          {unique.map((product) => <MarketplaceProductCard key={product.id} product={product} locale={locale} currency={currency} view="grid" />)}
         </div>
       </div>
     </section>
