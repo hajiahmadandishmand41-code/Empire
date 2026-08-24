@@ -23,11 +23,12 @@ type ImageSlide = CampaignBanner & { kind: 'image' };
 type Slide = ImageSlide | VisualSlide;
 
 const IMAGE_OVERLAYS = [
-  'bg-gradient-to-tr from-slate-950/90 via-indigo-950/35 to-rose-950/20',
-  'bg-gradient-to-tr from-slate-950/90 via-cyan-950/30 to-amber-950/20',
-  'bg-gradient-to-tr from-slate-950/90 via-fuchsia-950/35 to-violet-950/20',
-  'bg-gradient-to-tr from-slate-950/90 via-emerald-950/30 to-teal-950/20',
-  'bg-gradient-to-tr from-slate-950/90 via-sky-950/30 to-blue-950/25',
+  'bg-gradient-to-tr from-slate-950/95 via-indigo-950/55 to-rose-950/35',
+  'bg-gradient-to-tr from-slate-950/95 via-cyan-950/50 to-amber-950/30',
+  'bg-gradient-to-tr from-slate-950/95 via-fuchsia-950/55 to-violet-950/35',
+  'bg-gradient-to-tr from-slate-950/95 via-emerald-950/50 to-teal-950/35',
+  'bg-gradient-to-tr from-slate-950/95 via-sky-950/50 to-blue-950/35',
+  'bg-gradient-to-tr from-slate-950/95 via-orange-950/50 to-red-950/35',
 ];
 
 function bannerCopy(locale: string) {
@@ -38,11 +39,11 @@ function bannerCopy(locale: string) {
 
 function fallbackSlides(locale: string): VisualSlide[] {
   const fa: VisualSlide[] = [
-    { id: 'local', kind: 'visual', title: 'محصولات وطنی', subtitle: 'حمایت از تولید ملی با انتخاب‌های باکیفیت و اصیل.', ctaLabel: 'مشاهده محصولات', href: '/traditional', theme: 'from-[#101926] via-[#243b4b] to-[#34243f] dark:from-slate-950 dark:via-cyan-950 dark:to-violet-950', icon: Sparkles },
-    { id: 'home', kind: 'visual', title: 'محصولات خانه و زندگی', subtitle: 'برای خانه‌ای زیباتر و خریدی کاربردی‌تر، انتخاب‌های تازه را ببینید.', ctaLabel: 'خرید برای خانه', href: '/categories', theme: 'from-[#20141a] via-[#3a2630] to-[#4e3324] dark:from-slate-950 dark:via-rose-950 dark:to-amber-950', icon: Home },
-    { id: 'stores', kind: 'visual', title: 'فروشگاه‌های ایشاپ', subtitle: 'فروشگاه‌های معتبر و فروشندگان را یکجا کشف کنید.', ctaLabel: 'مشاهده فروشگاه‌ها', href: '/stores', theme: 'from-[#111827] via-[#1d3557] to-[#17435e] dark:from-slate-950 dark:via-blue-950 dark:to-cyan-950', icon: Store },
-    { id: 'discounts', kind: 'visual', title: 'تخفیف‌های ویژه', subtitle: 'فقط پیشنهادهایی با تخفیف واقعی بیشتر از ۲۰٪ در این بخش.', ctaLabel: 'مشاهده تخفیف‌ها', href: '/discounts', theme: 'from-[#24131b] via-[#4a1d36] to-[#4b2731] dark:from-slate-950 dark:via-fuchsia-950 dark:to-rose-950', icon: Tags },
-    { id: 'discover', kind: 'visual', title: 'کشف بهترین‌ها', subtitle: 'پیشنهادهای هوشمند بر اساس محبوبیت، تازگی و سلیقه شما.', ctaLabel: 'شروع کشف', href: '/discover', theme: 'from-[#0f1a1c] via-[#173d3b] to-[#1f294d] dark:from-slate-950 dark:via-emerald-950 dark:to-indigo-950', icon: Compass },
+    { id: 'local', kind: 'visual', title: 'محصولات وطنی', subtitle: 'حمایت از تولید ملی با انتخاب‌های باکیفیت و اصیل.', ctaLabel: 'مشاهده محصولات', href: '/traditional', theme: 'from-[#0b1520] via-[#182f3c] to-[#30203a] dark:from-slate-950 dark:via-cyan-950 dark:to-violet-950', icon: Sparkles },
+    { id: 'home', kind: 'visual', title: 'محصولات خانه و زندگی', subtitle: 'برای خانه‌ای زیباتر و خریدی کاربردی‌تر، انتخاب‌های تازه را ببینید.', ctaLabel: 'خرید برای خانه', href: '/categories', theme: 'from-[#1a1017] via-[#30202b] to-[#49311e] dark:from-slate-950 dark:via-rose-950 dark:to-amber-950', icon: Home },
+    { id: 'stores', kind: 'visual', title: 'فروشگاه‌های ایشاپ', subtitle: 'فروشگاه‌های معتبر و فروشندگان را یکجا کشف کنید.', ctaLabel: 'مشاهده فروشگاه‌ها', href: '/stores', theme: 'from-[#0b111b] via-[#172844] to-[#123c52] dark:from-slate-950 dark:via-blue-950 dark:to-cyan-950', icon: Store },
+    { id: 'discounts', kind: 'visual', title: 'تخفیف‌های ویژه', subtitle: 'فقط پیشنهادهایی با تخفیف واقعی بیشتر از ۲۰٪ در این بخش.', ctaLabel: 'مشاهده تخفیف‌ها', href: '/discounts', theme: 'from-[#1d0c16] via-[#3a1630] to-[#431d2a] dark:from-slate-950 dark:via-fuchsia-950 dark:to-rose-950', icon: Tags },
+    { id: 'discover', kind: 'visual', title: 'کشف بهترین‌ها', subtitle: 'پیشنهادهای هوشمند بر اساس محبوبیت، تازگی و سلیقه شما.', ctaLabel: 'شروع کشف', href: '/discover', theme: 'from-[#091617] via-[#12302f] to-[#1b2443] dark:from-slate-950 dark:via-emerald-950 dark:to-indigo-950', icon: Compass },
   ];
   if (locale === 'en') return fa.map((item) => ({ ...item, title: item.id === 'local' ? 'Afghan products' : item.id === 'home' ? 'Home & lifestyle' : item.id === 'stores' ? 'Eshop stores' : item.id === 'discounts' ? '20%+ discounts' : 'Discover the best', subtitle: item.id === 'local' ? 'Support local production with authentic, quality choices.' : item.id === 'home' ? 'Fresh practical picks for a more beautiful everyday life.' : item.id === 'stores' ? 'Discover trusted stores and sellers in one place.' : item.id === 'discounts' ? 'Only real discounts above 20% are shown here.' : 'Smart picks ranked by popularity, freshness and your taste.', ctaLabel: item.id === 'local' ? 'View products' : item.id === 'home' ? 'Shop for home' : item.id === 'stores' ? 'View stores' : item.id === 'discounts' ? 'View discounts' : 'Start discovering' }));
   if (locale === 'ps') return fa.map((item) => ({ ...item, title: item.id === 'local' ? 'افغاني محصولات' : item.id === 'home' ? 'د کور او ژوند محصولات' : item.id === 'stores' ? 'د ایشاپ پلورنځي' : item.id === 'discounts' ? '۲۰٪+ تخفیفونه' : 'غوره توکي ومومئ', ctaLabel: item.id === 'local' ? 'محصولات وګورئ' : item.id === 'home' ? 'د کور لپاره واخلئ' : item.id === 'stores' ? 'پلورنځي وګورئ' : item.id === 'discounts' ? 'تخفیفونه وګورئ' : 'کشف پیل کړئ' }));
