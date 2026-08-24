@@ -1,33 +1,30 @@
+import Image from 'next/image';
+import { Package } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/routing';
-import { cn } from '@/lib/utils';
-import type { CategoryItem } from '../data/categories';
+import type { CategoryRow } from '@/server/repositories/category.repository';
 
-interface CategoryCardProps { item: CategoryItem; }
+interface CategoryCardProps { item: CategoryRow; }
 
 export async function CategoryCard({ item }: CategoryCardProps) {
-  const { key, Icon, accent } = item;
   const t = await getTranslations('home.categories.items');
-  const title = t(`${key}.title` as Parameters<typeof t>[0]);
+  const title = (() => { try { return t(`${item.key}.title` as Parameters<typeof t>[0]); } catch { return item.name; } })();
+  const productCount = Number(item.productCount ?? 0);
 
   return (
     <Link
-      href={`/category/${key}` as never}
+      href={`/category/${item.slug}` as never}
       aria-label={title}
-      className="group flex min-w-0 flex-col items-center gap-2 rounded-2xl p-1.5 text-center transition-transform duration-200 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      className="group relative h-[118px] w-[118px] shrink-0 overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-premium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:h-[132px] sm:w-auto sm:shrink"
     >
-      <span
-        className={cn(
-          'flex h-16 w-16 items-center justify-center rounded-full border border-border/70 bg-gradient-to-br shadow-sm ring-2 ring-background transition-[transform,box-shadow,border-color] duration-200 group-hover:scale-105 group-hover:border-primary/25 group-hover:shadow-md sm:h-[72px] sm:w-[72px]',
-          accent.from,
-          accent.to,
-        )}
-      >
-        <Icon className="h-7 w-7 text-gray-800 dark:text-gray-100 sm:h-8 sm:w-8" aria-hidden />
-      </span>
-      <span className="w-full line-clamp-2 text-[10px] font-bold leading-5 text-foreground group-hover:text-primary sm:text-xs">
-        {title}
-      </span>
+      <div className="absolute inset-0 bg-muted">
+        {item.imageUrl ? <Image src={item.imageUrl} alt={title} fill sizes="(max-width: 639px) 118px, (max-width: 1023px) 20vw, 13vw" loading="lazy" className="object-cover transition-transform duration-500 group-hover:scale-105" /> : <div className="flex h-full items-center justify-center bg-gradient-to-br from-primary/10 via-muted to-primary/5"><Package className="h-7 w-7 text-primary/35" aria-hidden="true" /></div>}
+      </div>
+      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/20 to-transparent" aria-hidden="true" />
+      <div className="absolute inset-x-0 bottom-0 p-2.5 text-white">
+        <span className="line-clamp-2 text-[10px] font-black leading-4 drop-shadow-sm sm:text-[11px]">{title}</span>
+        {productCount > 0 ? <span className="mt-0.5 block text-[8px] font-medium text-white/75 sm:text-[9px]">{productCount.toLocaleString()} محصول</span> : null}
+      </div>
     </Link>
   );
 }
