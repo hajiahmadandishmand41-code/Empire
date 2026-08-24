@@ -1,0 +1,61 @@
+name: Production hardening
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_stress:
+        description: 'Run guarded read-only stress test against the configured staging target'
+        required: false
+        default: false
+        type: boolean
+  schedule:
+    - cron: '*/15 * * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-hardening
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: 24
+  NEXT_TELEMETRY_DISABLED: '1'
+
+jobs:
+  production-monitor:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Production smoke monitor
+        env:
+          PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
+        run: npm run monitor:production
+      - name: API/E2E smoke
+        env:
+          E2E_BASE_URL: ${{ vars.PRODUCTION_URL }}
+        run: npm run e2e:smoke
+
+  guarded-read-load-test:
+    if: github.event_name == 'workflow_dispatch' && inputs.run_stress == true
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Guarded read-only stress test
+        env:
+          STRESS_BASE_URL: ${{ vars.STRESS_BASE_URL }}
+          STRESS_PATH: /api/products?limit=1
+          STRESS_CONCURRENCY: '25'
+          STRESS_REQUESTS: '500'
+        run: npm run stress:test
