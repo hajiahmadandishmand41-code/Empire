@@ -35,10 +35,9 @@ export class ProductService {
     const useSmartFeed = !isSearch && (!opts.sort || opts.sort === 'default' || opts.sort === 'recommended');
     const useCandidateRanking = isSearch || useSmartFeed;
 
-    // Keep each ranking pool an exact multiple of the requested page size when possible.
-    // This prevents ranked pagination from skipping products between candidate pools.
+    // Keep each candidate pool aligned with the requested page size so ranked pagination does not skip products.
     const candidatePageSize = useCandidateRanking
-      ? Math.min(100, pageSize * 2)
+      ? Math.max(pageSize, Math.ceil(pageSize / 20) * pageSize)
       : pageSize;
     const logicalOffset = (page - 1) * pageSize;
     const candidatePage = useCandidateRanking ? Math.floor(logicalOffset / candidatePageSize) + 1 : page;
@@ -89,14 +88,18 @@ export class ProductService {
         })),
         DEFAULT_RANKING_CONFIG,
       );
+      // Rotate the ranked discovery pool on a short time bucket. Refreshing the catalog therefore surfaces a fresh mix,
+      // while pagination requested within the same bucket keeps the same ordering and remains coherent.
+      if (ranked.length > 1) {
+        const bucket = Math.floor(Date.now() / 8000);
+        const rotation = bucket % ranked.length;
+        if (rotation > 0) ranked = [...ranked.slice(rotation), ...ranked.slice(0, rotation)];
+      }
     } else {
       ranked = mapped.map(({ summary }) => summary);
     }
 
-    const products = ranked.slice(
-      useCandidateRanking ? candidateOffset : 0,
-      useCandidateRanking ? candidateOffset + pageSize : pageSize,
-    );
+    const products = ranked.slice(useCandidateRanking ? candidateOffset : 0, useCandidateRanking ? candidateOffset + pageSize : pageSize);
     const hasMore = useCandidateRanking
       ? logicalOffset + products.length < paginated.total
       : paginated.hasMore;
