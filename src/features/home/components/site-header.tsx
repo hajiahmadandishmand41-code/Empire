@@ -26,7 +26,7 @@ export async function SiteHeader() {
       <AnnouncementBar locale={locale} />
       <div className="site-header border-b border-border bg-card/95 backdrop-blur-xl">
         <div className="mx-auto max-w-screen-xl px-2.5 sm:px-6">
-          <div className="flex min-h-[4rem] items-center gap-1.5 sm:min-h-[4.75rem] sm:gap-3">
+          <div className="relative flex min-h-[4rem] items-center gap-1.5 sm:min-h-[4.75rem] sm:gap-3">
             <Link href="/" className="group flex shrink-0 items-center rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" aria-label={t('logoAria')}>
               <div className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-primary shadow-sm shadow-primary/20 transition-transform duration-150 group-hover:scale-[1.02] sm:h-10 sm:w-10" aria-hidden="true"><EshopLogo size={28} variant="color" /></div>
               <div className="hidden flex-col ps-2 sm:flex"><span className="font-display text-[15px] font-extrabold leading-none tracking-tight text-foreground">{brand}</span><span className="mt-0.5 text-[9px] font-semibold uppercase leading-tight tracking-wide text-primary">{t('brandSubline')}</span></div>
@@ -43,8 +43,13 @@ export async function SiteHeader() {
             </nav>
 
             <div className="flex min-w-0 flex-1 items-center"><HeaderSearchBar locale={locale} /></div>
+
+            <Link href="/wishlist" aria-label={wishlistLabel} title={wishlistLabel} className="absolute left-1.5 top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-xl border border-border bg-background text-muted-foreground transition-colors hover:border-primary/30 hover:bg-primary/5 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:hidden sm:left-2">
+              <Heart className="h-4 w-4" aria-hidden="true" />
+            </Link>
+
             <div className="flex shrink-0 items-center gap-0.5 sm:gap-1.5">
-              <Link href="/wishlist" aria-label={wishlistLabel} title={wishlistLabel} className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-background text-muted-foreground transition-colors hover:border-primary/30 hover:bg-primary/5 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-10 sm:w-10"><Heart className="h-4 w-4" aria-hidden="true" /></Link>
+              <Link href="/wishlist" aria-label={wishlistLabel} title={wishlistLabel} className="hidden h-9 w-9 items-center justify-center rounded-xl border border-border bg-background text-muted-foreground transition-colors hover:border-primary/30 hover:bg-primary/5 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:flex sm:h-10 sm:w-10"><Heart className="h-4 w-4" aria-hidden="true" /></Link>
               <LanguageSwitcher />
               <ThemeToggle variant="icon" lang={locale} />
               <div className="hidden md:flex"><HeaderAuthActions /></div>
