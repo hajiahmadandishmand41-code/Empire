@@ -1,7 +1,6 @@
 /**
  * GET /api/categories
- *
- * Public category listing with product counts and locale-aware names.
+ * Public category listing with product counts, hierarchy and localized names.
  */
 import type { NextRequest } from 'next/server';
 import { jsonOk, jsonPreflight, jsonError } from '@/lib/api/response';
@@ -12,29 +11,30 @@ import { getCategoryLocalizedText, normalizeCatalogLocale } from '@/server/local
 
 export const dynamic = 'force-dynamic';
 
-export async function OPTIONS() {
-  return jsonPreflight();
-}
+export async function OPTIONS() { return jsonPreflight(); }
 
 export async function GET(req: NextRequest) {
   const rl = await rateLimitAsync(clientKey(req, 'categories:list'), { limit: 120 });
   if (!rl.ok) return jsonError('rate_limited', 'Too many requests', { status: 429 });
-
-  if (!isDatabaseConfigured()) {
-    return jsonError('db_unavailable', 'Category catalog is unavailable', { status: 503 });
-  }
+  if (!isDatabaseConfigured()) return jsonError('db_unavailable', 'Category catalog is unavailable', { status: 503 });
 
   try {
     const repo = getCategoryRepository();
-    const rows = await repo.findAll(true);
+    const rows = await repo.findAll(true, true);
     const locale = normalizeCatalogLocale(req.nextUrl.searchParams.get('locale'));
     const localized = await Promise.all(rows.map(async (row) => {
       const text = await getCategoryLocalizedText(row.id, locale);
       return {
+        id: row.id,
         key: row.key,
         name: text?.name ?? row.name,
         slug: row.slug,
         productCount: row.productCount,
+        parentId: row.parentId ?? null,
+        parentKey: row.parentKey ?? null,
+        imageUrl: row.imageUrl ?? null,
+        isActive: row.isActive,
+        sortOrder: row.sortOrder,
       };
     }));
 
