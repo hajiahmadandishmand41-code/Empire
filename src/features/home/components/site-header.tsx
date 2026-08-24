@@ -1,7 +1,7 @@
 import { getLocale, getTranslations } from 'next-intl/server';
 import { CartBadge } from '@/features/cart';
 import { HeaderAuthActions } from '@/features/auth';
-import { Heart, LayoutGrid, UsersRound, Sparkles } from 'lucide-react';
+import { Heart, LayoutGrid, UsersRound, Sparkles, Compass } from 'lucide-react';
 import { Link } from '@/i18n/routing';
 import { LanguageSwitcher } from './language-switcher';
 import { HeaderCategoryNav } from './header-category-nav';
@@ -16,18 +16,22 @@ export async function SiteHeader() {
   const brand = locale === 'en' ? 'Eshop' : 'ایشاپ';
   const clubLabel = locale === 'en' ? 'Eshop Club' : locale === 'ps' ? 'د ایشاپ کلب' : 'باشگاه ایشاپ';
   const traditionalLabel = locale === 'en' ? 'Local products' : locale === 'ps' ? 'کورني محصولات' : 'محصولات وطنی';
+  const discoverLabel = locale === 'en' ? 'Discover' : locale === 'ps' ? 'کشف' : 'کشف';
   const wishlistLabel = locale === 'en' ? 'Wishlist' : locale === 'ps' ? 'خوښې' : 'علاقه‌مندی‌ها';
 
   return (
     <header className="sticky top-0 z-50 w-full" role="banner">
       <AnnouncementBar locale={locale} />
-      <div className="site-header border-b border-border bg-card/95 backdrop-blur">
+      <div className="site-header border-b border-border bg-card/98 backdrop-blur-md">
         <div className="mx-auto max-w-screen-xl px-2.5 sm:px-6">
           <div className="flex min-h-[3.5rem] items-center gap-1.5 sm:min-h-[4.5rem] sm:gap-4">
-            <Link href="/" className="group flex shrink-0 items-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" aria-label={t('logoAria')}>
-              <div className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-primary shadow-sm shadow-primary/20 transition-transform duration-150 group-hover:scale-[1.02] sm:h-10 sm:w-10" aria-hidden="true"><EshopLogo size={28} variant="color" /></div>
-              <div className="hidden flex-col ps-2 sm:flex"><span className="font-display text-[15px] font-extrabold leading-none tracking-tight text-foreground">{brand}</span><span className="mt-0.5 text-[9px] font-semibold leading-tight tracking-wide text-primary uppercase">{t('brandSubline')}</span></div>
-            </Link>
+            <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+              <Link href="/" className="group flex shrink-0 items-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" aria-label={t('logoAria')}>
+                <div className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-primary shadow-sm shadow-primary/20 transition-transform duration-150 group-hover:scale-[1.02] sm:h-10 sm:w-10" aria-hidden="true"><EshopLogo size={28} variant="color" /></div>
+                <div className="hidden flex-col ps-2 sm:flex"><span className="font-display text-[15px] font-extrabold leading-none tracking-tight text-foreground">{brand}</span><span className="mt-0.5 text-[9px] font-semibold leading-tight tracking-wide text-primary uppercase">{t('brandSubline')}</span></div>
+              </Link>
+              <Link href="/discover" className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-primary/20 bg-primary/10 px-3 py-2 text-[11px] font-extrabold text-primary transition hover:border-primary/35 hover:bg-primary/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-3.5 sm:text-xs"><Compass className="h-3.5 w-3.5" aria-hidden="true" />{discoverLabel}</Link>
+            </div>
             <div className="hidden shrink-0 items-center gap-1.5 lg:flex">
               <Link href="/categories" className="inline-flex items-center gap-2 rounded-xl border border-border bg-secondary px-3.5 py-2 text-xs font-bold text-secondary-foreground transition-colors hover:border-primary/30 hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><LayoutGrid className="h-3.5 w-3.5" aria-hidden="true" />{t('categories')}</Link>
               <Link href="/eshop" className="inline-flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 px-3.5 py-2 text-xs font-bold text-primary transition-colors hover:border-primary/35 hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><UsersRound className="h-3.5 w-3.5" aria-hidden="true" />{clubLabel}</Link>
