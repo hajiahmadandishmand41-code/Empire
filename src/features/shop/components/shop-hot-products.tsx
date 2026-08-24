@@ -1,75 +1,46 @@
-import Image from 'next/image';
-import Link from 'next/link';
-import { Flame, ArrowLeft } from 'lucide-react';
-import { getProductService } from '@/server/infrastructure/registry';
-import type { ProductSummary } from '@/types';
+import { ArrowLeft, Baby, BookOpen, Dumbbell, Home, Laptop, Smartphone, Watch, Shirt } from 'lucide-react';
+import { Link } from '@/i18n/routing';
 
 type Locale = 'fa' | 'ps' | 'en';
 
+type PopularCategory = { key: string; label: Record<Locale, string>; href: string; icon: typeof Home; accent: string };
+
+const categories: PopularCategory[] = [
+  { key: 'home', label: { fa: 'لوازم خانگی', ps: 'د کور وسایل', en: 'Home appliances' }, href: '/shop?categoryKey=homeAppliances', icon: Home, accent: 'bg-emerald-500/10 text-emerald-600' },
+  { key: 'digital', label: { fa: 'موبایل و دیجیتال', ps: 'موبایل او ډیجیټل', en: 'Mobile & digital' }, href: '/shop?categoryKey=digital', icon: Smartphone, accent: 'bg-sky-500/10 text-sky-600' },
+  { key: 'electronics', label: { fa: 'لوازم هوشمند', ps: 'هوښیار وسایل', en: 'Smart devices' }, href: '/shop?categoryKey=electronics', icon: Laptop, accent: 'bg-violet-500/10 text-violet-600' },
+  { key: 'fashion', label: { fa: 'مد و پوشاک', ps: 'فېشن او کالي', en: 'Fashion' }, href: '/shop?categoryKey=clothing', icon: Shirt, accent: 'bg-rose-500/10 text-rose-600' },
+  { key: 'watches', label: { fa: 'ساعت و پوشیدنی', ps: 'ساعت او اغوستونکي', en: 'Watches & wearables' }, href: '/shop?categoryKey=watches', icon: Watch, accent: 'bg-amber-500/10 text-amber-700' },
+  { key: 'sports', label: { fa: 'ورزش و سلامت', ps: 'ورزش او روغتیا', en: 'Sports & health' }, href: '/shop?categoryKey=sports', icon: Dumbbell, accent: 'bg-red-500/10 text-red-600' },
+  { key: 'books', label: { fa: 'کتاب و فرهنگ', ps: 'کتاب او کلتور', en: 'Books & culture' }, href: '/shop?categoryKey=books', icon: BookOpen, accent: 'bg-cyan-500/10 text-cyan-600' },
+  { key: 'baby', label: { fa: 'کودک و نوزاد', ps: 'ماشومان او نوي زېږېدلي', en: 'Baby & kids' }, href: '/shop?categoryKey=baby', icon: Baby, accent: 'bg-pink-500/10 text-pink-600' },
+];
+
 const copy = {
-  fa: { title: 'داغ‌ترین محصولات', sub: 'محصولات محبوب با رتبه‌بندی زنده', home: 'وسایل خانه', smart: 'وسایل هوشمند', all: 'همه', rank: 'رتبه' },
-  ps: { title: 'تر ټولو ګرم محصولات', sub: 'د شهرت پر بنسټ تازه درجه بندي', home: 'د کور وسایل', smart: 'هوښیار وسایل', all: 'ټول', rank: 'رتبه' },
-  en: { title: 'Hottest products', sub: 'Live-ranked popular picks', home: 'Home essentials', smart: 'Smart devices', all: 'View all', rank: 'Rank' },
+  fa: { title: 'دسته‌بندی‌های پربازدید', sub: 'محبوب‌ترین بخش‌های فروشگاه را سریع پیدا کنید.', all: 'همه دسته‌بندی‌ها' },
+  ps: { title: 'ډېر لیدل کېدونکي وېشونه', sub: 'د پلورنځي مشهورې برخې په چټکۍ ومومئ.', all: 'ټولې وېشنیزې' },
+  en: { title: 'Popular categories', sub: 'Jump to the busiest parts of the store.', all: 'All categories' },
 } as const;
 
-function HotRow({ product, index, locale }: { product: ProductSummary; index: number; locale: Locale }) {
-  const image = product.images?.[0]?.src ?? null;
-  const price = new Intl.NumberFormat(locale === 'en' ? 'en-US' : locale === 'ps' ? 'ps-AF' : 'fa-IR').format(product.price);
-  return (
-    <Link href={`/shop/${product.slug}` as never} className="group flex min-w-0 items-center gap-2 rounded-xl border border-border/70 bg-card px-2 py-1.5 shadow-sm transition hover:-translate-y-px hover:border-primary/25 hover:shadow-md">
-      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-[11px] font-black text-primary-foreground" aria-label={`${copy[locale].rank} ${index + 1}`}>{index + 1}</span>
-      <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-muted">
-        {image ? <Image src={image} alt={product.images?.[0]?.alt || product.name} fill sizes="56px" className="object-cover" /> : null}
-      </div>
-      <div className="min-w-0 flex-1 py-0.5">
-        <h3 className="line-clamp-2 text-[10px] font-bold leading-4 text-foreground group-hover:text-primary sm:text-[11px]">{product.name}</h3>
-        <p className="mt-0.5 truncate text-[9px] text-muted-foreground">{product.sellerShopName || product.region}</p>
-        <p className="mt-0.5 text-[10px] font-black text-primary">{price} ؋</p>
-      </div>
-      <ArrowLeft className="h-3.5 w-3.5 shrink-0 text-muted-foreground rtl:rotate-180" aria-hidden="true" />
-    </Link>
-  );
-}
-
-function HotCategory({ title, products, href, locale }: { title: string; products: ProductSummary[]; href: string; locale: Locale }) {
-  if (!products.length) return null;
-  return (
-    <section className="rounded-2xl border border-border bg-card/70 p-2.5 sm:p-3" aria-label={title}>
-      <div className="mb-2.5 flex items-center justify-between gap-2">
-        <h3 className="text-xs font-black sm:text-sm">{title}</h3>
-        <Link href={href as never} className="inline-flex min-h-7 items-center gap-1 rounded-full border border-border bg-background px-2.5 text-[9px] font-bold text-muted-foreground hover:text-primary sm:text-[10px]">
-          {copy[locale].all}
-        </Link>
-      </div>
-      <div className="space-y-1.5">
-        {products.slice(0, 3).map((product, index) => <HotRow key={product.id} product={product} index={index} locale={locale} />)}
-      </div>
-    </section>
-  );
-}
-
 export async function ShopHotProducts({ locale }: { locale: Locale }) {
-  const [home, smart] = await Promise.all([
-    getProductService().listProducts({ categoryKey: 'homeAppliances', isTraditional: false, sort: 'popular', page: 1, pageSize: 3, isActive: true }),
-    getProductService().listProducts({ categoryKey: 'digital', isTraditional: false, sort: 'popular', page: 1, pageSize: 3, isActive: true }),
-  ]);
-
-  if (!home.products.length && !smart.products.length) return null;
   const t = copy[locale];
-
   return (
-    <section className="border-t border-border bg-background py-3 sm:py-5" aria-label={t.title}>
+    <section className="border-t border-border bg-background py-4 sm:py-6" aria-label={t.title}>
       <div className="mx-auto max-w-screen-xl px-3 sm:px-6">
-        <div className="mb-3 flex items-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary"><Flame className="h-4 w-4" aria-hidden="true" /></span>
-          <div>
+        <div className="mb-3 flex items-center justify-between gap-3 sm:mb-4">
+          <div className="min-w-0">
             <h2 className="text-sm font-black sm:text-base">{t.title}</h2>
-            <p className="text-[9px] text-muted-foreground sm:text-[11px]">{t.sub}</p>
+            <p className="mt-0.5 text-[9px] text-muted-foreground sm:text-[11px]">{t.sub}</p>
           </div>
+          <Link href="/categories" className="inline-flex min-h-8 shrink-0 items-center gap-1 rounded-full border border-border bg-card px-2.5 text-[9px] font-bold hover:text-primary sm:min-h-9 sm:px-3 sm:text-[10px]">{t.all}<ArrowLeft className="h-3 w-3 rtl:rotate-180" aria-hidden="true" /></Link>
         </div>
-        <div className="grid gap-3 md:grid-cols-2">
-          <HotCategory title={t.home} products={home.products} href="/shop?categoryKey=homeAppliances&sort=popular" locale={locale} />
-          <HotCategory title={t.smart} products={smart.products} href="/shop?categoryKey=digital&sort=popular" locale={locale} />
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+          {categories.map(({ key, label, href, icon: Icon, accent }) => (
+            <Link key={key} href={href as never} className="group flex min-h-[64px] items-center gap-2 rounded-2xl border border-border bg-card px-2.5 py-2 shadow-sm transition hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md sm:min-h-[72px] sm:px-3">
+              <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${accent}`}><Icon className="h-5 w-5" aria-hidden="true" /></span>
+              <span className="min-w-0"><span className="block line-clamp-2 text-[10px] font-black leading-4 group-hover:text-primary sm:text-[11px]">{label[locale]}</span><span className="mt-0.5 block text-[8px] text-muted-foreground">{locale === 'en' ? 'Popular' : locale === 'ps' ? 'مشهور' : 'پربازدید'}</span></span>
+            </Link>
+          ))}
         </div>
       </div>
     </section>
