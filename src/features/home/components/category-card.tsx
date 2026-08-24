@@ -17,9 +17,9 @@ export async function CategoryCard({ item }: CategoryCardProps) {
     <Link
       href={`/category/${item.slug}` as never}
       aria-label={title}
-      className="group flex min-w-0 w-[78px] snap-start flex-col items-center gap-1.5 rounded-xl p-1 text-center transition-[transform,background-color] duration-200 hover:-translate-y-0.5 hover:bg-primary/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:w-[88px]"
+      className="group flex min-w-0 w-[82px] snap-start flex-col items-center gap-1.5 rounded-xl p-1 text-center transition-[transform,background-color] duration-200 hover:-translate-y-0.5 hover:bg-primary/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:w-[88px]"
     >
-      <span className="relative block h-[62px] w-[62px] shrink-0 overflow-hidden rounded-full border border-border/70 bg-muted shadow-sm ring-2 ring-background sm:h-[68px] sm:w-[68px]">
+      <span className="relative block h-[66px] w-[66px] shrink-0 overflow-hidden rounded-full border border-border/70 bg-muted shadow-sm ring-2 ring-background sm:h-[68px] sm:w-[68px]">
         {item.imageUrl ? (
           <Image src={item.imageUrl} alt={title} fill sizes="68px" loading="lazy" className="object-cover transition-transform duration-500 group-hover:scale-105" />
         ) : (
