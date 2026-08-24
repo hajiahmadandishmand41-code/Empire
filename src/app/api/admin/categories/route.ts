@@ -1,62 +1,58 @@
 import type { NextRequest } from 'next/server';
 import { z } from 'zod';
-import { prisma, isDatabaseConfigured } from '@/lib/db';
 import { jsonError, jsonOk, jsonPreflight } from '@/lib/api/response';
 import { requireAdminApi } from '@/lib/auth/require-admin-api';
-import { listAdminCategories } from '@/features/admin/lib/queries';
+import { isDatabaseConfigured } from '@/lib/db';
+import { getCategoryService } from '@/server/infrastructure/registry';
 
 export const dynamic = 'force-dynamic';
 
+const keySchema = z.string().trim().min(1).max(40).regex(/^[a-z0-9-_]+$/i, 'Only letters, digits, dash, underscore');
+const slugSchema = z.string().trim().min(1).max(80).regex(/^[a-z0-9-_]+$/i, 'Invalid slug');
 const createSchema = z.object({
-  key: z
-    .string()
-    .trim()
-    .min(1)
-    .max(40)
-    .regex(/^[a-z0-9-_]+$/i, 'Only letters, digits, dash, underscore'),
+  key: keySchema,
   name: z.string().trim().min(1).max(80),
-  slug: z.string().trim().min(1).max(80).optional(),
+  slug: slugSchema.optional(),
+  parentId: z.string().trim().min(1).max(80).nullable().optional(),
+  imageUrl: z.string().trim().url().max(1000).nullable().optional(),
+  isActive: z.boolean().optional(),
+  sortOrder: z.number().int().min(0).max(100000).optional(),
 });
 
-export async function OPTIONS() {
-  return jsonPreflight();
-}
+export async function OPTIONS() { return jsonPreflight(); }
 
 export async function GET() {
   const guard = await requireAdminApi();
   if (!guard.ok) return guard.response;
-  const { items, source } = await listAdminCategories();
-  return jsonOk(items, { meta: { source } });
+  if (!isDatabaseConfigured()) return jsonError('db_unavailable', 'Database is not configured', { status: 503 });
+  try {
+    const items = await getCategoryService().listAll(true, false);
+    return jsonOk(items, { meta: { source: 'db' } });
+  } catch (err) {
+    console.error('[admin/categories.GET]', err);
+    return jsonError('list_failed', 'Failed to load categories', { status: 500 });
+  }
 }
 
 export async function POST(req: NextRequest) {
   const guard = await requireAdminApi();
   if (!guard.ok) return guard.response;
+  if (!isDatabaseConfigured()) return jsonError('db_unavailable', 'Database is not configured', { status: 503 });
 
   let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return jsonError('invalid_json', 'Invalid JSON', { status: 400 });
-  }
+  try { body = await req.json(); } catch { return jsonError('invalid_json', 'Invalid JSON', { status: 400 }); }
   const parsed = createSchema.safeParse(body);
-  if (!parsed.success) {
-    return jsonError('invalid_body', 'Invalid category payload', {
-      status: 422,
-      details: { issues: parsed.error.issues },
-    });
-  }
-  if (!isDatabaseConfigured()) {
-    return jsonError('db_unavailable', 'Database is not configured', { status: 503 });
-  }
+  if (!parsed.success) return jsonError('invalid_body', 'Invalid category payload', { status: 422, details: { issues: parsed.error.issues } });
+
   try {
-    const slug = parsed.data.slug ?? parsed.data.key.toLowerCase();
-    const created = await prisma.category.create({
-      data: { key: parsed.data.key, name: parsed.data.name, slug },
+    const created = await getCategoryService().create({
+      ...parsed.data,
+      slug: parsed.data.slug ?? parsed.data.key.toLowerCase(),
     });
     return jsonOk(created, { status: 201 });
   } catch (err) {
     console.error('[admin/categories.POST]', err);
-    return jsonError('create_failed', 'Failed to create category', { status: 500 });
+    const e = err as { httpStatus?: number; code?: string; message?: string };
+    return jsonError(e.code ?? 'create_failed', e.message ?? 'Failed to create category', { status: e.httpStatus ?? 500 });
   }
 }
