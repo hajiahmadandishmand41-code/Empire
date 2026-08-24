@@ -22,6 +22,14 @@ type VisualSlide = { id: string; kind: 'visual'; title: string; subtitle: string
 type ImageSlide = CampaignBanner & { kind: 'image' };
 type Slide = ImageSlide | VisualSlide;
 
+const IMAGE_OVERLAYS = [
+  'bg-gradient-to-tr from-slate-950/90 via-indigo-950/35 to-rose-950/20',
+  'bg-gradient-to-tr from-slate-950/90 via-cyan-950/30 to-amber-950/20',
+  'bg-gradient-to-tr from-slate-950/90 via-fuchsia-950/35 to-violet-950/20',
+  'bg-gradient-to-tr from-slate-950/90 via-emerald-950/30 to-teal-950/20',
+  'bg-gradient-to-tr from-slate-950/90 via-sky-950/30 to-blue-950/25',
+];
+
 function bannerCopy(locale: string) {
   if (locale === 'en') return { aria: 'Featured campaigns', next: 'Next campaign', previous: 'Previous campaign', swipe: 'Swipe to explore' };
   if (locale === 'ps') return { aria: 'ځانګړي کمپاینونه', next: 'راتلونکی کمپاین', previous: 'مخکینی کمپاین', swipe: 'د لیدلو لپاره کش کړئ' };
@@ -30,11 +38,11 @@ function bannerCopy(locale: string) {
 
 function fallbackSlides(locale: string): VisualSlide[] {
   const fa: VisualSlide[] = [
-    { id: 'local', kind: 'visual', title: 'محصولات وطنی', subtitle: 'حمایت از تولید ملی با انتخاب‌های باکیفیت و اصیل.', ctaLabel: 'مشاهده محصولات', href: '/traditional', theme: 'from-[#1f2638] via-[#342f4f] to-[#4c3049] dark:from-slate-950 dark:via-indigo-950 dark:to-rose-950', icon: Sparkles },
-    { id: 'home', kind: 'visual', title: 'محصولات خانه و زندگی', subtitle: 'برای خانه‌ای زیباتر و خریدی کاربردی‌تر، انتخاب‌های تازه را ببینید.', ctaLabel: 'خرید برای خانه', href: '/categories', theme: 'from-[#222d39] via-[#3a3a4b] to-[#4b3544] dark:from-slate-950 dark:via-indigo-950 dark:to-rose-950', icon: Home },
-    { id: 'stores', kind: 'visual', title: 'فروشگاه‌های ایشاپ', subtitle: 'فروشگاه‌های معتبر و فروشندگان را یکجا کشف کنید.', ctaLabel: 'مشاهده فروشگاه‌ها', href: '/stores', theme: 'from-[#20243a] via-[#3c3150] to-[#4a2d47] dark:from-slate-950 dark:via-fuchsia-950 dark:to-indigo-950', icon: Store },
-    { id: 'discounts', kind: 'visual', title: 'تخفیف‌های ویژه', subtitle: 'فقط پیشنهادهایی با تخفیف واقعی بیشتر از ۲۰٪ در این بخش.', ctaLabel: 'مشاهده تخفیف‌ها', href: '/discounts', theme: 'from-[#342d3a] via-[#3c364a] to-[#52313e] dark:from-slate-950 dark:via-rose-950 dark:to-indigo-950', icon: Tags },
-    { id: 'discover', kind: 'visual', title: 'کشف بهترین‌ها', subtitle: 'پیشنهادهای هوشمند بر اساس محبوبیت، تازگی و سلیقه شما.', ctaLabel: 'شروع کشف', href: '/discover', theme: 'from-[#243643] via-[#38334b] to-[#4c3450] dark:from-slate-950 dark:via-sky-950 dark:to-fuchsia-950', icon: Compass },
+    { id: 'local', kind: 'visual', title: 'محصولات وطنی', subtitle: 'حمایت از تولید ملی با انتخاب‌های باکیفیت و اصیل.', ctaLabel: 'مشاهده محصولات', href: '/traditional', theme: 'from-[#101926] via-[#243b4b] to-[#34243f] dark:from-slate-950 dark:via-cyan-950 dark:to-violet-950', icon: Sparkles },
+    { id: 'home', kind: 'visual', title: 'محصولات خانه و زندگی', subtitle: 'برای خانه‌ای زیباتر و خریدی کاربردی‌تر، انتخاب‌های تازه را ببینید.', ctaLabel: 'خرید برای خانه', href: '/categories', theme: 'from-[#20141a] via-[#3a2630] to-[#4e3324] dark:from-slate-950 dark:via-rose-950 dark:to-amber-950', icon: Home },
+    { id: 'stores', kind: 'visual', title: 'فروشگاه‌های ایشاپ', subtitle: 'فروشگاه‌های معتبر و فروشندگان را یکجا کشف کنید.', ctaLabel: 'مشاهده فروشگاه‌ها', href: '/stores', theme: 'from-[#111827] via-[#1d3557] to-[#17435e] dark:from-slate-950 dark:via-blue-950 dark:to-cyan-950', icon: Store },
+    { id: 'discounts', kind: 'visual', title: 'تخفیف‌های ویژه', subtitle: 'فقط پیشنهادهایی با تخفیف واقعی بیشتر از ۲۰٪ در این بخش.', ctaLabel: 'مشاهده تخفیف‌ها', href: '/discounts', theme: 'from-[#24131b] via-[#4a1d36] to-[#4b2731] dark:from-slate-950 dark:via-fuchsia-950 dark:to-rose-950', icon: Tags },
+    { id: 'discover', kind: 'visual', title: 'کشف بهترین‌ها', subtitle: 'پیشنهادهای هوشمند بر اساس محبوبیت، تازگی و سلیقه شما.', ctaLabel: 'شروع کشف', href: '/discover', theme: 'from-[#0f1a1c] via-[#173d3b] to-[#1f294d] dark:from-slate-950 dark:via-emerald-950 dark:to-indigo-950', icon: Compass },
   ];
   if (locale === 'en') return fa.map((item) => ({ ...item, title: item.id === 'local' ? 'Afghan products' : item.id === 'home' ? 'Home & lifestyle' : item.id === 'stores' ? 'Eshop stores' : item.id === 'discounts' ? '20%+ discounts' : 'Discover the best', subtitle: item.id === 'local' ? 'Support local production with authentic, quality choices.' : item.id === 'home' ? 'Fresh practical picks for a more beautiful everyday life.' : item.id === 'stores' ? 'Discover trusted stores and sellers in one place.' : item.id === 'discounts' ? 'Only real discounts above 20% are shown here.' : 'Smart picks ranked by popularity, freshness and your taste.', ctaLabel: item.id === 'local' ? 'View products' : item.id === 'home' ? 'Shop for home' : item.id === 'stores' ? 'View stores' : item.id === 'discounts' ? 'View discounts' : 'Start discovering' }));
   if (locale === 'ps') return fa.map((item) => ({ ...item, title: item.id === 'local' ? 'افغاني محصولات' : item.id === 'home' ? 'د کور او ژوند محصولات' : item.id === 'stores' ? 'د ایشاپ پلورنځي' : item.id === 'discounts' ? '۲۰٪+ تخفیفونه' : 'غوره توکي ومومئ', ctaLabel: item.id === 'local' ? 'محصولات وګورئ' : item.id === 'home' ? 'د کور لپاره واخلئ' : item.id === 'stores' ? 'پلورنځي وګورئ' : item.id === 'discounts' ? 'تخفیفونه وګورئ' : 'کشف پیل کړئ' }));
@@ -69,7 +77,7 @@ export function HomepageHeroCarousel({ banners = [], locale = 'fa', useFallbackS
           {slide.kind === 'image' ? (
             <>
               <picture>{slide.mobileImageUrl ? <source media="(max-width: 767px)" srcSet={slide.mobileImageUrl} /> : null}<Image src={slide.desktopImageUrl} alt={slide.title || 'Eshop'} fill priority={index === 0} sizes="(max-width: 767px) 100vw, (max-width: 1280px) 100vw, 1200px" className="object-cover" /></picture>
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-900/25 to-slate-900/5" aria-hidden="true" />
+              <div className={cn('absolute inset-0', IMAGE_OVERLAYS[index % IMAGE_OVERLAYS.length])} aria-hidden="true" />
               <div key={slide.id} className={cn('absolute inset-x-0 bottom-0 p-4 sm:p-8 lg:p-10', !reduceMotion && 'hero-copy-in')} dir={isEnglish ? 'ltr' : 'rtl'}>
                 <div className="max-w-[88%] text-white sm:max-w-2xl"><span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[10px] font-extrabold backdrop-blur-md"><Sparkles className="h-3 w-3" aria-hidden="true" />ایشاپ</span>{slide.title ? <h1 className="mt-2 line-clamp-2 text-xl font-black leading-[1.15] sm:text-4xl">{slide.title}</h1> : null}{slide.subtitle ? <p className="mt-1.5 line-clamp-2 max-w-xl text-[11px] leading-4 text-white/85 sm:text-sm sm:leading-7">{slide.subtitle}</p> : null}{slide.ctaLabel && slide.href ? <Link href={slide.href as never} className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-xl bg-white px-3.5 py-2 text-xs font-extrabold text-slate-900 shadow-sm transition hover:-translate-y-0.5 sm:px-4 sm:text-sm">{slide.ctaLabel}<ChevronLeft className="h-4 w-4 rtl:rotate-180" aria-hidden="true" /></Link> : null}</div>
               </div>
