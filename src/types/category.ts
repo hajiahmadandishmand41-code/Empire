@@ -6,6 +6,12 @@ export interface Category {
   name: string;
   slug: string;
   productCount?: number;
+  id?: string;
+  parentId?: string | null;
+  parentKey?: string | null;
+  imageUrl?: string | null;
+  isActive?: boolean;
+  sortOrder?: number;
 }
 
 export type { CategoryKey };
