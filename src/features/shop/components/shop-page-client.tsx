@@ -84,17 +84,15 @@ export function ShopPageClient({ locale, currency = 'AFN', initialCategoryKey }:
     const controller = new AbortController();
     const load = async () => {
       try {
-        const categoryResponse = await fetch(`/api/categories?locale=${encodeURIComponent(locale)}`, { cache: 'no-store', signal: controller.signal });
-        const categoryBody = await categoryResponse.json();
-        setCategories(unwrap(categoryBody, []));
-
-        const firstSellerResponse = await fetch('/api/sellers?page=1&pageSize=48', { cache: 'no-store', signal: controller.signal });
-        const firstSellerBody = await firstSellerResponse.json();
-        const firstSellers = unwrap<SellerOption[]>(firstSellerBody, []);
-        const sellerMeta = (firstSellerBody as { meta?: ApiMeta }).meta;
-        if (!sellerMeta?.hasMore) { setSellers(firstSellers); return; }
-        const pageCount = Math.min(6, Math.ceil((sellerMeta.total ?? firstSellers.length) / 48));
-        const rest = await Promise.all(Array.from({ length: Math.max(0, pageCount - 1) }, (_, index) => fetch(`/api/sellers?page=${index + 2}&pageSize=48`, { cache: 'no-store', signal: controller.signal }).then((res) => res.json()).then((body) => unwrap<SellerOption[]>(body, []))));
+        const [categoryResult, sellerResult] = await Promise.all([
+          fetch(`/api/categories?locale=${encodeURIComponent(locale)}`, { cache: 'no-store', signal: controller.signal }).then(async (res) => unwrap<Category[]>(await res.json(), [])),
+          fetch('/api/sellers?page=1&pageSize=48', { cache: 'no-store', signal: controller.signal }).then(async (res) => { const body = await res.json(); return { items: unwrap<SellerOption[]>(body, []), meta: (body as { meta?: ApiMeta }).meta }; }),
+        ]);
+        setCategories(categoryResult);
+        const firstSellers = sellerResult.items;
+        if (!sellerResult.meta?.hasMore) { setSellers(firstSellers); return; }
+        const pageCount = Math.min(6, Math.ceil((sellerResult.meta.total ?? firstSellers.length) / 48));
+        const rest = await Promise.all(Array.from({ length: Math.max(0, pageCount - 1) }, (_, index) => fetch(`/api/sellers?page=${index + 2}&pageSize=48`, { cache: 'no-store', signal: controller.signal }).then(async (res) => unwrap<SellerOption[]>(await res.json(), []))));
         const unique = new Map<string, SellerOption>();
         [...firstSellers, ...rest.flat()].forEach((seller) => unique.set(seller.id, seller));
         setSellers([...unique.values()]);
