@@ -74,14 +74,15 @@ export class PrismaProductRepository implements IProductRepository {
     const page = Math.max(1, filter.page ?? 1);
     const pageSize = Math.min(100, Math.max(1, filter.pageSize ?? 24));
     const where = await this.buildWhereClause(filter);
-    const orderBy = buildProductOrderBy(filter.sort);
+    if (filter.sort === 'rating') return this.findManyByRating(filter, where, page, pageSize);
+    const orderBy = [...buildProductOrderBy(filter.sort), { id: 'asc' as const }];
     const rows = await this.prisma.product.findMany({ where, include: PRODUCT_LIST_INCLUDE, orderBy, take: pageSize, skip: (page - 1) * pageSize });
     const total = await this.prisma.product.count({ where });
     return toPaginated(rows as unknown as ProductRow[], total, page, pageSize);
   }
 
   async findSearchCandidates(where: Prisma.ProductWhereInput, take: number, skip: number): Promise<{ rows: ProductRow[]; total: number }> {
-    const rows = await this.prisma.product.findMany({ where, include: PRODUCT_LIST_INCLUDE, orderBy: [{ inStock: 'desc' }, { salesCount: 'desc' }, { createdAt: 'desc' }], take, skip });
+    const rows = await this.prisma.product.findMany({ where, include: PRODUCT_LIST_INCLUDE, orderBy: [{ inStock: 'desc' }, { salesCount: 'desc' }, { createdAt: 'desc' }, { id: 'asc' }], take, skip });
     const total = await this.prisma.product.count({ where });
     return { rows: rows as unknown as ProductRow[], total };
   }
@@ -91,11 +92,11 @@ export class PrismaProductRepository implements IProductRepository {
     return rows.map((row) => row.productId);
   }
   async findProductNames(query: string, limit: number): Promise<Array<{ name: string }>> {
-    return this.prisma.product.findMany({ where: { isActive: true, name: { contains: query, mode: 'insensitive' } }, select: { name: true }, orderBy: { salesCount: 'desc' }, take: limit });
+    return this.prisma.product.findMany({ where: { isActive: true, name: { contains: query, mode: 'insensitive' } }, select: { name: true }, orderBy: [{ salesCount: 'desc' }, { id: 'asc' }], take: limit });
   }
   async findBySlug(slug: string): Promise<ProductDetailRow | null> { return (await this.prisma.product.findFirst({ where: { slug, isActive: true }, include: PRODUCT_DETAIL_INCLUDE })) as unknown as ProductDetailRow | null; }
   async findById(id: string): Promise<ProductDetailRow | null> { return (await this.prisma.product.findUnique({ where: { id }, include: PRODUCT_DETAIL_INCLUDE })) as unknown as ProductDetailRow | null; }
-  async findByCategoryExcluding(categoryId: string, excludeId: string, limit: number): Promise<ProductRow[]> { return (await this.prisma.product.findMany({ where: { categoryId, id: { not: excludeId }, isActive: true }, include: PRODUCT_LIST_INCLUDE, orderBy: { salesCount: 'desc' }, take: limit })) as unknown as ProductRow[]; }
+  async findByCategoryExcluding(categoryId: string, excludeId: string, limit: number): Promise<ProductRow[]> { return (await this.prisma.product.findMany({ where: { categoryId, id: { not: excludeId }, isActive: true }, include: PRODUCT_LIST_INCLUDE, orderBy: [{ salesCount: 'desc' }, { createdAt: 'desc' }, { id: 'asc' }], take: limit })) as unknown as ProductRow[]; }
   async findByIds(ids: string[]): Promise<ProductDetailRow[]> { if (ids.length === 0) return []; return (await this.prisma.product.findMany({ where: { id: { in: ids }, isActive: true }, include: PRODUCT_DETAIL_INCLUDE })) as unknown as ProductDetailRow[]; }
   async findRelated(productId: string, limit: number): Promise<ProductRow[]> { const product = await this.prisma.product.findUnique({ where: { id: productId }, select: { categoryId: true } }); if (!product) return []; return this.findByCategoryExcluding(product.categoryId, productId, limit); }
 
@@ -133,7 +134,8 @@ export class PrismaProductRepository implements IProductRepository {
     if (filter.sellerId) base.sellerId = filter.sellerId;
 
     if (filter.subcategoryKey) {
-      base.category = { key: filter.subcategoryKey };
+      const ids = await this.subcategoryScopeIds(filter.subcategoryKey, filter.categoryKey);
+      base.categoryId = { in: ids };
     } else if (filter.categoryKey) {
       const ids = await this.categoryScopeIds(filter.categoryKey);
       base.categoryId = { in: ids };
@@ -159,5 +161,62 @@ export class PrismaProductRepository implements IProductRepository {
          OR m."parentId" = (SELECT parent."id" FROM "Category" parent WHERE parent."key" = ${categoryKey} LIMIT 1)
     `);
     return rows.map((row) => row.id);
+  }
+
+  private async subcategoryScopeIds(subcategoryKey: string, parentCategoryKey?: string): Promise<string[]> {
+    const rows = await this.prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+      SELECT child."id"
+      FROM "Category" child
+      LEFT JOIN "CategoryMeta" meta ON meta."categoryId" = child."id"
+      WHERE child."key" = ${subcategoryKey}
+        ${parentCategoryKey ? Prisma.sql`AND meta."parentId" = (SELECT parent."id" FROM "Category" parent WHERE parent."key" = ${parentCategoryKey} LIMIT 1)` : Prisma.empty}
+    `);
+    return rows.map((row) => row.id);
+  }
+
+  private async findManyByRating(filter: ProductListFilter, where: Prisma.ProductWhereInput, page: number, pageSize: number): Promise<PaginatedResult<ProductRow>> {
+    const offset = (page - 1) * pageSize;
+    const qTokens = (filter.q?.trim() ?? '').split(/\s+/).filter(Boolean);
+    const qConditions = qTokens.map((token) => {
+      const like = `%${token.replace(/[%_]/g, '\\$&')}%`;
+      return Prisma.sql`(p."name" ILIKE ${like} ESCAPE '\\' OR p."shortDescription" ILIKE ${like} ESCAPE '\\' OR p."description" ILIKE ${like} ESCAPE '\\' OR p."region" ILIKE ${like} ESCAPE '\\' OR c."name" ILIKE ${like} ESCAPE '\\' OR EXISTS (SELECT 1 FROM "User" s WHERE s."id" = p."sellerId" AND s."sellerShopName" ILIKE ${like} ESCAPE '\\'))`;
+    });
+    const conditions: Prisma.Sql[] = [Prisma.sql`p."isActive" = ${where.isActive !== false}`];
+    if (filter.inStock !== undefined) conditions.push(Prisma.sql`p."inStock" = ${filter.inStock}`);
+    if (filter.isTraditional !== undefined) conditions.push(Prisma.sql`p."isTraditional" = ${filter.isTraditional}`);
+    if (filter.sellerId) conditions.push(Prisma.sql`p."sellerId" = ${filter.sellerId}`);
+    if (filter.priceMin !== undefined) conditions.push(Prisma.sql`p."price" >= ${filter.priceMin}`);
+    if (filter.priceMax !== undefined) conditions.push(Prisma.sql`p."price" <= ${filter.priceMax}`);
+    if (filter.badge) conditions.push(Prisma.sql`p."badge" = ${filter.badge}`);
+    if (filter.hasDiscount) conditions.push(Prisma.sql`p."compareAtPrice" IS NOT NULL`);
+    if (filter.featured) conditions.push(Prisma.sql`(p."compareAtPrice" IS NOT NULL OR p."salesCount" > 0)`);
+    if (filter.subcategoryKey) {
+      conditions.push(Prisma.sql`p."categoryId" IN (SELECT child."id" FROM "Category" child LEFT JOIN "CategoryMeta" meta ON meta."categoryId" = child."id" WHERE child."key" = ${filter.subcategoryKey} ${filter.categoryKey ? Prisma.sql`AND meta."parentId" = (SELECT parent."id" FROM "Category" parent WHERE parent."key" = ${filter.categoryKey} LIMIT 1)` : Prisma.empty})`);
+    } else if (filter.categoryKey) {
+      conditions.push(Prisma.sql`p."categoryId" IN (SELECT scoped."id" FROM "Category" scoped LEFT JOIN "CategoryMeta" meta ON meta."categoryId" = scoped."id" WHERE scoped."key" = ${filter.categoryKey} OR meta."parentId" = (SELECT parent."id" FROM "Category" parent WHERE parent."key" = ${filter.categoryKey} LIMIT 1))`);
+    } else if (filter.categoryId) {
+      conditions.push(Prisma.sql`p."categoryId" = ${filter.categoryId}`);
+    }
+    for (const condition of qConditions) conditions.push(condition);
+    const whereSql = Prisma.join(conditions, ' AND ');
+    const ratingHaving = filter.minRating !== undefined ? Prisma.sql`HAVING COALESCE(AVG(r."rating") FILTER (WHERE r."isApproved" = true), 0) >= ${filter.minRating}` : Prisma.empty;
+    const idRows = await this.prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+      SELECT p."id"
+      FROM "Product" p
+      JOIN "Category" c ON c."id" = p."categoryId"
+      LEFT JOIN "Review" r ON r."productId" = p."id" AND r."isApproved" = true
+      WHERE ${whereSql}
+      GROUP BY p."id"
+      ${ratingHaving}
+      ORDER BY COALESCE(AVG(r."rating"), 0) DESC, p."inStock" DESC, p."createdAt" DESC, p."id" ASC
+      OFFSET ${offset} LIMIT ${pageSize}
+    `);
+    const total = await this.prisma.product.count({ where });
+    const ids = idRows.map((row) => row.id);
+    if (ids.length === 0) return toPaginated([], total, page, pageSize);
+    const rows = await this.prisma.product.findMany({ where: { id: { in: ids } }, include: PRODUCT_LIST_INCLUDE });
+    const order = new Map(ids.map((id, index) => [id, index]));
+    rows.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
+    return toPaginated(rows as unknown as ProductRow[], total, page, pageSize);
   }
 }
