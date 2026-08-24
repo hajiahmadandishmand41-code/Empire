@@ -2,7 +2,7 @@
  * Product Service — Business Logic Layer
  */
 
-import type { IProductRepository, ProductListFilter, ProductRow } from '../repositories/product.repository';
+import type { IProductRepository, ProductListFilter } from '../repositories/product.repository';
 import type { ICategoryRepository } from '../repositories/category.repository';
 import type { IReviewRepository } from '../repositories/review.repository';
 import { mapProductSummary, mapProduct } from '@/lib/db-mappers';
@@ -13,7 +13,7 @@ import type { Product, ProductSummary } from '@/types';
 export interface ProductListOptions extends ProductListFilter { rerank?: boolean; }
 export interface ProductListResult { products: ProductSummary[]; total: number; page: number; pageSize: number; hasMore: boolean; source: 'db'; }
 
-const SMART_FEED_CANDIDATE_LIMIT = 300;
+const RANKING_PAGE_POOL = 100;
 
 export class ProductServiceError extends Error {
   constructor(public readonly code: string, message: string, public readonly httpStatus = 400) { super(message); this.name = 'ProductServiceError'; }
@@ -36,13 +36,19 @@ export class ProductService {
     const isSearch = Boolean(opts.q?.trim());
     const useSmartFeed = !isSearch && (!opts.sort || opts.sort === 'default' || opts.sort === 'recommended');
     const useCandidateRanking = isSearch || useSmartFeed;
-    const candidatePageSize = useCandidateRanking ? SMART_FEED_CANDIDATE_LIMIT : pageSize;
-    const candidatePage = useCandidateRanking ? 1 : page;
 
-    // Ranked/search results are intentionally built from one stable candidate pool.
-    // This prevents page 2 from overlapping page 1 after in-memory reranking and
-    // gives the user deterministic "load more" pagination.
-    const paginated = await this.products.findMany({ ...opts, page: candidatePage, pageSize: candidatePageSize, isActive: true });
+    const candidatePageSize = useCandidateRanking ? RANKING_PAGE_POOL : pageSize;
+    const logicalOffset = (page - 1) * pageSize;
+    const candidatePage = useCandidateRanking ? Math.floor(logicalOffset / candidatePageSize) + 1 : page;
+    const candidateOffset = useCandidateRanking ? logicalOffset % candidatePageSize : 0;
+
+    const paginated = await this.products.findMany({
+      ...opts,
+      page: candidatePage,
+      pageSize: candidatePageSize,
+      isActive: true,
+    });
+
     const ratings = await this.products.getRatings(paginated.items.map((r) => r.id));
     const mapped = paginated.items.map((row) => {
       const rating = ratings.get(row.id);
@@ -85,10 +91,9 @@ export class ProductService {
       ranked = mapped.map(({ summary }) => summary);
     }
 
-    const start = useCandidateRanking ? (page - 1) * pageSize : 0;
-    const products = ranked.slice(start, start + pageSize);
+    const products = ranked.slice(useCandidateRanking ? candidateOffset : 0, useCandidateRanking ? candidateOffset + pageSize : pageSize);
     const hasMore = useCandidateRanking
-      ? start + products.length < Math.min(paginated.total, candidatePageSize)
+      ? logicalOffset + products.length < paginated.total
       : paginated.hasMore;
 
     return { products, total: paginated.total, page, pageSize, hasMore, source: 'db' };
