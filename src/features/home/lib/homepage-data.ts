@@ -5,7 +5,7 @@ import { getCurrentUser } from '@/lib/auth/current-user';
 import type { ProductSummary } from '@/types';
 import type { SliderProduct } from '../components/product-slider-section';
 
-type HomeSection = 'featured' | 'bestSelling' | 'newest' | 'popular';
+type HomeSection = 'featured' | 'bestSelling' | 'newest' | 'popular' | 'mostViewed';
 
 export const getHomepageData = cache(async () => {
   try {
