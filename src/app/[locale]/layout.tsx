@@ -12,6 +12,7 @@ import { PWAProvider } from '@/components/pwa/pwa-provider';
 import { AuthProvider } from '@/providers/auth-provider';
 import { vazirmatn, inter } from '@/lib/fonts';
 import '@/styles/globals.css';
+import '@/styles/shop-overrides.css';
 
 export const dynamic = 'force-dynamic';
 export const viewport = pwaViewport;
