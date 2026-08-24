@@ -17,20 +17,17 @@ export async function CategoryCard({ item }: CategoryCardProps) {
     <Link
       href={`/category/${item.slug}` as never}
       aria-label={title}
-      className="group relative aspect-[4/3] min-w-0 snap-start overflow-hidden rounded-xl border border-border/70 bg-card shadow-sm transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-premium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      className="group flex min-w-0 w-[74px] snap-start flex-col items-center gap-1.5 rounded-xl p-1 text-center transition-[transform,background-color] duration-200 hover:-translate-y-0.5 hover:bg-primary/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:w-[84px]"
     >
-      <div className="absolute inset-0 bg-muted">
+      <span className="relative block h-[58px] w-[58px] shrink-0 overflow-hidden rounded-full border border-border/70 bg-muted shadow-sm ring-2 ring-background sm:h-16 sm:w-16">
         {item.imageUrl ? (
-          <Image src={item.imageUrl} alt={title} fill sizes="120px" loading="lazy" className="object-cover transition-transform duration-500 group-hover:scale-105" />
+          <Image src={item.imageUrl} alt={title} fill sizes="64px" loading="lazy" className="object-cover transition-transform duration-500 group-hover:scale-105" />
         ) : (
-          <div className="flex h-full items-center justify-center bg-gradient-to-br from-primary/10 via-muted to-primary/5"><Package className="h-5 w-5 text-primary/35" aria-hidden="true" /></div>
+          <span className="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary/10 via-muted to-primary/5"><Package className="h-5 w-5 text-primary/35" aria-hidden="true" /></span>
         )}
-      </div>
-      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/5 to-transparent" aria-hidden="true" />
-      <div className="absolute inset-x-0 bottom-0 p-1.5 text-white">
-        <span className="line-clamp-2 text-[8px] font-black leading-3 drop-shadow-sm sm:text-[9px] sm:leading-3.5">{title}</span>
-        {productCount > 0 ? <span className="mt-0.5 block truncate text-[6.5px] font-medium text-white/75 sm:text-[7px]">{productCount.toLocaleString(numberLocale)} {productLabel}</span> : null}
-      </div>
+      </span>
+      <span className="line-clamp-2 min-h-7 w-full text-[8px] font-extrabold leading-3 text-foreground sm:text-[9px] sm:leading-3.5">{title}</span>
+      {productCount > 0 ? <span className="-mt-0.5 w-full truncate text-[6.5px] font-medium text-muted-foreground sm:text-[7px]">{productCount.toLocaleString(numberLocale)} {productLabel}</span> : null}
     </Link>
   );
 }
