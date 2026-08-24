@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { MapPin, MessageCircle, ShoppingCart, Star, Store, Video } from 'lucide-react';
+import { MessageCircle, ShoppingCart, Star, Store, Video } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { cn, formatPrice } from '@/lib/utils';
 import { useCartStore } from '@/features/cart/store/cart-store';
@@ -40,25 +40,31 @@ export function MarketplaceProductCard({ product, currency = 'AFN', locale = 'fa
   };
 
   return (
-    <article className={cn('group relative min-w-0 overflow-hidden rounded-2xl border border-border/65 bg-card shadow-sm transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-premium', isList ? 'flex flex-row' : 'flex h-full flex-col')}>
-      <div className={cn('relative', isList ? 'h-32 w-32 shrink-0 sm:h-40 sm:w-40' : 'w-full')}>
-        <Link href={`/shop/${product.slug}` as never} className="block">
-          <div className={cn('relative w-full overflow-hidden bg-muted', isList ? 'h-full' : 'aspect-square')}>
-            {image ? <Image src={image} alt={product.images?.[0]?.alt || product.name} fill sizes={isList ? '160px' : '(max-width: 639px) 32vw, (max-width: 1024px) 24vw, 20vw'} loading="lazy" className="object-cover transition-transform duration-300 ease-out group-hover:scale-[1.03]" /> : <div className="flex h-full items-center justify-center bg-muted"><ShoppingCart className="h-6 w-6 text-muted-foreground/25" aria-hidden="true" /></div>}
-            {discountPct > 0 && <span className="absolute start-1.5 top-1.5 rounded-full bg-price-sale px-1.5 py-1 text-[8px] font-extrabold text-white shadow-sm">-{discountPct}٪</span>}
+    <article
+      data-shop-compact={isList ? 'true' : undefined}
+      className={cn(
+        'group relative min-w-0 overflow-hidden rounded-2xl border border-border/65 bg-card shadow-sm transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-premium',
+        isList ? 'flex h-full flex-row items-stretch' : 'flex h-full flex-col',
+      )}
+    >
+      <div className={cn('relative shrink-0', isList ? 'h-24 w-24' : 'w-full')}>
+        <Link href={`/shop/${product.slug}` as never} className="block h-full">
+          <div className={cn('relative h-full w-full overflow-hidden bg-muted', isList ? 'aspect-square' : 'aspect-square')}>
+            {image ? <Image src={image} alt={product.images?.[0]?.alt || product.name} fill sizes={isList ? '96px' : '(max-width: 639px) 32vw, (max-width: 1024px) 24vw, 20vw'} loading="lazy" className="object-cover transition-transform duration-300 ease-out group-hover:scale-[1.03]" /> : <div className="flex h-full items-center justify-center bg-muted"><ShoppingCart className="h-6 w-6 text-muted-foreground/25" aria-hidden="true" /></div>}
+            {discountPct > 0 && <span className="absolute end-1.5 top-1.5 rounded-full bg-price-sale px-1.5 py-1 text-[8px] font-extrabold text-white shadow-sm">-{discountPct}٪</span>}
             {product.badge && discountPct === 0 && <span className="absolute end-1.5 top-1.5 rounded-full bg-price-warning px-1.5 py-1 text-[8px] font-extrabold text-white shadow-sm">{product.badge === 'new' ? tCard('badgeNew') : product.badge === 'best' ? tCard('badgeBest') : product.badge === 'last' ? tCard('badgeLast') : tCard('badgeSale')}</span>}
             {product.videoUrl && <span className="absolute end-1.5 bottom-1.5 inline-flex items-center gap-1 rounded-md bg-foreground/80 px-1 py-0.5 text-[7px] font-bold text-background"><Video className="h-2.5 w-2.5" aria-hidden="true" />Video</span>}
             {product.inStock === false && <span className="absolute inset-x-1.5 bottom-1.5 rounded-md bg-black/65 px-1 py-1 text-center text-[7px] font-bold text-white">{locale === 'en' ? 'Out of stock' : locale === 'ps' ? 'په ذخیره کې نشته' : 'ناموجود'}</span>}
           </div>
         </Link>
-        <WishlistButton slug={product.slug} productId={product.id} size="sm" labelOn={tCard('wishlistLabel')} labelOff={tCard('wishlistLabel')} className="absolute end-1.5 top-1.5 z-10 h-8 w-8 border border-border/50 bg-card/90 shadow-sm backdrop-blur-sm" />
+        <WishlistButton slug={product.slug} productId={product.id} size="sm" labelOn={tCard('wishlistLabel')} labelOff={tCard('wishlistLabel')} className="absolute start-1.5 top-1.5 z-10 h-8 w-8 border border-border/50 bg-card/90 shadow-sm backdrop-blur-sm" />
       </div>
 
-      <div className={cn('min-w-0', isList ? 'flex flex-1 flex-col justify-center gap-1.5 p-3' : 'flex h-[104px] shrink-0 flex-col gap-1.5 p-2 sm:h-[108px] sm:p-2.5')}>
-        <div className="flex min-w-0 items-center gap-1 text-[8px] leading-none sm:text-[9px]"><span className="max-w-[52%] truncate font-bold uppercase tracking-wide text-primary">{categoryLabel}</span><span className="text-border">•</span><span className="min-w-0 truncate text-muted-foreground">{product.region || 'افغانستان'}</span></div>
-        <h3 className={cn('line-clamp-2 min-w-0 font-bold leading-tight text-foreground', isList ? 'text-sm' : 'h-8 text-[11px] sm:h-9 sm:text-xs')}><Link href={`/shop/${product.slug}` as never} className="transition-colors hover:text-primary">{product.name}</Link></h3>
+      <div className={cn('min-w-0', isList ? 'flex min-w-0 flex-1 flex-col justify-between gap-1 p-2' : 'flex h-[106px] shrink-0 flex-col gap-1.5 p-2 sm:h-[110px] sm:p-2.5')}>
+        <div className="flex min-w-0 items-center gap-1 text-[8px] leading-none sm:text-[9px]"><span className="max-w-[52%] truncate font-bold text-primary">{categoryLabel}</span><span className="text-border">•</span><span className="min-w-0 truncate text-muted-foreground">{product.region || 'افغانستان'}</span></div>
+        <h3 className={cn('line-clamp-2 min-w-0 font-bold leading-tight text-foreground', isList ? 'text-[10px]' : 'h-8 text-[11px] sm:h-9 sm:text-xs')}><Link href={`/shop/${product.slug}` as never} className="transition-colors hover:text-primary">{product.name}</Link></h3>
         <div className="flex min-w-0 items-center gap-1 truncate text-[8px] text-muted-foreground sm:text-[9px]">{product.sellerShopName ? <><Store className="h-2.5 w-2.5 shrink-0" aria-hidden="true" /><span className="truncate">{product.sellerShopName}</span></> : null}{rating > 0 ? <><span className="text-border">•</span><Star className="h-2.5 w-2.5 shrink-0 fill-price-warning text-price-warning" aria-hidden="true" /><span>{rating.toFixed(1)}</span>{reviewCount > 0 ? <span>({reviewCount.toLocaleString(locale === 'en' ? 'en-US' : locale === 'ps' ? 'ps-AF' : 'fa-IR')})</span> : null}</> : null}</div>
-        <div className="mt-auto flex min-w-0 items-center justify-between gap-1 border-t border-border/60 pt-1.5"><div className="flex min-w-0 flex-col">{originalPrice ? <span className="truncate text-[7px] text-muted-foreground line-through sm:text-[8px]">{formatPrice(originalPrice, currency, locale)}</span> : null}<span className={cn('truncate font-extrabold leading-none', discountPct > 0 ? 'text-price-current' : 'text-foreground', isList ? 'text-base' : 'text-[12px] sm:text-sm')}>{formatPrice(product.price, currency, locale)}</span></div><div className="flex shrink-0 items-center gap-1">{waLink ? <a href={waLink} target="_blank" rel="noopener noreferrer" aria-label={`${tCard('whatsappLabel')} — ${product.name}`} className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500 text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-emerald-600"><MessageCircle className="h-3.5 w-3.5" aria-hidden="true" /></a> : null}<button type="button" onClick={handleAddToCart} disabled={!canQuickAdd} aria-label={tCard('addToCart')} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm transition hover:-translate-y-0.5 hover:shadow-md active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"><ShoppingCart className="h-3.5 w-3.5" aria-hidden="true" /><span className="sr-only">{locale === 'en' ? 'Add' : locale === 'ps' ? 'اضافه' : 'افزودن'}</span></button></div></div>
+        <div className="mt-auto flex min-w-0 items-center justify-between gap-1 border-t border-border/60 pt-1"><div className="flex min-w-0 flex-col">{originalPrice ? <span className="truncate text-[7px] text-muted-foreground line-through">{formatPrice(originalPrice, currency, locale)}</span> : null}<span className={cn('truncate font-extrabold leading-none', discountPct > 0 ? 'text-price-current' : 'text-foreground', isList ? 'text-[11px]' : 'text-[12px] sm:text-sm')}>{formatPrice(product.price, currency, locale)}</span></div><div className="flex shrink-0 items-center gap-1">{waLink ? <a href={waLink} target="_blank" rel="noopener noreferrer" aria-label={`${tCard('whatsappLabel')} — ${product.name}`} className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-emerald-600"><MessageCircle className="h-3.5 w-3.5" aria-hidden="true" /></a> : null}<button type="button" onClick={handleAddToCart} disabled={!canQuickAdd} aria-label={tCard('addToCart')} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm transition hover:-translate-y-0.5 hover:shadow-md active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"><ShoppingCart className="h-3 w-3" aria-hidden="true" /><span className="sr-only">{locale === 'en' ? 'Add' : locale === 'ps' ? 'اضافه' : 'افزودن'}</span></button></div></div>
       </div>
     </article>
   );
