@@ -75,7 +75,7 @@ export class PrismaProductRepository implements IProductRepository {
     const pageSize = Math.min(100, Math.max(1, filter.pageSize ?? 24));
     const where = await this.buildWhereClause(filter);
     if (filter.sort === 'rating') return this.findManyByRating(filter, where, page, pageSize);
-    const orderBy = buildProductOrderBy(filter.sort);
+    const orderBy = [...buildProductOrderBy(filter.sort), { id: 'asc' as const }];
     const rows = await this.prisma.product.findMany({ where, include: PRODUCT_LIST_INCLUDE, orderBy, take: pageSize, skip: (page - 1) * pageSize });
     const total = await this.prisma.product.count({ where });
     return toPaginated(rows as unknown as ProductRow[], total, page, pageSize);
@@ -179,7 +179,7 @@ export class PrismaProductRepository implements IProductRepository {
     const qTokens = (filter.q?.trim() ?? '').split(/\s+/).filter(Boolean);
     const qConditions = qTokens.map((token) => {
       const like = `%${token.replace(/[%_]/g, '\\$&')}%`;
-      return Prisma.sql`(p."name" ILIKE ${like} ESCAPE '\\' OR p."shortDescription" ILIKE ${like} ESCAPE '\\' OR p."description" ILIKE ${like} ESCAPE '\\' OR p."region" ILIKE ${like} ESCAPE '\\' OR c."name" ILIKE ${like} ESCAPE '\\' OR EXISTS (SELECT 1 FROM "User" s WHERE s."id" = p."sellerId" AND s."sellerShopName" ILIKE ${like} ESCAPE '\\') )`;
+      return Prisma.sql`(p."name" ILIKE ${like} ESCAPE '\\' OR p."shortDescription" ILIKE ${like} ESCAPE '\\' OR p."description" ILIKE ${like} ESCAPE '\\' OR p."region" ILIKE ${like} ESCAPE '\\' OR c."name" ILIKE ${like} ESCAPE '\\' OR EXISTS (SELECT 1 FROM "User" s WHERE s."id" = p."sellerId" AND s."sellerShopName" ILIKE ${like} ESCAPE '\\'))`;
     });
     const conditions: Prisma.Sql[] = [Prisma.sql`p."isActive" = ${where.isActive !== false}`];
     if (filter.inStock !== undefined) conditions.push(Prisma.sql`p."inStock" = ${filter.inStock}`);
