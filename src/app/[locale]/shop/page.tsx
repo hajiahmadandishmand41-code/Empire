@@ -9,6 +9,8 @@ import { getProductService } from '@/server/infrastructure/registry';
 import { getProductLocalizedTexts, normalizeCatalogLocale } from '@/server/localization/product-localization';
 import { productListQuerySchema } from '@/lib/validation/product';
 
+export const dynamic = 'force-dynamic';
+
 interface Props { params: Promise<{ locale: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }
 
 function toQueryObject(input: Record<string, string | string[] | undefined>): Record<string, string> {
