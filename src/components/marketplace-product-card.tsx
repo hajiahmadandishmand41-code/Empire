@@ -69,7 +69,6 @@ export function MarketplaceProductCard({
 
   const isList = view === 'list';
   const isRail = view === 'rail';
-  const showMeta = !isRail;
 
   const imageBlock = (
     <div className={cn(
@@ -82,7 +81,7 @@ export function MarketplaceProductCard({
           alt={product.images?.[0]?.alt || product.name}
           fill
           sizes={isList ? '160px' : '(max-width: 639px) 31vw, (max-width: 1024px) 24vw, 20vw'}
-          loading="lazy"
+          loading={isRail ? 'eager' : 'lazy'}
           className="object-cover transition-transform duration-300 ease-out group-hover:scale-[1.03]"
         />
       ) : (
@@ -144,7 +143,7 @@ export function MarketplaceProductCard({
         </Link>
       </h3>
 
-      {showMeta && product.sellerId && product.sellerShopName ? (
+      {product.sellerId && product.sellerShopName ? (
         <Link
           href={`/store/${product.sellerId}` as never}
           className="flex min-w-0 items-center gap-1 text-[9px] font-semibold text-muted-foreground transition-colors hover:text-primary sm:text-[10px]"
@@ -154,44 +153,42 @@ export function MarketplaceProductCard({
         </Link>
       ) : null}
 
-      {showDescription && !isRail && product.shortDescription ? (
+      {showDescription && !isList && product.shortDescription ? (
         <p className="line-clamp-1 text-[10px] leading-relaxed text-muted-foreground sm:text-[11px]">
           {product.shortDescription}
         </p>
       ) : null}
 
-      {showMeta && product.region ? (
+      {product.region ? (
         <div className="flex min-w-0 items-center gap-1 text-[9px] text-muted-foreground sm:text-[10px]">
           <MapPin className="h-2.5 w-2.5 shrink-0" aria-hidden="true" />
           <span className="truncate">{product.region}</span>
         </div>
       ) : null}
 
-      {showMeta && (
-        <div className="flex h-4 items-center gap-0.5" aria-label={rating > 0 ? `${rating.toFixed(1)}/5` : undefined}>
-          {rating > 0 ? (
-            <>
-              {[0, 1, 2, 3, 4].map((i) => (
-                <Star
-                  key={i}
-                  className={cn(
-                    'h-2.5 w-2.5 sm:h-3 sm:w-3',
-                    i < Math.round(rating)
-                      ? 'fill-price-warning text-price-warning'
-                      : 'fill-muted text-muted-foreground',
-                  )}
-                  aria-hidden="true"
-                />
-              ))}
-              {reviewCount > 0 ? (
-                <span className="ms-1 text-[9px] text-muted-foreground sm:text-[10px]">
-                  ({reviewCount.toLocaleString(locale === 'en' ? 'en-US' : locale === 'ps' ? 'ps-AF' : 'fa-IR')})
-                </span>
-              ) : null}
-            </>
-          ) : null}
-        </div>
-      )}
+      <div className="flex h-4 items-center gap-0.5" aria-label={rating > 0 ? `${rating.toFixed(1)}/5` : undefined}>
+        {rating > 0 ? (
+          <>
+            {[0, 1, 2, 3, 4].map((i) => (
+              <Star
+                key={i}
+                className={cn(
+                  'h-2.5 w-2.5 sm:h-3 sm:w-3',
+                  i < Math.round(rating)
+                    ? 'fill-price-warning text-price-warning'
+                    : 'fill-muted text-muted-foreground',
+                )}
+                aria-hidden="true"
+              />
+            ))}
+            {reviewCount > 0 ? (
+              <span className="ms-1 text-[9px] text-muted-foreground sm:text-[10px]">
+                ({reviewCount.toLocaleString(locale === 'en' ? 'en-US' : locale === 'ps' ? 'ps-AF' : 'fa-IR')})
+              </span>
+            ) : null}
+          </>
+        ) : null}
+      </div>
 
       <div className="mt-auto flex min-w-0 items-center justify-between gap-1.5 border-t border-border/60 pt-1.5">
         <div className="flex min-w-0 flex-col">
@@ -242,7 +239,6 @@ export function MarketplaceProductCard({
       className={cn(
         'group relative min-w-0 overflow-hidden rounded-2xl border border-border/65 bg-card shadow-sm transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-premium',
         isList ? 'flex flex-row' : 'flex h-full flex-col',
-        isRail && 'w-full',
       )}
     >
       <div className={cn('relative', isList ? 'shrink-0' : 'w-full')}>
