@@ -10,7 +10,6 @@ import { CategoriesSection } from '@/features/home/components/categories-section
 import { ProductSliderSection } from '@/features/home/components/product-slider-section';
 import { PersonalizedProductsSection, RecentlyViewedSection } from '@/features/home/components/personalized-products-section';
 import { HomeCatalogGrid } from '@/features/home/components/home-catalog-grid';
-import { BecomeSellerBanner } from '@/features/home/components/become-seller-banner';
 import { TrustSection } from '@/features/home/components/trust-section';
 import { SiteHeader } from '@/features/home/components/site-header';
 import { SiteFooter } from '@/features/home/components/site-footer';
@@ -23,7 +22,7 @@ type Locale = 'fa' | 'ps' | 'en';
 type ProductSectionProps = { section: 'featured' | 'bestSelling' | 'newest'; locale: Locale; title: Record<Locale, string>; subtitle?: Record<Locale, string>; href: string; badge: string; accentColor?: string; catalog: Awaited<ReturnType<typeof getHomepageData>> };
 
 function SectionSkeleton() { return <div className="mx-auto my-5 h-56 max-w-screen-xl animate-pulse rounded-3xl bg-muted/40 sm:my-7" aria-hidden />; }
-function HeroSkeleton() { return <section className="mx-auto max-w-screen-xl px-3 pt-3 sm:px-6 sm:pt-5" aria-hidden><div className="relative aspect-[1.6/1] min-h-[300px] overflow-hidden rounded-[28px] border border-border bg-muted/40 sm:aspect-[2.3/1] sm:min-h-[390px]"><div className="absolute inset-x-5 bottom-5 max-w-xl space-y-3 sm:inset-x-8 sm:bottom-8"><div className="h-7 w-24 animate-pulse rounded-full bg-background/60" /><div className="h-10 w-4/5 animate-pulse rounded-xl bg-background/50" /><div className="h-11 w-48 animate-pulse rounded-xl bg-background/50" /></div></div></section>; }
+function HeroSkeleton() { return <section className="mx-auto max-w-screen-xl px-3 pt-3 sm:px-6 sm:pt-5" aria-hidden><div className="relative h-[250px] overflow-hidden rounded-[24px] border border-border bg-muted/40 sm:h-[330px] lg:h-[350px]"><div className="absolute inset-x-5 bottom-5 max-w-xl space-y-3 sm:inset-x-8 sm:bottom-8"><div className="h-7 w-24 animate-pulse rounded-full bg-background/60" /><div className="h-10 w-4/5 animate-pulse rounded-xl bg-background/50" /><div className="h-10 w-48 animate-pulse rounded-xl bg-background/50" /></div></div></section>; }
 
 async function HomeHeroSection({ locale }: { locale: Locale }) { const banners = await listActiveBanners('HOME_HERO', 6).catch(() => []); return <HomepageHeroCarousel banners={banners} locale={locale} />; }
 
@@ -62,7 +61,6 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
     <Suspense fallback={<SectionSkeleton />}><HomeProductSection section="newest" locale={locale} catalog={catalog} title={{ en: 'Fresh arrivals', ps: 'تازه راغلي محصولات', fa: 'تازه‌واردها' }} subtitle={{ en: 'New products to discover before everyone else', ps: 'نوي محصولات چې لومړی یې تاسو ومومئ', fa: 'محصولات تازه برای کشف زودتر از دیگران' }} href="/shop?sort=newest" badge="new" accentColor="bg-sky-500" /></Suspense>
     <Suspense fallback={<SectionSkeleton />}><LowerRecommendationSections locale={locale} userId={user?.id} catalog={catalog} /></Suspense>
     <DynamicBannerStrip locale={locale} placement="HOME_MID" />
-    <BecomeSellerBanner locale={locale} />
     <Suspense fallback={<div className="h-56 animate-pulse bg-muted/30" />}><TrustSection /></Suspense>
   </main><SiteFooter /><BottomNavigation /></div>;
 }
