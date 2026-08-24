@@ -4,6 +4,7 @@ import { SiteHeader } from '@/features/home/components/site-header';
 import { SiteFooter } from '@/features/home/components/site-footer';
 import { BottomNavigation } from '@/features/home/components/bottom-navigation';
 import { ShopPageClient } from '@/features/shop';
+import { ShopHotProducts } from '@/features/shop/components/shop-hot-products';
 
 interface Props { params: Promise<{ locale: string }> }
 
@@ -21,5 +22,6 @@ export default async function ShopPage({ params }: Props) {
   setRequestLocale(locale);
   const t = await getTranslations('shop');
   const tNav = await getTranslations('nav');
-  return <><SiteHeader /><main id="main" className="min-h-dvh bg-background pb-16 md:pb-0"><div className="mx-auto max-w-screen-xl px-2 py-5 sm:px-6"><nav aria-label={t('breadcrumb.label')} className="mb-4 flex items-center gap-1.5 text-xs text-muted-foreground"><a href={`/${locale}`} className="transition-colors hover:text-primary">{tNav('home')}</a><span className="text-border" aria-hidden="true">/</span><span className="font-semibold text-foreground" aria-current="page">{tNav('shop')}</span></nav><ShopPageClient locale={locale} currency="AFN" /></div></main><SiteFooter /><BottomNavigation /></>;
+  const safeLocale = (['fa', 'ps', 'en'].includes(locale) ? locale : 'fa') as 'fa' | 'ps' | 'en';
+  return <><SiteHeader /><main id="main" className="min-h-dvh bg-background pb-16 md:pb-0"><div className="mx-auto max-w-screen-xl px-2 py-5 sm:px-6"><nav aria-label={t('breadcrumb.label')} className="mb-4 flex items-center gap-1.5 text-xs text-muted-foreground"><a href={`/${locale}`} className="transition-colors hover:text-primary">{tNav('home')}</a><span className="text-border" aria-hidden="true">/</span><span className="font-semibold text-foreground" aria-current="page">{tNav('shop')}</span></nav><ShopPageClient locale={locale} currency="AFN" /></div><ShopHotProducts locale={safeLocale} /></main><SiteFooter /><BottomNavigation /></>;
 }
