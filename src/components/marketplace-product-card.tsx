@@ -35,10 +35,10 @@ export function MarketplaceProductCard({ product, currency = 'AFN', locale = 'fa
   const handleAddToCart = () => { if (!canQuickAdd) return; addItem({ slug: product.slug, name: product.name, price: product.price, region: product.region, categoryKey: product.categoryKey, images: product.images, quantity: 1 }); };
   const rail = view === 'rail';
   const showMeta = view !== 'rail';
-  const imageSizes = view === 'rail' ? '(max-width: 639px) 28vw, (max-width: 1024px) 154px, 166px' : view === 'list' ? '160px' : '(max-width: 639px) 33vw, (max-width: 1024px) 33vw, 25vw';
+  const imageSizes = view === 'rail' ? '(max-width: 639px) 28vw, (max-width: 1024px) 154px, 166px' : view === 'list' ? '160px' : '(max-width: 639px) 25vw, (max-width: 1024px) 25vw, 25vw';
 
   const imageBlock = (
-    <div className={cn('relative aspect-[3/4] w-full overflow-hidden bg-muted', view === 'list' && 'aspect-auto h-32 w-32 sm:h-40 sm:w-40')}>
+    <div className={cn('relative aspect-[4/3] w-full overflow-hidden bg-muted', view === 'list' && 'aspect-auto h-32 w-32 sm:h-40 sm:w-40')}>
       {image ? <Image src={image} alt={product.images?.[0]?.alt || product.name} fill sizes={imageSizes} loading="lazy" className="object-cover transition-transform duration-300 ease-out group-hover:scale-[1.035]" /> : <div className="flex h-full items-center justify-center bg-muted"><ShoppingCart className="h-6 w-6 text-muted-foreground/25" aria-hidden="true" /></div>}
       {discountPct > 0 && <span className="absolute start-1.5 top-1.5 rounded-full bg-price-sale px-1.5 py-1 text-[7px] font-extrabold text-white shadow-sm sm:px-2 sm:text-[8px]">-{discountPct}٪</span>}
       {product.badge && discountPct === 0 && <span className="absolute start-1.5 top-1.5 rounded-full bg-price-warning px-1.5 py-1 text-[7px] font-extrabold text-white shadow-sm sm:px-2 sm:text-[8px]">{product.badge === 'new' ? tCard('badgeNew') : product.badge === 'best' ? tCard('badgeBest') : product.badge === 'last' ? tCard('badgeLast') : tCard('badgeSale')}</span>}
