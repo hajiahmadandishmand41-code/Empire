@@ -109,5 +109,29 @@
 @media (min-width: 640px) { .product-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (min-width: 768px) { .product-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } :root { --bottom-nav-height: 0px; } }
 @media (min-width: 1280px) { .product-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+
+/* Compact mobile storefront: small Digikala-like cards while keeping product imagery 3:4. */
+@media (max-width: 639px) {
+  .product-grid { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; gap: 6px !important; }
+  .product-grid > article { border-radius: 12px; box-shadow: 0 1px 5px hsl(var(--foreground) / .055); }
+  .product-grid > article > div:first-child > a > div { aspect-ratio: 3 / 4 !important; }
+  .product-grid > article > div:last-child { gap: 2px !important; padding: 5px !important; }
+  .product-grid > article > div:last-child > p { height: 10px !important; font-size: 6px !important; line-height: 10px !important; }
+  .product-grid > article > div:last-child > h3 { min-height: 24px !important; font-size: 8px !important; line-height: 12px !important; }
+  .product-grid > article > div:last-child > div:last-child { padding-top: 4px !important; gap: 3px !important; }
+  .product-grid > article > div:last-child > div:last-child span { font-size: 8px !important; }
+  .product-grid > article .h-8.w-8 { height: 24px !important; width: 24px !important; }
+  .product-grid > article .h-8.w-8 svg { height: 11px !important; width: 11px !important; }
+  .product-grid > article > div:first-child .h-7.w-7 { height: 22px !important; width: 22px !important; }
+  .product-grid > article > div:first-child .h-7.w-7 svg { height: 11px !important; width: 11px !important; }
+  .product-grid > article > div:first-child > a > div > span { padding: 2px 4px !important; font-size: 6px !important; }
+}
+
+@media (max-width: 639px) {
+  /* Keep the hero/banner lightweight on phones. */
+  .group.relative.isolate > .relative.h-\[250px\] { height: 190px !important; }
+  .group.relative.isolate { border-radius: 18px; }
+}
+
 @media print { .no-print { display: none !important; } body { background: #fff; color: #000; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: 0.01ms !important; } }
