@@ -36,6 +36,11 @@ export interface PublicSellerListItem {
   productCount: number;
 }
 
+export interface PublicSellerListFilter extends BaseListFilter {
+  city?: string;
+  sort?: 'popular' | 'newest' | 'name';
+}
+
 export interface SellerRow {
   id: string;
   shopName: string | null;
@@ -63,7 +68,7 @@ export interface UpdateSellerStoreInput {
 
 export interface ISellerRepository {
   findPublicProfile(sellerId: string): Promise<SellerPublicProfile | null>;
-  findPublicMany(filter: BaseListFilter): Promise<PaginatedResult<PublicSellerListItem>>;
+  findPublicMany(filter: PublicSellerListFilter): Promise<PaginatedResult<PublicSellerListItem>>;
   findMany(filter: BaseListFilter): Promise<PaginatedResult<SellerRow>>;
   findById(id: string): Promise<SellerRow | null>;
   updateStoreSettings(sellerId: string, input: UpdateSellerStoreInput): Promise<void>;
@@ -91,9 +96,7 @@ export class PrismaSellerRepository implements ISellerRepository {
         _count: { select: { products: true } },
       },
     });
-
     if (!user) return null;
-
     return {
       id: user.id,
       shopName: user.sellerShopName,
@@ -110,26 +113,31 @@ export class PrismaSellerRepository implements ISellerRepository {
     };
   }
 
-  async findPublicMany(filter: BaseListFilter): Promise<PaginatedResult<PublicSellerListItem>> {
+  async findPublicMany(filter: PublicSellerListFilter): Promise<PaginatedResult<PublicSellerListItem>> {
     const page = Math.max(1, filter.page ?? 1);
     const pageSize = Math.min(48, Math.max(1, filter.pageSize ?? 24));
     const skip = (page - 1) * pageSize;
     const q = filter.q?.trim();
+    const city = filter.city?.trim();
     const where = {
       role: 'seller' as const,
       sellerStatus: 'approved' as const,
       isActive: true,
       sellerShopName: { not: null as string | null },
+      ...(city ? { sellerCity: { contains: city, mode: 'insensitive' as const } } : {}),
       ...(q
-        ? {
-            OR: [
-              { sellerShopName: { contains: q, mode: 'insensitive' as const } },
-              { sellerBio: { contains: q, mode: 'insensitive' as const } },
-              { sellerCity: { contains: q, mode: 'insensitive' as const } },
-            ],
-          }
+        ? { OR: [
+            { sellerShopName: { contains: q, mode: 'insensitive' as const } },
+            { sellerBio: { contains: q, mode: 'insensitive' as const } },
+            { sellerCity: { contains: q, mode: 'insensitive' as const } },
+          ] }
         : {}),
     };
+    const orderBy = filter.sort === 'name'
+      ? [{ sellerShopName: 'asc' as const }, { createdAt: 'desc' as const }]
+      : filter.sort === 'newest'
+        ? [{ createdAt: 'desc' as const }]
+        : [{ products: { _count: 'desc' as const } }, { createdAt: 'desc' as const }];
 
     const [rows, total] = await Promise.all([
       this.prisma.user.findMany({
@@ -144,14 +152,14 @@ export class PrismaSellerRepository implements ISellerRepository {
           sellerCountry: true,
           _count: { select: { products: true } },
         },
-        orderBy: [{ products: { _count: 'desc' } }, { createdAt: 'desc' }],
+        orderBy,
         take: pageSize,
         skip,
       }),
       this.prisma.user.count({ where }),
     ]);
 
-    const items: PublicSellerListItem[] = rows.map((row) => ({
+    return toPaginated(rows.map((row) => ({
       id: row.id,
       shopName: row.sellerShopName ?? 'Eshop Seller',
       bio: row.sellerBio,
@@ -160,123 +168,46 @@ export class PrismaSellerRepository implements ISellerRepository {
       city: row.sellerCity,
       country: row.sellerCountry,
       productCount: row._count.products,
-    }));
-
-    return toPaginated(items, total, page, pageSize);
+    })), total, page, pageSize);
   }
 
   async findMany(filter: BaseListFilter): Promise<PaginatedResult<SellerRow>> {
     const page = Math.max(1, filter.page ?? 1);
     const pageSize = Math.min(100, Math.max(1, filter.pageSize ?? 20));
     const skip = (page - 1) * pageSize;
-
     const where = {
       role: 'seller' as const,
-      ...(filter.q
-        ? {
-            OR: [
-              { sellerShopName: { contains: filter.q, mode: 'insensitive' as const } },
-              { email: { contains: filter.q, mode: 'insensitive' as const } },
-              { fullName: { contains: filter.q, mode: 'insensitive' as const } },
-            ],
-          }
-        : {}),
+      ...(filter.q ? { OR: [
+        { sellerShopName: { contains: filter.q, mode: 'insensitive' as const } },
+        { email: { contains: filter.q, mode: 'insensitive' as const } },
+        { fullName: { contains: filter.q, mode: 'insensitive' as const } },
+      ] } : {}),
     };
-
     const [rows, total] = await Promise.all([
       this.prisma.user.findMany({
         where,
-        select: {
-          id: true,
-          sellerShopName: true,
-          email: true,
-          phone: true,
-          sellerStatus: true,
-          commissionRate: true,
-          createdAt: true,
-          _count: { select: { products: true, orders: true } },
-        },
+        select: { id: true, sellerShopName: true, email: true, phone: true, sellerStatus: true, commissionRate: true, createdAt: true, _count: { select: { products: true, orders: true } } },
         orderBy: { createdAt: 'desc' },
         take: pageSize,
         skip,
       }),
       this.prisma.user.count({ where }),
     ]);
-
-    const items: SellerRow[] = rows.map((r) => ({
-      id: r.id,
-      shopName: r.sellerShopName,
-      email: r.email,
-      phone: r.phone,
-      status: r.sellerStatus,
-      commissionRate: Number(r.commissionRate),
-      createdAt: r.createdAt,
-      productCount: r._count.products,
-      orderCount: r._count.orders,
-    }));
-
-    return toPaginated(items, total, page, pageSize);
+    return toPaginated(rows.map((r) => ({ id: r.id, shopName: r.sellerShopName, email: r.email, phone: r.phone, status: r.sellerStatus, commissionRate: Number(r.commissionRate), createdAt: r.createdAt, productCount: r._count.products, orderCount: r._count.orders })), total, page, pageSize);
   }
 
   async findById(id: string): Promise<SellerRow | null> {
-    const row = await this.prisma.user.findUnique({
-      where: { id, role: 'seller' },
-      select: {
-        id: true,
-        sellerShopName: true,
-        email: true,
-        phone: true,
-        sellerStatus: true,
-        commissionRate: true,
-        createdAt: true,
-      },
-    });
+    const row = await this.prisma.user.findUnique({ where: { id, role: 'seller' }, select: { id: true, sellerShopName: true, email: true, phone: true, sellerStatus: true, commissionRate: true, createdAt: true } });
     if (!row) return null;
-    return {
-      id: row.id,
-      shopName: row.sellerShopName,
-      email: row.email,
-      phone: row.phone,
-      status: row.sellerStatus,
-      commissionRate: Number(row.commissionRate),
-      createdAt: row.createdAt,
-    };
+    return { id: row.id, shopName: row.sellerShopName, email: row.email, phone: row.phone, status: row.sellerStatus, commissionRate: Number(row.commissionRate), createdAt: row.createdAt };
   }
 
   async updateStoreSettings(sellerId: string, input: UpdateSellerStoreInput): Promise<void> {
-    await this.prisma.user.update({
-      where: { id: sellerId },
-      data: {
-        sellerShopName: input.sellerShopName,
-        sellerBio: input.sellerBio,
-        sellerLogoUrl: input.sellerLogoUrl,
-        sellerBannerUrl: input.sellerBannerUrl,
-        sellerWhatsapp: input.sellerWhatsapp,
-        sellerContactEmail: input.sellerContactEmail,
-        sellerContactPhone: input.sellerContactPhone,
-        sellerAddress: input.sellerAddress,
-        sellerCity: input.sellerCity,
-        sellerCountry: input.sellerCountry,
-      },
-    });
+    await this.prisma.user.update({ where: { id: sellerId }, data: input });
   }
 
   async getStoreSettings(sellerId: string): Promise<UpdateSellerStoreInput | null> {
-    const row = await this.prisma.user.findUnique({
-      where: { id: sellerId },
-      select: {
-        sellerShopName: true,
-        sellerBio: true,
-        sellerLogoUrl: true,
-        sellerBannerUrl: true,
-        sellerWhatsapp: true,
-        sellerContactEmail: true,
-        sellerContactPhone: true,
-        sellerAddress: true,
-        sellerCity: true,
-        sellerCountry: true,
-      },
-    });
+    const row = await this.prisma.user.findUnique({ where: { id: sellerId }, select: { sellerShopName: true, sellerBio: true, sellerLogoUrl: true, sellerBannerUrl: true, sellerWhatsapp: true, sellerContactEmail: true, sellerContactPhone: true, sellerAddress: true, sellerCity: true, sellerCountry: true } });
     if (!row) return null;
     return {
       sellerShopName: row.sellerShopName ?? undefined,

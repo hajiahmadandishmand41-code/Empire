@@ -9,30 +9,43 @@ import { useCartStore } from '@/features/cart/store/cart-store';
 import { WishlistButton } from '@/features/wishlist/components/wishlist-button';
 import type { ProductSummary } from '@/types';
 
-export interface MarketplaceProductCardProps { product: ProductSummary; currency?: string; locale?: string; whatsappNumber?: string; view?: 'grid' | 'list' | 'rail'; showDescription?: boolean; }
+export interface MarketplaceProductCardProps {
+  product: ProductSummary;
+  currency?: string;
+  locale?: string;
+  whatsappNumber?: string;
+  view?: 'grid' | 'list' | 'rail';
+  showDescription?: boolean;
+}
 
 export function MarketplaceProductCard({ product, currency = 'AFN', locale = 'fa', whatsappNumber, view = 'grid', showDescription = false }: MarketplaceProductCardProps) {
-  const tCard = useTranslations('shop.card'); const tCat = useTranslations('home.categories.items'); const tProduct = useTranslations('product');
+  const tCard = useTranslations('shop.card');
+  const tCat = useTranslations('home.categories.items');
+  const tProduct = useTranslations('product');
   const addItem = useCartStore((state) => state.addItem);
   const categoryLabel = (() => { try { return tCat(`${product.categoryKey}.title` as Parameters<typeof tCat>[0]); } catch { return product.categoryKey; } })();
   const image = product.images?.[0]?.src ?? null;
   const discountPct = product.comparePrice && product.comparePrice > product.price ? Math.round(((product.comparePrice - product.price) / product.comparePrice) * 100) : 0;
   const originalPrice = product.comparePrice && product.comparePrice > product.price ? product.comparePrice : null;
-  const rating = product.averageRating ?? 0; const reviewCount = product.reviewCount ?? 0;
+  const rating = product.averageRating ?? 0;
+  const reviewCount = product.reviewCount ?? 0;
   const waNumber = whatsappNumber ?? product.sellerWhatsapp ?? null;
   const waLink = waNumber ? `https://wa.me/${waNumber.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`${tProduct('actions.whatsappMessage')} \"${product.name}\"`)}` : null;
   const canQuickAdd = product.inStock !== false;
   const handleAddToCart = () => { if (!canQuickAdd) return; addItem({ slug: product.slug, name: product.name, price: product.price, region: product.region, categoryKey: product.categoryKey, images: product.images, quantity: 1 }); };
-  const rail = view === 'rail'; const showMeta = view !== 'rail';
+  const rail = view === 'rail';
+  const showMeta = view !== 'rail';
   const imageSizes = view === 'rail' ? '(max-width: 639px) 31vw, (max-width: 1024px) 188px, 204px' : view === 'list' ? '160px' : '(max-width: 639px) 33vw, (max-width: 1024px) 33vw, 25vw';
 
-  const imageBlock = <div className={cn('relative overflow-hidden bg-muted', view === 'list' ? 'h-32 w-32 shrink-0 sm:h-40 sm:w-40' : 'aspect-square w-full')}>
-    {image ? <Image src={image} alt={product.images?.[0]?.alt || product.name} fill sizes={imageSizes} loading="lazy" className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.025]" /> : <div className="flex h-full items-center justify-center bg-muted"><ShoppingCart className="h-7 w-7 text-muted-foreground/25" aria-hidden="true" /> </div>}
-    {discountPct > 0 && <span className="absolute start-1.5 top-1.5 rounded-full bg-price-sale px-1.5 py-0.5 text-[8px] font-extrabold text-white shadow-sm sm:start-2 sm:top-2 sm:px-2 sm:py-1 sm:text-[9px]">-{discountPct}٪</span>}
-    {product.badge && discountPct === 0 && <span className="absolute start-1.5 top-1.5 rounded-full bg-price-warning px-1.5 py-0.5 text-[8px] font-extrabold text-white shadow-sm sm:start-2 sm:top-2 sm:px-2 sm:py-1 sm:text-[9px]">{product.badge === 'new' ? tCard('badgeNew') : product.badge === 'best' ? tCard('badgeBest') : product.badge === 'last' ? tCard('badgeLast') : tCard('badgeSale')}</span>}
-    {product.videoUrl && <span className="absolute end-1.5 bottom-1.5 inline-flex items-center gap-1 rounded-md bg-foreground/80 px-1 py-0.5 text-[8px] font-bold text-background sm:end-2 sm:bottom-2 sm:px-1.5 sm:text-[9px]"><Video className="h-2.5 w-2.5" aria-hidden="true" />Video</span>}
-    {product.inStock === false && <span className="absolute inset-x-1.5 bottom-1.5 rounded-md bg-black/65 px-1 py-1 text-center text-[8px] font-bold text-white sm:inset-x-2 sm:bottom-2 sm:rounded-lg sm:text-[9px]">{locale === 'en' ? 'Out of stock' : locale === 'ps' ? 'په ذخیره کې نشته' : 'ناموجود'}</span>}
-  </div>;
+  const imageBlock = (
+    <div className={cn('relative overflow-hidden bg-muted', view === 'list' ? 'h-32 w-32 shrink-0 sm:h-40 sm:w-40' : 'aspect-[4/3] w-full')}>
+      {image ? <Image src={image} alt={product.images?.[0]?.alt || product.name} fill sizes={imageSizes} loading="lazy" className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.025]" /> : <div className="flex h-full items-center justify-center bg-muted"><ShoppingCart className="h-7 w-7 text-muted-foreground/25" aria-hidden="true" /></div>}
+      {discountPct > 0 && <span className="absolute start-1.5 top-1.5 rounded-full bg-price-sale px-1.5 py-0.5 text-[8px] font-extrabold text-white shadow-sm sm:start-2 sm:top-2 sm:px-2 sm:py-1 sm:text-[9px]">-{discountPct}٪</span>}
+      {product.badge && discountPct === 0 && <span className="absolute start-1.5 top-1.5 rounded-full bg-price-warning px-1.5 py-0.5 text-[8px] font-extrabold text-white shadow-sm sm:start-2 sm:top-2 sm:px-2 sm:py-1 sm:text-[9px]">{product.badge === 'new' ? tCard('badgeNew') : product.badge === 'best' ? tCard('badgeBest') : product.badge === 'last' ? tCard('badgeLast') : tCard('badgeSale')}</span>}
+      {product.videoUrl && <span className="absolute end-1.5 bottom-1.5 inline-flex items-center gap-1 rounded-md bg-foreground/80 px-1 py-0.5 text-[8px] font-bold text-background sm:end-2 sm:bottom-2 sm:px-1.5 sm:text-[9px]"><Video className="h-2.5 w-2.5" aria-hidden="true" />Video</span>}
+      {product.inStock === false && <span className="absolute inset-x-1.5 bottom-1.5 rounded-md bg-black/65 px-1 py-1 text-center text-[8px] font-bold text-white sm:inset-x-2 sm:bottom-2 sm:rounded-lg sm:text-[9px]">{locale === 'en' ? 'Out of stock' : locale === 'ps' ? 'په ذخیره کې نشته' : 'ناموجود'}</span>}
+    </div>
+  );
 
   return <article className={cn('group relative min-w-0 overflow-hidden rounded-xl border border-border/60 bg-card shadow-sm transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md sm:rounded-2xl', rail ? 'flex w-[calc((100vw-2.25rem)/3)] max-w-[204px] flex-none flex-col sm:w-[188px] md:w-[204px]' : view === 'list' ? 'flex flex-row' : 'flex h-full min-h-0 flex-col')}>
     <div className={cn('relative', view === 'list' ? 'shrink-0' : 'w-full')}><Link href={`/shop/${product.slug}` as never} className="block">{imageBlock}</Link><WishlistButton slug={product.slug} productId={product.id} size="sm" labelOn={tCard('wishlistLabel')} labelOff={tCard('wishlistLabel')} className="absolute end-1.5 top-1.5 z-10 border-0 bg-card/90 backdrop-blur-sm sm:end-2 sm:top-2" /></div>

@@ -47,7 +47,7 @@ export function SellerApplicationForm({ initial }: { initial?: { shopName?: stri
   }
 
   return (
-    <form onSubmit={submit} className="rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-7" noValidate>
+    <form id="seller-application" onSubmit={submit} className="scroll-mt-24 rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-7" noValidate>
       <div className="mb-6 flex items-start gap-3">
         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary"><Store className="h-5 w-5" /></span>
         <div><h1 className="text-xl font-extrabold tracking-tight sm:text-2xl">{copy.title}</h1><p className="mt-1 text-sm text-muted-foreground">{locale === 'fa' ? 'اطلاعات را کامل کنید؛ درخواست در پنل مدیریت ثبت و برای بررسی ارسال می‌شود.' : locale === 'ps' ? 'معلومات بشپړ کړئ؛ غوښتنلیک د ادارې په پینل کې ثبت او د کتنې لپاره لېږل کېږي.' : 'Complete the form; the application is saved in the admin panel for review.'}</p></div>
