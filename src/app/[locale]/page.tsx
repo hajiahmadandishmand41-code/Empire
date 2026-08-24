@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import Image from 'next/image';
-import { Star } from 'lucide-react';
+import { ShieldCheck, Star, Store } from 'lucide-react';
 import { setRequestLocale } from 'next-intl/server';
 import { HomepageHeroCarousel } from '@/features/home/components/homepage-hero-carousel';
 import { HomeDiscoveryStrip } from '@/features/home/components/home-discovery-strip';
@@ -11,13 +11,12 @@ import { TraditionalProductsBanner } from '@/features/home/components/traditiona
 import { CategoriesSection } from '@/features/home/components/categories-section';
 import { ProductSliderSection } from '@/features/home/components/product-slider-section';
 import { PersonalizedProductsSection, RecentlyViewedSection } from '@/features/home/components/personalized-products-section';
-import { MarketplaceProductCard } from '@/components/marketplace-product-card';
 import { HomeCatalogGrid } from '@/features/home/components/home-catalog-grid';
 import { TrustSection } from '@/features/home/components/trust-section';
 import { SiteHeader } from '@/features/home/components/site-header';
 import { SiteFooter } from '@/features/home/components/site-footer';
 import { BottomNavigation } from '@/features/home/components/bottom-navigation';
-import { getCategoryRepository } from '@/server/infrastructure/registry';
+import { getCategoryRepository, getSellerRepository } from '@/server/infrastructure/registry';
 import { getHomepageData, getHomepageSection, toSliderProduct } from '@/features/home/lib/homepage-data';
 import { listActiveBanners } from '@/server/services/banner.service';
 import { getCurrentUser } from '@/lib/auth/current-user';
@@ -43,14 +42,37 @@ async function LowerRecommendationSections({ locale, userId, catalog }: { locale
     .filter((product) => !seen.has(product.id) && seen.add(product.id))
     .slice(0, 24);
   if (!uniquePool.length) return null;
-  return <><PersonalizedProductsSection products={uniquePool.map((product) => toSliderProduct(product))} locale={locale} /><RecentlyViewedSection products={uniquePool.map((product) => toSliderProduct(product))} locale={locale} /><HomeCatalogGrid products={uniquePool} locale={locale} /><HomeBottomProductList products={uniquePool} locale={locale} /></>;
+  return <><PersonalizedProductsSection products={uniquePool.map((product) => toSliderProduct(product))} locale={locale} /><RecentlyViewedSection products={uniquePool.map((product) => toSliderProduct(product))} locale={locale} /><HomeCatalogGrid products={uniquePool} locale={locale} /><HomePopularStores locale={locale} /></>;
 }
 
-function HomeBottomProductList({ products, locale }: { products: Awaited<ReturnType<typeof getHomepageData>>['featured']; locale: Locale }) {
-  const unique = Array.from(new Map(products.map((product) => [product.id, product])).values()).slice(0, 10);
-  if (!unique.length) return null;
-  const copy = locale === 'en' ? { title: 'More products to discover', subtitle: 'A compact marketplace-style view', all: 'View all' } : locale === 'ps' ? { title: 'نور محصولات د کشف لپاره', subtitle: 'د بازار په سبک منظم لنډه ننداره', all: 'ټول وګورئ' } : { title: 'محصولات بیشتر برای کشف', subtitle: 'نمایش جمع‌وجور و حرفه‌ای شبیه فروشگاه‌های بزرگ', all: 'مشاهده همه' };
-  return <section className="border-y border-border bg-background py-4 sm:py-7" aria-label={copy.title}><div className="mx-auto max-w-screen-2xl px-2.5 sm:px-6"><div className="mb-3 flex items-center justify-between gap-2 sm:mb-4"><div className="min-w-0"><h2 className="text-sm font-black tracking-tight sm:text-lg">{copy.title}</h2><p className="mt-0.5 text-[10px] leading-4 text-muted-foreground sm:text-xs">{copy.subtitle}</p></div><a href={locale === 'en' ? '/en/shop' : locale === 'ps' ? '/ps/shop' : '/fa/shop'} className="min-h-8 shrink-0 rounded-full border border-border bg-card px-3 py-1.5 text-[10px] font-bold sm:text-[11px]">{copy.all}</a></div><div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3">{unique.map((product) => <MarketplaceProductCard key={product.id} product={product} locale={locale} currency="AFN" view="list" />)}</div></div></section>;
+async function HomePopularStores({ locale }: { locale: Locale }) {
+  const result = await getSellerRepository().findPublicMany({ q: '', page: 1, pageSize: 10, sort: 'popular' }).catch(() => ({ items: [] }));
+  if (!result.items.length) return null;
+  const copy = locale === 'en'
+    ? { title: 'Popular e-shops', subtitle: 'Discover stores customers choose most', all: 'View all stores', verified: 'Verified' }
+    : locale === 'ps'
+      ? { title: 'مشهور ای‌شاپونه', subtitle: 'هغه پلورنځي ومومئ چې پیرودونکي یې ډېر غوره کوي', all: 'ټول پلورنځي', verified: 'تایید شوی' }
+      : { title: 'ای‌شاپ‌های محبوب', subtitle: 'فروشگاه‌هایی که مشتریان بیشتر انتخاب می‌کنند', all: 'مشاهده همه فروشگاه‌ها', verified: 'تأییدشده' };
+  return <section className="border-y border-border bg-card py-4 sm:py-6" aria-label={copy.title}>
+    <div className="mx-auto max-w-screen-xl px-2.5 sm:px-6">
+      <div className="mb-3 flex items-center justify-between gap-2 sm:mb-4">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-violet-500/10 text-violet-600 dark:text-violet-400"><Store className="h-4 w-4" aria-hidden="true" /></span>
+          <div className="min-w-0"><h2 className="truncate text-sm font-black sm:text-lg">{copy.title}</h2><p className="mt-0.5 truncate text-[10px] text-muted-foreground sm:text-xs">{copy.subtitle}</p></div>
+        </div>
+        <a href={locale === 'en' ? '/en/stores' : locale === 'ps' ? '/ps/stores' : '/fa/stores'} className="min-h-8 shrink-0 rounded-full border border-border bg-background px-2.5 py-1.5 text-[10px] font-bold sm:px-3 sm:text-xs">{copy.all}</a>
+      </div>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-5 sm:gap-3">
+        {result.items.slice(0, 10).map((store) => <a key={store.id} href={locale === 'en' ? `/en/store/${store.id}` : locale === 'ps' ? `/ps/store/${store.id}` : `/fa/store/${store.id}`} aria-label={store.shopName} className="group flex min-w-0 items-center gap-2 rounded-2xl border border-border bg-background p-2 transition hover:border-primary/30 hover:shadow-sm">
+          <span className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-muted sm:h-14 sm:w-14">
+            {store.logoUrl ? <Image src={store.logoUrl} alt="" fill sizes="56px" className="object-cover" /> : <span className="text-sm font-black text-primary">{store.shopName.charAt(0)}</span>}
+            <span className="absolute -end-0.5 -top-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full border border-background bg-emerald-500 text-white"><ShieldCheck className="h-2 w-2" aria-hidden="true" /></span>
+          </span>
+          <span className="min-w-0"><strong className="block truncate text-[11px] font-black sm:text-xs">{store.shopName}</strong><span className="mt-0.5 block truncate text-[9px] text-muted-foreground sm:text-[10px]">{store.productCount} {locale === 'en' ? 'products' : locale === 'ps' ? 'محصولات' : 'محصول'}</span></span>
+        </a>)}
+      </div>
+    </div>
+  </section>;
 }
 
 async function PopularCategoryRanking({ locale }: { locale: Locale }) {
