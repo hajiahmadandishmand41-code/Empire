@@ -30,7 +30,10 @@ export async function applyPaymentResult(params: {
       const order = await tx.order.findUniqueOrThrow({ where: { id: current.orderId } });
       return { order, transaction: current };
     }
-    if (status === 'refunded' && current.status !== 'paid' && current.status !== 'refunded') {
+    // A refund is valid only after a payment has actually reached `paid`.
+    // The previous version also compared `status` against the impossible
+    // `refunded` branch for a statically pending transaction.
+    if (status === 'refunded' && current.status !== 'paid') {
       const order = await tx.order.findUniqueOrThrow({ where: { id: current.orderId } });
       return { order, transaction: current };
     }
@@ -54,7 +57,6 @@ export async function applyPaymentResult(params: {
 
     const order = await tx.order.findUniqueOrThrow({ where: { id: current.orderId } });
     if (status === 'paid') {
-      // A successful payment is the point at which a reserved quantity becomes a sale.
       for (const item of current.order.items) {
         await tx.product.update({ where: { id: item.productId }, data: { salesCount: { increment: item.quantity } } });
       }
@@ -62,13 +64,10 @@ export async function applyPaymentResult(params: {
       await setSellerOrdersStatus(tx, order.id, 'confirmed');
       await tx.order.update({ where: { id: order.id }, data: { paymentStatus: 'paid', status: 'confirmed' as POrderStatus } });
     } else if (status === 'failed' || status === 'cancelled') {
-      // Stock was reserved at order creation. Release only that reservation.
-      // Do NOT decrement salesCount here: a failed/cancelled payment never counted as a sale.
       await releaseOrderStockReservations(tx, order.id);
       await setSellerOrdersStatus(tx, order.id, 'cancelled');
       await tx.order.update({ where: { id: order.id }, data: { paymentStatus: status, status: 'cancelled' } });
     } else if (status === 'refunded') {
-      // Refunds apply only to a previously paid transaction, so reverse the sale count once.
       for (const item of current.order.items) {
         await tx.$executeRaw`
           UPDATE "Product" SET "salesCount" = GREATEST(0, "salesCount" - ${item.quantity}) WHERE "id" = ${item.productId}
