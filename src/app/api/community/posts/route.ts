@@ -81,12 +81,19 @@ export async function POST(req: NextRequest) {
   try {
     if (input.action === 'like') {
       if (typeof input.postId !== 'string' || !input.postId) return jsonError('invalid_post', 'Invalid post id', { status: 400, req });
-      const existing = await prisma.$queryRaw<{ id: string }[]>`SELECT "id" FROM "CommunityPostLike" WHERE "userId" = ${user.id} AND "postId" = ${input.postId} LIMIT 1`;
-      if (existing.length) { await prisma.$executeRaw`DELETE FROM "CommunityPostLike" WHERE "id" = ${existing[0].id}`; return jsonOk({ liked: false }, { req }); }
       const post = await prisma.$queryRaw<{ id: string }[]>`SELECT "id" FROM "CommunityPost" WHERE "id" = ${input.postId} LIMIT 1`;
       if (!post.length) return jsonError('not_found', 'Post not found', { status: 404, req });
-      await prisma.$executeRaw`INSERT INTO "CommunityPostLike" ("id", "userId", "postId", "createdAt") VALUES (${crypto.randomUUID()}, ${user.id}, ${input.postId}, NOW())`;
-      return jsonOk({ liked: true }, { req });
+
+      const inserted = await prisma.$queryRaw<{ id: string }[]>`
+        INSERT INTO "CommunityPostLike" ("id", "userId", "postId", "createdAt")
+        VALUES (${crypto.randomUUID()}, ${user.id}, ${input.postId}, NOW())
+        ON CONFLICT ("userId", "postId") DO NOTHING
+        RETURNING "id"
+      `;
+      if (inserted.length) return jsonOk({ liked: true }, { req });
+
+      await prisma.$executeRaw`DELETE FROM "CommunityPostLike" WHERE "userId" = ${user.id} AND "postId" = ${input.postId}`;
+      return jsonOk({ liked: false }, { req });
     }
     if (input.action !== 'create' && input.action !== 'reply') return jsonError('invalid_action', 'Invalid community action', { status: 400, req });
     if (typeof input.content !== 'string') return jsonError('invalid_content', 'Message is required', { status: 400, req });
