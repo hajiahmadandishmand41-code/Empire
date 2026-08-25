@@ -58,13 +58,13 @@ export function ShopPageClient({ locale, currency = 'AFN', initialCategoryKey, i
   const hydratedRef = React.useRef(false);
   const skipUrlSyncRef = React.useRef(false);
   const skipInitialResetRef = React.useRef(initialProducts.length > 0);
+  const requestIdRef = React.useRef(0);
   const copy = copyFor(locale);
 
   React.useEffect(() => {
     const state = stateFromUrl(new URL(window.location.href), initialCategoryKey);
     skipUrlSyncRef.current = true;
     setSearch(state.search); setDebouncedSearch(state.search); setCategory(state.category); setFilters(state.filters); setView(state.view); setPage(1);
-    if (!skipInitialResetRef.current) setAllProducts([]);
     hydratedRef.current = true;
   }, [searchParams, initialCategoryKey]);
 
@@ -72,7 +72,7 @@ export function ShopPageClient({ locale, currency = 'AFN', initialCategoryKey, i
     const onPopState = () => {
       const state = stateFromUrl(new URL(window.location.href), initialCategoryKey);
       skipUrlSyncRef.current = true;
-      setSearch(state.search); setDebouncedSearch(state.search); setCategory(state.category); setFilters(state.filters); setView(state.view); setPage(1); setAllProducts([]);
+      setSearch(state.search); setDebouncedSearch(state.search); setCategory(state.category); setFilters(state.filters); setView(state.view); setPage(1);
     };
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
@@ -114,21 +114,25 @@ export function ShopPageClient({ locale, currency = 'AFN', initialCategoryKey, i
   }, [locale]);
 
   React.useEffect(() => {
+    if (!hydratedRef.current) return;
     if (skipInitialResetRef.current) { skipInitialResetRef.current = false; return; }
-    setPage(1); setAllProducts([]);
+    setPage(1);
   }, [debouncedSearch, category, filters]);
 
   React.useEffect(() => {
+    if (!hydratedRef.current) return;
     const controller = new AbortController();
+    const requestId = ++requestIdRef.current;
     const isLoadMore = page > 1;
     if (isLoadMore) setLoadingMore(true);
     else if (allProducts.length === 0) setLoading(true);
     const params = new URLSearchParams(); if (debouncedSearch.trim()) params.set('q', debouncedSearch.trim()); if (category !== 'all') params.set('categoryKey', category); if (filters.subcategoryKey) params.set('subcategoryKey', filters.subcategoryKey); if (filters.sellerId) params.set('sellerId', filters.sellerId); if (filters.badge) params.set('badge', filters.badge); if (filters.priceMin !== '') params.set('priceMin', String(filters.priceMin)); if (filters.priceMax !== '') params.set('priceMax', String(filters.priceMax)); if (filters.inStockOnly) params.set('inStock', 'true'); if (filters.hasDiscountOnly) params.set('hasDiscount', 'true'); if (filters.minRating !== '') params.set('minRating', String(filters.minRating)); params.set('sort', toApiSort(filters.sort)); params.set('page', String(page)); params.set('pageSize', String(PAGE_SIZE)); params.set('locale', locale);
     fetch(`/api/products?${params.toString()}`, { cache: 'no-store', signal: controller.signal }).then((res) => res.json()).then((body) => {
+      if (requestId !== requestIdRef.current) return;
       const newProducts = unwrap<ProductSummary[]>(body, []); setMeta((body as { meta?: ApiMeta }).meta ?? null);
       if (isLoadMore) setAllProducts((prev) => { const seen = new Set(prev.map((product) => product.id)); const merged = [...prev]; for (const product of newProducts) if (!seen.has(product.id)) { seen.add(product.id); merged.push(product); } return merged; });
       else setAllProducts(Array.from(new Map(newProducts.map((product) => [product.id, product])).values()));
-    }).catch((error) => { if (error?.name !== 'AbortError') { setAllProducts([]); setMeta(null); } }).finally(() => { setLoading(false); setLoadingMore(false); });
+    }).catch((error) => { if (error?.name !== 'AbortError' && requestId === requestIdRef.current) setMeta(null); }).finally(() => { if (requestId === requestIdRef.current) { setLoading(false); setLoadingMore(false); } });
     return () => controller.abort();
   }, [debouncedSearch, category, filters, page, locale]);
 
@@ -136,12 +140,12 @@ export function ShopPageClient({ locale, currency = 'AFN', initialCategoryKey, i
   const subcategories = React.useMemo<ShopOption[]>(() => { if (category === 'all') return []; const parent = categories.find((item) => item.key === category); return categories.filter((item) => parent?.id && item.parentId === parent.id).map((item) => ({ key: item.key, label: item.name, count: item.productCount })); }, [categories, category]);
   const sellerOptions = React.useMemo<ShopOption[]>(() => sellers.map((seller) => ({ key: seller.id, label: seller.shopName })), [sellers]);
   const hasMore = meta?.hasMore ?? false; const totalCount = meta?.total ?? allProducts.length;
-  const clear = React.useCallback(() => { setSearch(''); setDebouncedSearch(''); setCategory(initialCategoryKey ?? 'all'); setFilters(DEFAULT_FILTERS); setPage(1); setAllProducts([]); }, [initialCategoryKey]);
-  const changeCategory = (val: string) => { setCategory(val); setFilters((current) => ({ ...current, subcategoryKey: '' })); setPage(1); setAllProducts([]); };
+  const clear = React.useCallback(() => { setSearch(''); setDebouncedSearch(''); setCategory(initialCategoryKey ?? 'all'); setFilters(DEFAULT_FILTERS); setPage(1); }, [initialCategoryKey]);
+  const changeCategory = (val: string) => { setCategory(val); setFilters((current) => ({ ...current, subcategoryKey: '' })); setPage(1); };
 
   return <Stack gap="8" className="py-10 sm:py-12">
     <ShopToolbar search={search} category={category} resultCount={totalCount} categories={categoryOptions} onSearchChange={setSearch} onCategoryChange={changeCategory} onClear={clear} />
-    <ShopFilters value={filters} onChange={(newFilters) => { setFilters(newFilters); setPage(1); setAllProducts([]); }} onReset={() => { setFilters(DEFAULT_FILTERS); setPage(1); setAllProducts([]); }} subcategories={subcategories} sellers={sellerOptions} locale={locale} />
+    <ShopFilters value={filters} onChange={(newFilters) => { setFilters(newFilters); setPage(1); }} onReset={() => { setFilters(DEFAULT_FILTERS); setPage(1); }} subcategories={subcategories} sellers={sellerOptions} locale={locale} />
     {allProducts.length > 0 && <div className="flex items-center justify-between gap-2" role="group" aria-label={locale === 'en' ? 'Product view' : locale === 'ps' ? 'د محصولاتو بڼه' : 'نمایش محصولات'}><p className="text-xs text-muted-foreground">{copy.shown} {allProducts.length.toLocaleString(locale === 'en' ? 'en-US' : locale === 'ps' ? 'ps-AF' : 'fa-IR')} {copy.of} {totalCount.toLocaleString(locale === 'en' ? 'en-US' : locale === 'ps' ? 'ps-AF' : 'fa-IR')} {copy.products}</p><div className="flex items-center gap-1"><button type="button" onClick={() => setView('grid')} aria-pressed={view === 'grid'} aria-label={copy.grid} className={`rounded-lg p-2 ${view === 'grid' ? 'bg-primary text-primary-foreground' : 'border border-border bg-card text-muted-foreground'}`}><LayoutGrid className="h-4 w-4" aria-hidden /></button><button type="button" onClick={() => setView('list')} aria-pressed={view === 'list'} aria-label={copy.list} className={`rounded-lg p-2 ${view === 'list' ? 'bg-primary text-primary-foreground' : 'border border-border bg-card text-muted-foreground'}`}><List className="h-4 w-4" aria-hidden /></button></div></div>}
     {loading && page === 1 && allProducts.length === 0 ? <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4 xl:grid-cols-5" aria-label={copy.loading}>{Array.from({ length: 9 }).map((_, i) => <div key={i} className="overflow-hidden rounded-xl border border-border bg-card"><div className="aspect-square animate-pulse bg-muted" /><div className="space-y-2 p-2.5"><div className="h-3 w-2/3 animate-pulse rounded bg-muted" /><div className="h-4 w-full animate-pulse rounded bg-muted" /><div className="h-4 w-1/2 animate-pulse rounded bg-muted" /></div></div>)}</div> : allProducts.length > 0 ? <>
       {view === 'grid' ? <Grid cols={3} sm={3} lg={4} xl={5} gap="2" className="sm:gap-3"><>{allProducts.map((product) => <ShopProductCard key={product.id} product={product} currency={currency} locale={locale} />)}</></Grid> : <div className="grid gap-3">{allProducts.map((product) => <ShopProductCard key={product.id} product={product} currency={currency} locale={locale} view="list" />)}</div>}
