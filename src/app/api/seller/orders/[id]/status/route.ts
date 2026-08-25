@@ -9,7 +9,7 @@ import { requireSellerApi } from '@/lib/auth/require-seller-api';
 import { logger } from '@/lib/logger';
 import { consumeSellerOrderStockReservations, syncParentOrderStatus } from '@/lib/orders/order-engine';
 import { canSellerTransition } from '@/lib/orders/state-machine';
-import { creditSellerOrder } from '@/lib/finance/wallet';
+import { creditSellerOrderTx } from '@/lib/finance/wallet';
 import { randomUUID } from 'node:crypto';
 
 export const dynamic = 'force-dynamic';
@@ -28,10 +28,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!parsed.success) return jsonError('invalid_body', 'Invalid status', { status: 422, details: { issues: parsed.error.issues } });
   if (!isDatabaseConfigured()) return jsonError('db_unavailable', 'Database is not configured', { status: 503 });
 
-  const order = await prisma.order.findFirst({ where: { OR: [{ id }, { reference: id }] }, select: { id: true, paymentMethod: true, paymentStatus: true, currency: true, total: true } });
-  if (!order) return jsonError('not_found', 'Order not found', { status: 404 });
-
   try {
+    const order = await prisma.order.findFirst({
+      where: { OR: [{ id }, { reference: id }] },
+      select: { id: true, paymentMethod: true, paymentStatus: true, currency: true, total: true },
+    });
+    if (!order) return jsonError('not_found', 'Order not found', { status: 404 });
+
     const rows = await prisma.$queryRaw<Array<{ id: string; status: string }>>(Prisma.sql`
       SELECT "id", "status" FROM "SellerOrder" WHERE "orderId" = ${order.id} AND "sellerId" = ${guard.user.id} LIMIT 1
     `);
@@ -40,10 +43,21 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (!canSellerTransition(sellerOrder.status as OrderStatus, parsed.data.status)) return jsonError('invalid_transition', 'Seller order status can only advance one step at a time.', { status: 409 });
     if (order.paymentMethod !== 'cod' && order.paymentStatus !== 'paid') return jsonError('payment_required', 'Online payment must be confirmed before the seller can process this order.', { status: 409 });
 
+    let creditedSellerLines = 0;
     await prisma.$transaction(async (tx) => {
+      const lockedRows = await tx.$queryRaw<Array<{ id: string; status: string }>>(Prisma.sql`
+        SELECT "id", "status" FROM "SellerOrder"
+        WHERE "id" = ${sellerOrder.id} AND "sellerId" = ${guard.user.id}
+        FOR UPDATE
+      `);
+      const lockedSellerOrder = lockedRows[0];
+      if (!lockedSellerOrder) throw new Error('SELLER_ORDER_NOT_FOUND');
+      if (lockedSellerOrder.status !== sellerOrder.status) throw new Error('SELLER_ORDER_CONCURRENT_CHANGE');
+      if (!canSellerTransition(lockedSellerOrder.status as OrderStatus, parsed.data.status)) throw new Error('SELLER_ORDER_INVALID_TRANSITION');
+
       const transitioned = await tx.$executeRaw(Prisma.sql`
         UPDATE "SellerOrder" SET "status" = ${parsed.data.status}, "updatedAt" = NOW()
-        WHERE "id" = ${sellerOrder.id} AND "status" = ${sellerOrder.status}
+        WHERE "id" = ${lockedSellerOrder.id} AND "status" = ${lockedSellerOrder.status}
       `);
       if (Number(transitioned) === 0) throw new Error('SELLER_ORDER_CONCURRENT_CHANGE');
 
@@ -63,16 +77,21 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
             await tx.order.update({ where: { id: order.id }, data: { paymentStatus: 'paid' } });
           }
         }
+
+        // Financial credit is part of the same transaction as delivered.
+        // Any wallet/ledger failure rolls the status change and stock/sales updates back.
+        creditedSellerLines = await creditSellerOrderTx(tx, lockedSellerOrder.id);
       }
       await syncParentOrderStatus(tx, order.id);
-    });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
-    const creditedSellerLines = parsed.data.status === 'delivered' ? await creditSellerOrder(sellerOrder.id) : 0;
     const updated = await prisma.$queryRaw<Array<{ status: string }>>(Prisma.sql`SELECT "status" FROM "SellerOrder" WHERE "id" = ${sellerOrder.id} LIMIT 1`);
     return jsonOk({ id: order.id, sellerStatus: updated[0]?.status ?? parsed.data.status, creditedSellerLines });
   } catch (err) {
     if (err instanceof Error && err.message === 'SELLER_ORDER_CONCURRENT_CHANGE') return jsonError('conflict', 'Seller order changed concurrently. Please retry.', { status: 409 });
-    logger.error('seller.orders.status.patch_failed', { orderId: order.id, sellerId: guard.user.id }, err);
+    if (err instanceof Error && err.message === 'SELLER_ORDER_INVALID_TRANSITION') return jsonError('invalid_transition', 'Seller order status can only advance one step at a time.', { status: 409 });
+    if (err instanceof Error && err.message === 'SELLER_ORDER_NOT_FOUND') return jsonError('forbidden', 'You are not a seller for this order', { status: 403 });
+    logger.error('seller.orders.status.patch_failed', { orderId: id, sellerId: guard.user.id }, err);
     return jsonError('update_failed', 'Failed to update seller order status', { status: 500 });
   }
 }
