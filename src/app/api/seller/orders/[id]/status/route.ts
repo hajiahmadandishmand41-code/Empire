@@ -1,14 +1,14 @@
-/** Seller order status endpoint. */
+/** Seller-scoped order status endpoint. */
 import type { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { prisma, isDatabaseConfigured } from '@/lib/db';
 import { jsonError, jsonOk, jsonPreflight } from '@/lib/api/response';
 import { requireSellerApi } from '@/lib/auth/require-seller-api';
 import { logger } from '@/lib/logger';
+import { syncParentOrderStatus } from '@/lib/orders/order-engine';
 
 export const dynamic = 'force-dynamic';
 
-const SELLER_ALLOWED = new Set(['confirmed', 'processing', 'shipped']);
 const SELLER_TRANSITIONS: Record<string, Set<string>> = {
   pending: new Set(['confirmed']),
   confirmed: new Set(['processing']),
@@ -28,39 +28,42 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!parsed.success) return jsonError('invalid_body', 'Invalid status', { status: 422, details: { issues: parsed.error.issues } });
   if (!isDatabaseConfigured()) return jsonError('db_unavailable', 'Database is not configured', { status: 503 });
 
-  const order = await prisma.order.findFirst({
-    where: { OR: [{ id }, { reference: id }] },
-    include: { items: { select: { product: { select: { sellerId: true } } } } },
-  });
+  const isAdmin = guard.user.role === 'admin';
+  const order = await prisma.order.findFirst({ where: { OR: [{ id }, { reference: id }] }, select: { id: true, paymentMethod: true, paymentStatus: true } });
   if (!order) return jsonError('not_found', 'Order not found', { status: 404 });
 
-  const isAdmin = guard.user.role === 'admin';
-  const sellerItems = order.items.filter((item) => item.product?.sellerId === guard.user.id);
-  const isSeller = guard.user.role === 'seller' && sellerItems.length > 0;
-  if (!isAdmin && !isSeller) return jsonError('forbidden', 'You are not the seller for this order', { status: 403 });
-
-  if (!isAdmin) {
-    if (!SELLER_ALLOWED.has(parsed.data.status)) return jsonError('status_not_allowed', 'Sellers can only set: confirmed, processing, shipped', { status: 403 });
-    // The current Order model has one fulfillment status for the whole order.
-    // Do not let one seller mutate a multi-seller order globally until seller
-    // sub-orders/item-level fulfillment exist.
-    if (sellerItems.length !== order.items.length) {
-      return jsonError('multi_seller_order', 'This order contains items from multiple sellers and requires seller-scoped fulfillment.', { status: 409 });
+  try {
+    if (isAdmin) {
+      const transitioned = await prisma.order.updateMany({ where: { id: order.id }, data: { status: parsed.data.status } });
+      if (transitioned.count === 0) return jsonError('conflict', 'Order was changed concurrently', { status: 409 });
+      return jsonOk({ id: order.id, status: parsed.data.status });
     }
-    if (!SELLER_TRANSITIONS[order.status]?.has(parsed.data.status)) return jsonError('invalid_transition', 'Order status can only advance to the next step', { status: 409 });
-    if (order.status === 'delivered' || order.status === 'cancelled') return jsonError('order_locked', 'Order is closed and cannot be changed', { status: 409 });
+
+    const rows = await prisma.$queryRaw<Array<{ status: string }>>(Prisma.sql`
+      SELECT "status" FROM "SellerOrder" WHERE "orderId" = ${order.id} AND "sellerId" = ${guard.user.id} LIMIT 1
+    `);
+    const sellerOrder = rows[0];
+    if (!sellerOrder) return jsonError('forbidden', 'You are not a seller for this order', { status: 403 });
+    if (!SELLER_TRANSITIONS[sellerOrder.status]?.has(parsed.data.status)) {
+      return jsonError('invalid_transition', 'Seller order status can only advance one step at a time.', { status: 409 });
+    }
     if (order.paymentMethod !== 'cod' && order.paymentStatus !== 'paid') {
       return jsonError('payment_required', 'Online payment must be confirmed before the seller can process this order.', { status: 409 });
     }
-  }
 
-  try {
-    const transitioned = await prisma.order.updateMany({ where: { id: order.id, status: order.status }, data: { status: parsed.data.status } });
-    if (transitioned.count === 0) return jsonError('conflict', 'Order status changed concurrently. Please retry.', { status: 409 });
-    const updated = await prisma.order.findUniqueOrThrow({ where: { id: order.id }, select: { id: true, status: true, reference: true } });
-    return jsonOk(updated);
+    const transitioned = await prisma.$executeRaw(Prisma.sql`
+      UPDATE "SellerOrder"
+      SET "status" = ${parsed.data.status}, "updatedAt" = NOW()
+      WHERE "orderId" = ${order.id} AND "sellerId" = ${guard.user.id} AND "status" = ${sellerOrder.status}
+    `);
+    if (Number(transitioned) === 0) return jsonError('conflict', 'Seller order changed concurrently. Please retry.', { status: 409 });
+    await syncParentOrderStatus(prisma, order.id);
+    const updated = await prisma.$queryRaw<Array<{ status: string }>>(Prisma.sql`
+      SELECT "status" FROM "SellerOrder" WHERE "orderId" = ${order.id} AND "sellerId" = ${guard.user.id} LIMIT 1
+    `);
+    return jsonOk({ id: order.id, sellerStatus: updated[0]?.status ?? parsed.data.status });
   } catch (err) {
     logger.error('seller.orders.status.patch_failed', { orderId: order.id, sellerId: guard.user.id }, err);
-    return jsonError('update_failed', 'Failed to update status', { status: 500 });
+    return jsonError('update_failed', 'Failed to update seller order status', { status: 500 });
   }
 }
