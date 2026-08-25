@@ -23,8 +23,11 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
 
   const user = await prisma.user.findUnique({ where: { id: session.userId } });
   if (!user || !user.isActive) return null;
-  if (user.updatedAt.getTime() > session.issuedAtMs) return null;
 
+  // Do not invalidate a healthy session merely because a normal profile,
+  // address, seller-setting, or other non-security user update changed
+  // `updatedAt`. Session lifetime is controlled by the signed cookie expiry;
+  // explicit logout/disablement remains authoritative.
   return {
     id: user.id,
     fullName: user.fullName,
