@@ -60,6 +60,12 @@ export interface Order extends OrderDraft {
   updatedAt: string;
   /** Server always resolves an address for a persisted order. */
   address: ShippingAddress;
+  /** Persisted order totals exposed for server-side seller/customer views. */
+  itemCount?: number;
+  subtotal?: number;
+  shipping?: number;
+  total?: number;
+  currency?: CurrencyCode;
 }
 
 export interface Transaction {
