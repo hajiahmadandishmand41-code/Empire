@@ -8,6 +8,8 @@ import { ShopHotProducts } from '@/features/shop/components/shop-hot-products';
 import { getProductService } from '@/server/infrastructure/registry';
 import { getProductLocalizedTexts, normalizeCatalogLocale } from '@/server/localization/product-localization';
 import { productListQuerySchema } from '@/lib/validation/product';
+import { prisma } from '@/lib/db';
+import { releaseExpiredStockReservations } from '@/lib/orders/order-engine';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,6 +26,7 @@ function toQueryObject(input: Record<string, string | string[] | undefined>): Re
 
 async function getInitialCatalog(rawLocale: string, rawSearchParams: Record<string, string | string[] | undefined>) {
   try {
+    await releaseExpiredStockReservations(prisma);
     const parsed = productListQuerySchema.safeParse(toQueryObject(rawSearchParams));
     const query = parsed.success ? parsed.data : {};
     const locale = normalizeCatalogLocale(rawLocale);
@@ -74,5 +77,5 @@ export default async function ShopPage({ params, searchParams }: Props) {
   const tNav = await getTranslations('nav');
   const safeLocale = (['fa', 'ps', 'en'].includes(locale) ? locale : 'fa') as 'fa' | 'ps' | 'en';
   const initialCatalog = await getInitialCatalog(locale, resolvedSearchParams);
-  return <><SiteHeader /><main id="main" className="min-h-dvh bg-background pb-16 md:pb-0"><div className="mx-auto max-w-screen-xl px-2 py-5 sm:px-6"><nav aria-label={t('breadcrumb.label')} className="mb-4 flex items-center gap-1.5 text-xs text-muted-foreground"><a href={`/${locale}`} className="transition-colors hover:text-primary">{tNav('home')}</a><span className="text-border" aria-hidden="true">/</span><span className="font-semibold text-foreground" aria-current="page">{tNav('shop')}</span></nav><ShopPageClient locale={locale} currency="AFN" initialProducts={initialCatalog.products} initialMeta={initialCatalog.meta} /></div><ShopHotProducts locale={safeLocale} /></main><SiteFooter /><BottomNavigation /></>;
+  return <><SiteHeader /><main id="main" className="min-h-dvh bg-background pb-16 md:pb-0"><div className="mx-auto max-w-screen-xl px-2 py-5 sm:px-6"><nav aria-label={t('breadcrumb.label')} className="mb-4 flex items-center gap-1.5 text-xs text-muted-foreground"><a href={`/${locale}`} className="transition-colors hover:text-primary">{tNav('home')}</a><span className="text-border" aria-hidden="true">/</span><span className="font-semibold text-foreground" aria-current="page">{tNav('shop')}</span></nav><ShopPageClient locale={locale} currency="AFN" initialProducts={initialCatalog.products} initialMeta={initialCatalog.meta} /></div><ShopHotProducts locale={safeLocale} /></main><SiteFooter /><BottomNavigation /></main></>;
 }
