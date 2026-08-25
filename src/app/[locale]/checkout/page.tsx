@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { redirect } from '@/i18n/routing';
+import { getCurrentUser } from '@/lib/auth/current-user';
 import { Container } from '@/components/layout/container';
 import { SiteHeader } from '@/features/home/components/site-header';
 import { SiteFooter } from '@/features/home/components/site-footer';
@@ -29,6 +31,14 @@ export async function generateMetadata({ params }: CheckoutPageProps): Promise<M
 export default async function CheckoutPage({ params }: CheckoutPageProps) {
   const { locale } = await params;
   setRequestLocale(locale);
+
+  // Checkout is authenticated-only. Keep the intended destination so a guest
+  // returns directly to checkout after a successful login/register flow.
+  const user = await getCurrentUser();
+  if (!user) {
+    redirect({ href: '/auth/login?redirect=%2Fcheckout', locale });
+  }
+
   const t = await getTranslations('checkout');
   const isEnglish = locale === 'en';
   const isPashto = locale === 'ps';
