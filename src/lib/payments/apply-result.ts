@@ -4,6 +4,12 @@ import type { Order as POrder, Transaction as PTransaction, PaymentStatus as PPa
 import { reverseSellersForOrder } from '@/lib/finance/wallet';
 import { logger } from '@/lib/logger';
 import { toPrismaJson } from '@/lib/prisma-json';
+import {
+  consumeOrderStockReservations,
+  releaseOrderStockReservations,
+  setSellerOrdersStatus,
+  syncParentOrderStatus,
+} from '@/lib/orders/order-engine';
 
 export async function applyPaymentResult(params: {
   transactionId: string;
@@ -14,8 +20,6 @@ export async function applyPaymentResult(params: {
   paidAt?: Date;
 }): Promise<{ order: POrder; transaction: PTransaction }> {
   const { transactionId, status } = params;
-  const terminalStatuses: PPaymentStatus[] = ['paid', 'failed', 'cancelled', 'refunded'];
-
   const result = await prisma.$transaction(async (tx) => {
     const current = await tx.transaction.findUnique({
       where: { id: transactionId },
@@ -23,11 +27,17 @@ export async function applyPaymentResult(params: {
     });
     if (!current) throw new Error('Transaction not found');
 
-    // Payment states are monotonic: a late browser return or webhook must not
-    // downgrade a paid transaction or resurrect a cancelled order.
-    if (terminalStatuses.includes(current.status)) {
-      const order = await tx.order.findUnique({ where: { id: current.orderId } });
-      if (!order) throw new Error('Order not found');
+    // Valid terminal transitions: pending -> paid/failed/cancelled; paid -> refunded.
+    if (current.status === 'refunded' || current.status === 'failed' || current.status === 'cancelled') {
+      const order = await tx.order.findUniqueOrThrow({ where: { id: current.orderId } });
+      return { order, transaction: current };
+    }
+    if (current.status === 'paid' && status !== 'refunded') {
+      const order = await tx.order.findUniqueOrThrow({ where: { id: current.orderId } });
+      return { order, transaction: current };
+    }
+    if (status === 'refunded' && current.status !== 'paid') {
+      const order = await tx.order.findUniqueOrThrow({ where: { id: current.orderId } });
       return { order, transaction: current };
     }
     if (status === 'paid' && current.order.status === 'cancelled') {
@@ -35,7 +45,10 @@ export async function applyPaymentResult(params: {
     }
 
     const guarded = await tx.transaction.updateMany({
-      where: { id: transactionId, status: { notIn: terminalStatuses } },
+      where: {
+        id: transactionId,
+        ...(current.status === 'paid' ? { status: 'paid' } : { status: 'pending' }),
+      },
       data: {
         status,
         providerTxnId: params.providerTxnId ?? undefined,
@@ -52,10 +65,19 @@ export async function applyPaymentResult(params: {
 
     const order = await tx.order.findUniqueOrThrow({ where: { id: current.orderId } });
 
-    if (status === 'failed' || status === 'cancelled') {
-      // Only an order still waiting for payment may release its reservation.
-      // A stale failure must never move an already-confirmed order backwards.
-      if (order.status === 'pending') {
+    if (status === 'paid') {
+      for (const item of current.order.items) {
+        await tx.product.update({ where: { id: item.productId }, data: { salesCount: { increment: item.quantity } } });
+      }
+      await consumeOrderStockReservations(tx, order.id);
+      await setSellerOrdersStatus(tx, order.id, 'confirmed');
+      await tx.order.update({ where: { id: order.id }, data: { paymentStatus: 'paid', status: 'confirmed' as POrderStatus } });
+    } else if (status === 'failed' || status === 'cancelled') {
+      const released = await releaseOrderStockReservations(tx, order.id);
+      if (!released.hadReservations) {
+        // Legacy orders created before reservations existed had already
+        // incremented salesCount at order creation. Preserve compatibility
+        // when cancelling those old pending orders.
         for (const item of current.order.items) {
           await tx.product.update({
             where: { id: item.productId },
@@ -66,29 +88,34 @@ export async function applyPaymentResult(params: {
             },
           });
         }
-        await tx.order.update({ where: { id: order.id }, data: { paymentStatus: status, status: 'cancelled' } });
-      } else {
-        await tx.order.update({ where: { id: order.id }, data: { paymentStatus: status } });
       }
-    } else {
-      const nextOrderStatus: POrderStatus | undefined = status === 'paid' ? 'confirmed' : undefined;
-      await tx.order.update({
-        where: { id: order.id },
-        data: { paymentStatus: status, ...(nextOrderStatus ? { status: nextOrderStatus } : {}) },
-      });
+      await setSellerOrdersStatus(tx, order.id, 'cancelled');
+      await tx.order.update({ where: { id: order.id }, data: { paymentStatus: status, status: 'cancelled' } });
+    } else if (status === 'refunded') {
+      for (const item of current.order.items) {
+        await tx.$executeRaw`
+          UPDATE "Product"
+          SET "salesCount" = GREATEST(0, "salesCount" - ${item.quantity})
+          WHERE "id" = ${item.productId}
+        `;
+      }
+      await setSellerOrdersStatus(tx, order.id, 'refunded');
+      await tx.order.update({ where: { id: order.id }, data: { paymentStatus: 'refunded' } });
     }
 
+    await syncParentOrderStatus(tx, order.id);
     const updatedOrder = await tx.order.findUniqueOrThrow({ where: { id: order.id } });
     const updatedTransaction = await tx.transaction.findUniqueOrThrow({ where: { id: transactionId } });
     return { order: updatedOrder, transaction: updatedTransaction };
   });
 
   const { order, transaction } = result;
-  if (status === 'refunded' && order.status === 'delivered') {
+  if (status === 'refunded') {
     try {
       await reverseSellersForOrder(order.id);
     } catch (reverseErr) {
       logger.error('payment.apply_result.reversal_failed', { transactionId, orderId: order.id }, reverseErr);
+      throw reverseErr;
     }
   }
   return { order, transaction };
