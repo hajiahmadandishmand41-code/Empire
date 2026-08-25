@@ -110,11 +110,6 @@ export async function POST(req: NextRequest) {
       if (!shippingMethod || shippingMethod.currency !== orderCurrency) return jsonError('currency_mismatch', 'Shipping method currency does not match the order', { status: 422 });
     }
 
-    const subtotal = draft.items.reduce((sum, item) => sum.add(bySlug.get(item.slug)!.price.mul(item.quantity)), new Prisma.Decimal(0)).toDecimalPlaces(2);
-    const itemCount = draft.items.reduce((sum, item) => sum + item.quantity, 0);
-    const shipping = shippingCost.toDecimalPlaces(2);
-    const total = subtotal.add(shipping).toDecimalPlaces(2);
-
     const createdBase = await prisma.$transaction(async (tx) => {
       // Clean up reservations abandoned by previous checkouts before competing for stock.
       await releaseExpiredStockReservations(tx);
@@ -147,6 +142,37 @@ export async function POST(req: NextRequest) {
         if (res.count === 0) throw new OrderCreationError('out_of_stock', `Product out of stock: ${product.slug}`);
       }
 
+      const lockedProducts = await tx.product.findMany({
+        where: { id: { in: draft.items.map((i) => bySlug.get(i.slug)!.id) } },
+      });
+      const lockedBySlug = new Map(lockedProducts.map((product) => [product.slug, product]));
+      for (const item of draft.items) {
+        const product = lockedBySlug.get(item.slug);
+        if (!product || !product.isActive) throw new OrderCreationError('product_unavailable', `Product not available: ${item.slug}`);
+      }
+      const lockedCurrencies = new Set(lockedProducts.map((product) => product.currency));
+      if (lockedCurrencies.size !== 1) throw new OrderCreationError('mixed_currency', 'Products in one order must use the same currency');
+      const lockedOrderCurrency = [...lockedCurrencies][0];
+
+      let lockedShippingCost = new Prisma.Decimal(0);
+      if (shippingMethodId) {
+        const shippingRows = await tx.$queryRaw<Array<{ id: string; cost: Prisma.Decimal; currency: string; isActive: boolean }>>(Prisma.sql`
+          SELECT "id", "cost", "currency", "isActive"
+          FROM "ShippingMethod"
+          WHERE "id" = ${shippingMethodId}
+          FOR UPDATE
+        `);
+        const shippingMethod = shippingRows[0];
+        if (!shippingMethod || !shippingMethod.isActive) throw new OrderCreationError('unknown_shipping_method', 'Shipping method not available');
+        if (shippingMethod.currency !== lockedOrderCurrency) throw new OrderCreationError('currency_mismatch', 'Shipping method currency does not match the order');
+        lockedShippingCost = new Prisma.Decimal(shippingMethod.cost);
+      }
+
+      const subtotal = draft.items.reduce((sum, item) => sum.add(lockedBySlug.get(item.slug)!.price.mul(item.quantity)), new Prisma.Decimal(0)).toDecimalPlaces(2);
+      const itemCount = draft.items.reduce((sum, item) => sum + item.quantity, 0);
+      const shipping = lockedShippingCost.toDecimalPlaces(2);
+      const total = subtotal.add(shipping).toDecimalPlaces(2);
+
       await tx.product.updateMany({
         where: { id: { in: draft.items.map((i) => bySlug.get(i.slug)!.id) }, stockQuantity: { lte: 0 } },
         data: { inStock: false },
@@ -160,7 +186,7 @@ export async function POST(req: NextRequest) {
           subtotal,
           shipping,
           total,
-          currency: orderCurrency,
+          currency: lockedOrderCurrency,
           itemCount,
           userId: currentUser.id,
           addressId,
@@ -174,13 +200,13 @@ export async function POST(req: NextRequest) {
           shippingPostalCode: addressSnapshot.postalCode,
           shippingNotes: addressSnapshot.notes,
           items: { create: draft.items.map((item) => {
-            const product = bySlug.get(item.slug)!;
+            const product = lockedBySlug.get(item.slug)!;
             return { productId: product.id, slug: product.slug, name: product.name, price: product.price, quantity: item.quantity };
           }) },
         },
       });
 
-      await createSellerOrders(tx, order.id, shipping, orderCurrency);
+      await createSellerOrders(tx, order.id, shipping, lockedOrderCurrency);
       await createOrderStockReservations(tx, order.id, reservationMinutes(draft.paymentMethod));
       return order;
     });
