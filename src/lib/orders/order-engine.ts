@@ -12,11 +12,7 @@ function id(prefix: string) {
   return `${prefix}-${randomUUID()}`;
 }
 
-/**
- * Expire reservations exactly once, restore stock, and cancel still-pending
- * orders that have lost their reservation. A caller should invoke this inside
- * a transaction before creating another reservation or from a scheduled job.
- */
+/** Expire reservations exactly once, restore stock, and cancel still-pending orders that have lost all reservations. */
 export async function releaseExpiredStockReservations(tx: Tx): Promise<number> {
   const rows = await tx.$queryRaw<Array<{ productId: string; quantity: number; orderId: string }>>(Prisma.sql`
     WITH expired AS (
@@ -40,8 +36,7 @@ export async function releaseExpiredStockReservations(tx: Tx): Promise<number> {
   for (const row of rows) {
     await tx.$executeRaw(Prisma.sql`
       UPDATE "Product"
-      SET "stockQuantity" = "stockQuantity" + ${row.quantity},
-          "inStock" = true
+      SET "stockQuantity" = "stockQuantity" + ${row.quantity}, "inStock" = true
       WHERE "id" = ${row.productId}
     `);
   }
@@ -49,30 +44,19 @@ export async function releaseExpiredStockReservations(tx: Tx): Promise<number> {
   const orderIds = [...new Set(rows.map((row) => row.orderId))];
   for (const orderId of orderIds) {
     const active = await tx.$queryRaw<Array<{ count: number }>>(Prisma.sql`
-      SELECT COUNT(*)::int AS "count"
-      FROM "StockReservation"
+      SELECT COUNT(*)::int AS "count" FROM "StockReservation"
       WHERE "orderId" = ${orderId} AND "status" = 'reserved'
     `);
     if ((active[0]?.count ?? 0) > 0) continue;
-
-    const order = await tx.order.findUnique({
-      where: { id: orderId },
-      select: { id: true, status: true, paymentStatus: true },
-    });
+    const order = await tx.order.findUnique({ where: { id: orderId }, select: { id: true, status: true, paymentStatus: true } });
     if (!order || order.status !== 'pending' || order.paymentStatus !== 'pending') continue;
-
-    await tx.order.updateMany({
-      where: { id: orderId, status: 'pending', paymentStatus: 'pending' },
-      data: { status: 'cancelled' },
-    });
+    await tx.order.updateMany({ where: { id: orderId, status: 'pending', paymentStatus: 'pending' }, data: { status: 'cancelled' } });
     await tx.$executeRaw(Prisma.sql`
       UPDATE "SellerOrder"
       SET "status" = 'cancelled', "updatedAt" = NOW()
-      WHERE "orderId" = ${orderId}
-        AND "status" NOT IN ('delivered','cancelled','refunded')
+      WHERE "orderId" = ${orderId} AND "status" NOT IN ('delivered','cancelled','refunded')
     `);
   }
-
   return rows.reduce((sum, row) => sum + row.quantity, 0);
 }
 
@@ -88,7 +72,6 @@ export async function releaseOrderStockReservations(tx: Tx, orderId: string): Pr
     FROM marked
     GROUP BY "productId"
   `);
-
   for (const row of rows) {
     await tx.$executeRaw(Prisma.sql`
       UPDATE "Product"
@@ -110,10 +93,7 @@ export async function consumeOrderStockReservations(tx: Tx, orderId: string): Pr
 
 export async function createOrderStockReservations(tx: Tx, orderId: string, expiresInMinutes: number): Promise<void> {
   const items = await tx.$queryRaw<Array<{ id: string; productId: string; quantity: number }>>(Prisma.sql`
-    SELECT "id", "productId", "quantity"
-    FROM "OrderItem"
-    WHERE "orderId" = ${orderId}
-    ORDER BY "id" ASC
+    SELECT "id", "productId", "quantity" FROM "OrderItem" WHERE "orderId" = ${orderId} ORDER BY "id" ASC
   `);
   for (const item of items) {
     await tx.$executeRaw(Prisma.sql`
@@ -141,7 +121,7 @@ export async function createSellerOrders(tx: Tx, orderId: string, shipping: Pris
   for (let index = 0; index < groups.length; index += 1) {
     const group = groups[index];
     const subtotal = new Prisma.Decimal(group.subtotal).toDecimalPlaces(2);
-    const commissionRate = new Prisma.Decimal(group.commissionRate ?? 10);
+    const commissionRate = new Prisma.Decimal(group.commissionRate ?? 10).toDecimalPlaces(2);
     const commission = subtotal.mul(commissionRate).div(100).toDecimalPlaces(2);
     const sellerShipping = index === groups.length - 1
       ? shipping.sub(allocatedShipping).toDecimalPlaces(2)
@@ -149,11 +129,12 @@ export async function createSellerOrders(tx: Tx, orderId: string, shipping: Pris
     allocatedShipping = allocatedShipping.add(sellerShipping);
     const total = subtotal.add(sellerShipping).toDecimalPlaces(2);
     await tx.$executeRaw(Prisma.sql`
-      INSERT INTO "SellerOrder" ("id", "orderId", "sellerId", "status", "subtotal", "shipping", "commission", "total", "currency", "itemCount")
-      VALUES (${id('so')}, ${orderId}, ${group.sellerId}, 'pending', ${subtotal}, ${sellerShipping}, ${commission}, ${total}, ${currency}, ${group.itemCount})
+      INSERT INTO "SellerOrder" ("id", "orderId", "sellerId", "status", "subtotal", "shipping", "commission", "commissionRate", "total", "currency", "itemCount")
+      VALUES (${id('so')}, ${orderId}, ${group.sellerId}, 'pending', ${subtotal}, ${sellerShipping}, ${commission}, ${commissionRate}, ${total}, ${currency}, ${group.itemCount})
       ON CONFLICT ("orderId", "sellerId") DO UPDATE SET
         "subtotal" = EXCLUDED."subtotal", "shipping" = EXCLUDED."shipping", "commission" = EXCLUDED."commission",
-        "total" = EXCLUDED."total", "currency" = EXCLUDED."currency", "itemCount" = EXCLUDED."itemCount", "updatedAt" = NOW()
+        "commissionRate" = EXCLUDED."commissionRate", "total" = EXCLUDED."total", "currency" = EXCLUDED."currency",
+        "itemCount" = EXCLUDED."itemCount", "updatedAt" = NOW()
     `);
   }
 }
