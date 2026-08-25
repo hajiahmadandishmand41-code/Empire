@@ -85,32 +85,61 @@ export async function requestPayout(sellerId: string, input: PayoutInput) {
   let amount: Prisma.Decimal;
   try { amount = decimal(input.amount).toDecimalPlaces(2); } catch { throw new PayoutError('invalid_amount', 'مبلغ برداشت نامعتبر است.'); }
   if (amount.lessThanOrEqualTo(0)) throw new PayoutError('invalid_amount', 'مبلغ برداشت باید بزرگ‌تر از صفر باشد.');
+
   if (input.requestKey) {
-    const existing = await prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`SELECT "id" FROM "Payout" WHERE "requestKey" = ${input.requestKey} LIMIT 1`);
-    if (existing[0]) return prisma.payout.findUniqueOrThrow({ where: { id: existing[0].id } });
+    const existing = await prisma.$queryRaw<Array<{ id: string; sellerId: string }>>(Prisma.sql`
+      SELECT "id", "sellerId" FROM "Payout"
+      WHERE "requestKey" = ${input.requestKey}
+      LIMIT 1
+    `);
+    if (existing[0]) {
+      if (existing[0].sellerId !== sellerId) throw new PayoutError('idempotency_conflict', 'Idempotency key is already in use.');
+      return prisma.payout.findUniqueOrThrow({ where: { id: existing[0].id } });
+    }
   }
 
-  return prisma.$transaction(async (tx) => {
-    if (input.requestKey) {
-      const existing = await tx.$queryRaw<Array<{ id: string }>>(Prisma.sql`SELECT "id" FROM "Payout" WHERE "requestKey" = ${input.requestKey} FOR UPDATE`);
-      if (existing[0]) return tx.payout.findUniqueOrThrow({ where: { id: existing[0].id } });
+  try {
+    return await prisma.$transaction(async (tx) => {
+      if (input.requestKey) {
+        const existing = await tx.$queryRaw<Array<{ id: string; sellerId: string }>>(Prisma.sql`
+          SELECT "id", "sellerId" FROM "Payout"
+          WHERE "requestKey" = ${input.requestKey}
+          FOR UPDATE
+        `);
+        if (existing[0]) {
+          if (existing[0].sellerId !== sellerId) throw new PayoutError('idempotency_conflict', 'Idempotency key is already in use.');
+          return tx.payout.findUniqueOrThrow({ where: { id: existing[0].id } });
+        }
+      }
+
+      await tx.sellerWallet.upsert({ where: { sellerId }, update: {}, create: { sellerId } });
+      const debit = await tx.sellerWallet.updateMany({ where: { sellerId, balance: { gte: amount } }, data: { balance: { decrement: amount } } });
+      if (debit.count === 0) throw new PayoutError('insufficient_funds', 'موجودی کیف پول برای این برداشت کافی نیست.');
+      const wallet = await tx.sellerWallet.findUniqueOrThrow({ where: { sellerId } });
+      const reference = `PO-${randomUUID().replace(/-/g, '').slice(0, 20).toUpperCase()}`;
+      const payoutRows = await tx.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+        INSERT INTO "Payout" ("id","reference","sellerId","amount","currency","method","status","accountInfo","sellerNote","requestKey")
+        VALUES (${randomUUID()}, ${reference}, ${sellerId}, ${amount}, ${wallet.currency}, ${input.method}, 'pending', ${input.accountInfo}, ${input.sellerNote ?? null}, ${input.requestKey ?? null})
+        RETURNING "id"
+      `);
+      const payoutId = payoutRows[0]?.id;
+      if (!payoutId) throw new PayoutError('payout_failed', 'ثبت درخواست برداشت انجام نشد.');
+      const payout = await tx.payout.findUniqueOrThrow({ where: { id: payoutId } });
+      await tx.walletTransaction.create({ data: { walletId: wallet.id, sellerId, type: 'payout', amount: amount.neg(), currency: wallet.currency, payoutId: payout.id, dedupeKey: `payout:${payout.id}`, description: `Payout request ${reference}` } });
+      return payout;
+    });
+  } catch (err) {
+    if (isUniqueViolation(err) && input.requestKey) {
+      const existing = await prisma.$queryRaw<Array<{ id: string; sellerId: string }>>(Prisma.sql`
+        SELECT "id", "sellerId" FROM "Payout"
+        WHERE "requestKey" = ${input.requestKey}
+        LIMIT 1
+      `);
+      if (existing[0]?.sellerId === sellerId) return prisma.payout.findUniqueOrThrow({ where: { id: existing[0].id } });
+      if (existing[0]) throw new PayoutError('idempotency_conflict', 'Idempotency key is already in use.');
     }
-    await tx.sellerWallet.upsert({ where: { sellerId }, update: {}, create: { sellerId } });
-    const debit = await tx.sellerWallet.updateMany({ where: { sellerId, balance: { gte: amount } }, data: { balance: { decrement: amount } } });
-    if (debit.count === 0) throw new PayoutError('insufficient_funds', 'موجودی کیف پول برای این برداشت کافی نیست.');
-    const wallet = await tx.sellerWallet.findUniqueOrThrow({ where: { sellerId } });
-    const reference = `PO-${randomUUID().replace(/-/g, '').slice(0, 20).toUpperCase()}`;
-    const payoutRows = await tx.$queryRaw<Array<{ id: string }>>(Prisma.sql`
-      INSERT INTO "Payout" ("id","reference","sellerId","amount","currency","method","status","accountInfo","sellerNote","requestKey")
-      VALUES (${randomUUID()}, ${reference}, ${sellerId}, ${amount}, ${wallet.currency}, ${input.method}, 'pending', ${input.accountInfo}, ${input.sellerNote ?? null}, ${input.requestKey ?? null})
-      RETURNING "id"
-    `);
-    const payoutId = payoutRows[0]?.id;
-    if (!payoutId) throw new PayoutError('payout_failed', 'ثبت درخواست برداشت انجام نشد.');
-    const payout = await tx.payout.findUniqueOrThrow({ where: { id: payoutId } });
-    await tx.walletTransaction.create({ data: { walletId: wallet.id, sellerId, type: 'payout', amount: amount.neg(), currency: wallet.currency, payoutId: payout.id, dedupeKey: `payout:${payout.id}`, description: `Payout request ${reference}` } });
-    return payout;
-  });
+    throw err;
+  }
 }
 
 export type PayoutDecision = 'approved' | 'paid' | 'rejected';
