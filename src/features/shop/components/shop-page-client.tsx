@@ -119,8 +119,10 @@ export function ShopPageClient({ locale, currency = 'AFN', initialCategoryKey, i
   }, [debouncedSearch, category, filters]);
 
   React.useEffect(() => {
-    const controller = new AbortController(); const isLoadMore = page > 1;
-    if (isLoadMore) setLoadingMore(true); else if (allProducts.length === 0) setLoading(true);
+    const controller = new AbortController();
+    const isLoadMore = page > 1;
+    if (isLoadMore) setLoadingMore(true);
+    else if (allProducts.length === 0) setLoading(true);
     const params = new URLSearchParams(); if (debouncedSearch.trim()) params.set('q', debouncedSearch.trim()); if (category !== 'all') params.set('categoryKey', category); if (filters.subcategoryKey) params.set('subcategoryKey', filters.subcategoryKey); if (filters.sellerId) params.set('sellerId', filters.sellerId); if (filters.badge) params.set('badge', filters.badge); if (filters.priceMin !== '') params.set('priceMin', String(filters.priceMin)); if (filters.priceMax !== '') params.set('priceMax', String(filters.priceMax)); if (filters.inStockOnly) params.set('inStock', 'true'); if (filters.hasDiscountOnly) params.set('hasDiscount', 'true'); if (filters.minRating !== '') params.set('minRating', String(filters.minRating)); params.set('sort', toApiSort(filters.sort)); params.set('page', String(page)); params.set('pageSize', String(PAGE_SIZE)); params.set('locale', locale);
     fetch(`/api/products?${params.toString()}`, { cache: 'no-store', signal: controller.signal }).then((res) => res.json()).then((body) => {
       const newProducts = unwrap<ProductSummary[]>(body, []); setMeta((body as { meta?: ApiMeta }).meta ?? null);
