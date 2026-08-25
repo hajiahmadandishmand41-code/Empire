@@ -1,20 +1,15 @@
 /** Seller-scoped order status endpoint. */
 import type { NextRequest } from 'next/server';
-import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { prisma, isDatabaseConfigured } from '@/lib/db';
 import { jsonError, jsonOk, jsonPreflight } from '@/lib/api/response';
 import { requireSellerApi } from '@/lib/auth/require-seller-api';
 import { logger } from '@/lib/logger';
 import { syncParentOrderStatus } from '@/lib/orders/order-engine';
+import { canSellerTransition } from '@/lib/orders/state-machine';
 
 export const dynamic = 'force-dynamic';
 
-const SELLER_TRANSITIONS: Record<string, Set<string>> = {
-  pending: new Set(['confirmed']),
-  confirmed: new Set(['processing']),
-  processing: new Set(['shipped']),
-};
 const patchSchema = z.object({ status: z.enum(['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled']) });
 
 export async function OPTIONS() { return jsonPreflight(); }
@@ -40,7 +35,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     `);
     const sellerOrder = rows[0];
     if (!sellerOrder) return jsonError('forbidden', 'You are not a seller for this order', { status: 403 });
-    if (!SELLER_TRANSITIONS[sellerOrder.status]?.has(parsed.data.status)) return jsonError('invalid_transition', 'Seller order status can only advance one step at a time.', { status: 409 });
+    if (!canSellerTransition(sellerOrder.status as import('@prisma/client').OrderStatus, parsed.data.status)) {
+      return jsonError('invalid_transition', 'Seller order status can only advance one step at a time.', { status: 409 });
+    }
     if (order.paymentMethod !== 'cod' && order.paymentStatus !== 'paid') return jsonError('payment_required', 'Online payment must be confirmed before the seller can process this order.', { status: 409 });
 
     const transitioned = await prisma.$executeRaw(Prisma.sql`
