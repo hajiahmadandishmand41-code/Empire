@@ -4,12 +4,7 @@ import type { Order as POrder, Transaction as PTransaction, PaymentStatus as PPa
 import { reverseSellersForOrder } from '@/lib/finance/wallet';
 import { logger } from '@/lib/logger';
 import { toPrismaJson } from '@/lib/prisma-json';
-import {
-  consumeOrderStockReservations,
-  releaseOrderStockReservations,
-  setSellerOrdersStatus,
-  syncParentOrderStatus,
-} from '@/lib/orders/order-engine';
+import { consumeOrderStockReservations, releaseOrderStockReservations, setSellerOrdersStatus, syncParentOrderStatus } from '@/lib/orders/order-engine';
 
 export async function applyPaymentResult(params: {
   transactionId: string;
@@ -27,7 +22,6 @@ export async function applyPaymentResult(params: {
     });
     if (!current) throw new Error('Transaction not found');
 
-    // Valid terminal transitions: pending -> paid/failed/cancelled; paid -> refunded.
     if (current.status === 'refunded' || current.status === 'failed' || current.status === 'cancelled') {
       const order = await tx.order.findUniqueOrThrow({ where: { id: current.orderId } });
       return { order, transaction: current };
@@ -36,19 +30,16 @@ export async function applyPaymentResult(params: {
       const order = await tx.order.findUniqueOrThrow({ where: { id: current.orderId } });
       return { order, transaction: current };
     }
-    if (status === 'refunded' && current.status !== 'paid') {
+    if (status === 'refunded' && current.status !== 'paid' && current.status !== 'refunded') {
       const order = await tx.order.findUniqueOrThrow({ where: { id: current.orderId } });
       return { order, transaction: current };
     }
-    if (status === 'paid' && current.order.status === 'cancelled') {
-      return { order: current.order, transaction: current };
-    }
+    if (status === 'paid' && current.order.status === 'cancelled') return { order: current.order, transaction: current };
+
+    if (current.status === 'refunded') return { order: current.order, transaction: current };
 
     const guarded = await tx.transaction.updateMany({
-      where: {
-        id: transactionId,
-        ...(current.status === 'paid' ? { status: 'paid' } : { status: 'pending' }),
-      },
+      where: { id: transactionId, ...(current.status === 'paid' ? { status: 'paid' } : { status: 'pending' }) },
       data: {
         status,
         providerTxnId: params.providerTxnId ?? undefined,
@@ -64,29 +55,16 @@ export async function applyPaymentResult(params: {
     }
 
     const order = await tx.order.findUniqueOrThrow({ where: { id: current.orderId } });
-
     if (status === 'paid') {
-      for (const item of current.order.items) {
-        await tx.product.update({ where: { id: item.productId }, data: { salesCount: { increment: item.quantity } } });
-      }
+      for (const item of current.order.items) await tx.product.update({ where: { id: item.productId }, data: { salesCount: { increment: item.quantity } } });
       await consumeOrderStockReservations(tx, order.id);
       await setSellerOrdersStatus(tx, order.id, 'confirmed');
       await tx.order.update({ where: { id: order.id }, data: { paymentStatus: 'paid', status: 'confirmed' as POrderStatus } });
     } else if (status === 'failed' || status === 'cancelled') {
       const released = await releaseOrderStockReservations(tx, order.id);
       if (!released.hadReservations) {
-        // Legacy orders created before reservations existed had already
-        // incremented salesCount at order creation. Preserve compatibility
-        // when cancelling those old pending orders.
         for (const item of current.order.items) {
-          await tx.product.update({
-            where: { id: item.productId },
-            data: {
-              stockQuantity: { increment: item.quantity },
-              salesCount: { decrement: item.quantity },
-              inStock: true,
-            },
-          });
+          await tx.product.update({ where: { id: item.productId }, data: { stockQuantity: { increment: item.quantity }, salesCount: { decrement: item.quantity }, inStock: true } });
         }
       }
       await setSellerOrdersStatus(tx, order.id, 'cancelled');
@@ -94,9 +72,7 @@ export async function applyPaymentResult(params: {
     } else if (status === 'refunded') {
       for (const item of current.order.items) {
         await tx.$executeRaw`
-          UPDATE "Product"
-          SET "salesCount" = GREATEST(0, "salesCount" - ${item.quantity})
-          WHERE "id" = ${item.productId}
+          UPDATE "Product" SET "salesCount" = GREATEST(0, "salesCount" - ${item.quantity}) WHERE "id" = ${item.productId}
         `;
       }
       await setSellerOrdersStatus(tx, order.id, 'refunded');
