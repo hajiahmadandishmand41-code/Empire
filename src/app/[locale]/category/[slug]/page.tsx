@@ -6,7 +6,8 @@ import { SiteHeader } from '@/features/home/components/site-header';
 import { SiteFooter } from '@/features/home/components/site-footer';
 import { BottomNavigation } from '@/features/home/components/bottom-navigation';
 import { ShopPageClient } from '@/features/shop';
-import { getCategoryRepository } from '@/server/infrastructure/registry';
+import { getCategoryRepository, getProductService } from '@/server/infrastructure/registry';
+import { getProductLocalizedTexts, normalizeCatalogLocale } from '@/server/localization/product-localization';
 
 type Props = { params: Promise<{ locale: string; slug: string }> };
 type FallbackCategory = { key: string; name: string; slug: string; productCount: number };
@@ -36,6 +37,20 @@ async function getCategory(slug: string) {
   }
 }
 
+async function getInitialCatalog(locale: string, categoryKey: string) {
+  try {
+    const result = await getProductService().listProducts({ categoryKey, page: 1, pageSize: 40, sort: 'recommended', isTraditional: false });
+    const localized = await getProductLocalizedTexts(result.products.map((product) => product.id), normalizeCatalogLocale(locale));
+    const products = result.products.map((product) => {
+      const text = localized.get(product.id);
+      return text ? { ...product, name: text.name, shortDescription: text.shortDescription } : product;
+    });
+    return { products, meta: { total: result.total, page: result.page, pageSize: result.pageSize, hasMore: result.hasMore } };
+  } catch {
+    return { products: [], meta: null };
+  }
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { locale, slug } = await params;
   const category = (await getCategory(slug)) ?? fallbackCategories[slug];
@@ -49,6 +64,7 @@ export default async function CategoryPage({ params }: Props) {
   const { locale, slug } = await params;
   setRequestLocale(locale);
   const category = (await getCategory(slug)) ?? fallbackFor(slug);
+  const initialCatalog = await getInitialCatalog(locale, category.key);
   const t = await getTranslations({ locale, namespace: 'nav' });
   const count = Number(category.productCount ?? 0);
   const countLabel = locale === 'en' ? 'products' : locale === 'ps' ? 'محصولات' : 'محصول';
@@ -91,7 +107,7 @@ export default async function CategoryPage({ params }: Props) {
         </section>
 
         <section className="mx-auto max-w-screen-xl px-3 sm:px-6">
-          <ShopPageClient locale={locale} currency="AFN" initialCategoryKey={category.key} />
+          <ShopPageClient locale={locale} currency="AFN" initialCategoryKey={category.key} initialProducts={initialCatalog.products} initialMeta={initialCatalog.meta} />
         </section>
       </main>
       <SiteFooter />
