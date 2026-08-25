@@ -36,8 +36,6 @@ export async function applyPaymentResult(params: {
     }
     if (status === 'paid' && current.order.status === 'cancelled') return { order: current.order, transaction: current };
 
-    if (current.status === 'refunded') return { order: current.order, transaction: current };
-
     const guarded = await tx.transaction.updateMany({
       where: { id: transactionId, ...(current.status === 'paid' ? { status: 'paid' } : { status: 'pending' }) },
       data: {
@@ -56,20 +54,21 @@ export async function applyPaymentResult(params: {
 
     const order = await tx.order.findUniqueOrThrow({ where: { id: current.orderId } });
     if (status === 'paid') {
-      for (const item of current.order.items) await tx.product.update({ where: { id: item.productId }, data: { salesCount: { increment: item.quantity } } });
+      // A successful payment is the point at which a reserved quantity becomes a sale.
+      for (const item of current.order.items) {
+        await tx.product.update({ where: { id: item.productId }, data: { salesCount: { increment: item.quantity } } });
+      }
       await consumeOrderStockReservations(tx, order.id);
       await setSellerOrdersStatus(tx, order.id, 'confirmed');
       await tx.order.update({ where: { id: order.id }, data: { paymentStatus: 'paid', status: 'confirmed' as POrderStatus } });
     } else if (status === 'failed' || status === 'cancelled') {
-      const released = await releaseOrderStockReservations(tx, order.id);
-      if (!released.hadReservations) {
-        for (const item of current.order.items) {
-          await tx.product.update({ where: { id: item.productId }, data: { stockQuantity: { increment: item.quantity }, salesCount: { decrement: item.quantity }, inStock: true } });
-        }
-      }
+      // Stock was reserved at order creation. Release only that reservation.
+      // Do NOT decrement salesCount here: a failed/cancelled payment never counted as a sale.
+      await releaseOrderStockReservations(tx, order.id);
       await setSellerOrdersStatus(tx, order.id, 'cancelled');
       await tx.order.update({ where: { id: order.id }, data: { paymentStatus: status, status: 'cancelled' } });
     } else if (status === 'refunded') {
+      // Refunds apply only to a previously paid transaction, so reverse the sale count once.
       for (const item of current.order.items) {
         await tx.$executeRaw`
           UPDATE "Product" SET "salesCount" = GREATEST(0, "salesCount" - ${item.quantity}) WHERE "id" = ${item.productId}
