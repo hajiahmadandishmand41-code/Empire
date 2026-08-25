@@ -13,7 +13,8 @@ function isVercelProduction() { return process.env.VERCEL === '1' && process.env
 function normalizePoolerUrl(value) {
   try {
     const url = new URL(value);
-    if (!url.hostname.includes('.pooler.supabase.com')) return null;
+    const host = url.hostname;
+    if (!(host === 'pooler.supabase.com' || host.endsWith('.pooler.supabase.com'))) return null;
     if (url.port === '6543') url.port = '5432';
     if (!url.port) url.port = '5432';
     url.searchParams.delete('pgbouncer');
