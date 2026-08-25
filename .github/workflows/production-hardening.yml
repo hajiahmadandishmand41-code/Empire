@@ -21,6 +21,7 @@ concurrency:
 env:
   NODE_VERSION: 24
   NEXT_TELEMETRY_DISABLED: '1'
+  PRODUCTION_URL_DEFAULT: https://empire11.vercel.app
 
 jobs:
   production-monitor:
@@ -36,11 +37,11 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - name: Production smoke monitor
         env:
-          PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
+          PRODUCTION_URL: ${{ vars.PRODUCTION_URL || env.PRODUCTION_URL_DEFAULT }}
         run: npm run monitor:production
       - name: API/E2E smoke
         env:
-          E2E_BASE_URL: ${{ vars.PRODUCTION_URL }}
+          E2E_BASE_URL: ${{ vars.PRODUCTION_URL || env.PRODUCTION_URL_DEFAULT }}
         run: npm run e2e:smoke
 
   guarded-read-load-test:
