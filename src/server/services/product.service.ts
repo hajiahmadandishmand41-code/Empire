@@ -111,7 +111,7 @@ export class ProductService {
   async getProductById(id: string): Promise<Product | null> { const row = await this.products.findById(id); if (!row) return null; void this.products.incrementViewCount(row.id).catch(() => undefined); const agg = await this.reviews.summarize(row.id); return mapProduct(row as never, { averageRating: agg.average, reviewCount: agg.count }); }
   async getRelatedProducts(slug: string, limit = 4): Promise<ProductSummary[]> { const product = await this.products.findBySlug(slug); if (!product) return []; const related = await this.products.findRelated(product.id, limit); return related.map((r) => mapProductSummary(r as never)); }
 
-  async createProduct(input: { slug: string; name: string; shortDescription: string; price: number; compareAtPrice?: number | null; categoryId: string; sellerId: string; region: string; currency?: string; inStock?: boolean; isActive?: boolean; stockQuantity?: number; description?: string | null; whatsappNumber?: string | null; videoUrl?: string | null; isTraditional?: boolean; imagesJson?: string | null; weightKg?: number | null; dimensionsJson?: string | null; tagsJson?: string | null; attributesJson?: string | null; primaryImageIndex?: number; }) {
+  async createProduct(input: { slug: string; name: string; shortDescription: string; price: number; comparePrice?: number | null; categoryId: string; sellerId: string; region: string; currency?: string; inStock?: boolean; isActive?: boolean; stockQuantity?: number; description?: string | null; whatsappNumber?: string | null; videoUrl?: string | null; isTraditional?: boolean; imagesJson?: string | null; weightKg?: number | null; dimensionsJson?: string | null; tagsJson?: string | null; attributesJson?: string | null; primaryImageIndex?: number; }) {
     const category = await this.categories.findById(input.categoryId);
     if (!category) throw new ProductServiceError('category_not_found', 'دسته‌بندی انتخاب‌شده وجود ندارد. لطفاً یک دسته‌بندی معتبر انتخاب کنید.', 422);
     try { return await this.products.create(input); } catch (err: unknown) { const e = err as { code?: string }; if (e.code === 'P2002') throw new ProductServiceError('slug_exists', 'محصولی با این شناسه (slug) قبلاً ثبت شده است. لطفاً شناسه دیگری انتخاب کنید.', 409); throw err; }
@@ -126,11 +126,13 @@ export class ProductService {
 
   async getHomepageSections(sectionSize = 8): Promise<{ newest: ProductSummary[]; bestSelling: ProductSummary[]; mostViewed: ProductSummary[]; popular: ProductSummary[]; featured: ProductSummary[]; }> {
     const baseFilter: ProductListFilter = { isActive: true, pageSize: sectionSize };
-    const newResult = await this.products.findMany({ ...baseFilter, sort: 'newest', page: 1 });
-    const bestResult = await this.products.findMany({ ...baseFilter, sort: 'bestSelling', page: 1 });
-    const viewedResult = await this.products.findMany({ ...baseFilter, sort: 'mostViewed', page: 1 });
-    const popularResult = await this.products.findMany({ ...baseFilter, sort: 'popular', page: 1 });
-    const featuredResult = await this.products.findMany({ ...baseFilter, featured: true, sort: 'featured', page: 1 });
+    const [newResult, bestResult, viewedResult, popularResult, featuredResult] = await Promise.all([
+      this.products.findMany({ ...baseFilter, sort: 'newest', page: 1 }),
+      this.products.findMany({ ...baseFilter, sort: 'bestSelling', page: 1 }),
+      this.products.findMany({ ...baseFilter, sort: 'mostViewed', page: 1 }),
+      this.products.findMany({ ...baseFilter, sort: 'popular', page: 1 }),
+      this.products.findMany({ ...baseFilter, featured: true, sort: 'featured', page: 1 }),
+    ]);
     return {
       newest: newResult.items.map((r) => mapProductSummary(r as never)),
       bestSelling: bestResult.items.map((r) => mapProductSummary(r as never)),
