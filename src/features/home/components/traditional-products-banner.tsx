@@ -53,19 +53,19 @@ export async function TraditionalProductsBanner({ locale = 'fa' }: { locale?: st
   const image = firstImage(products);
 
   return (
-    <section aria-labelledby="traditional-products-banner-title" className="mx-auto max-w-screen-xl px-3 py-3 sm:px-6 sm:py-4">
-      <Link href="/traditional" className="group relative block h-[150px] overflow-hidden rounded-2xl border border-border bg-slate-950 shadow-premium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 sm:h-[190px] sm:rounded-3xl">
+    <section aria-labelledby="traditional-products-banner-title" className="mx-auto max-w-screen-xl px-3 py-2 sm:px-6 sm:py-3">
+      <Link href="/traditional" className="group relative block h-[112px] overflow-hidden rounded-2xl border border-border bg-slate-950 shadow-premium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 sm:h-[150px] sm:rounded-3xl">
         {image ? <Image src={image} alt={products[0]?.name ?? text.title} fill sizes="(max-width: 767px) 100vw, 1200px" className="object-cover transition-transform duration-700 group-hover:scale-[1.03]" /> : null}
         <div className="absolute inset-0 bg-gradient-to-l from-slate-950/90 via-slate-950/55 to-slate-950/15" aria-hidden="true" />
-        <div className="absolute inset-y-0 end-0 flex max-w-[78%] flex-col justify-center p-4 text-white sm:max-w-[62%] sm:p-7" dir={locale === 'en' ? 'ltr' : 'rtl'}>
-          <div className="inline-flex w-fit items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[8px] font-extrabold backdrop-blur-md sm:text-[10px]">
-            <Sparkles className="h-3 w-3" aria-hidden />
+        <div className="absolute inset-y-0 end-0 flex max-w-[78%] flex-col justify-center p-3 text-white sm:max-w-[62%] sm:p-5" dir={locale === 'en' ? 'ltr' : 'rtl'}>
+          <div className="inline-flex w-fit items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-2 py-0.5 text-[7px] font-extrabold backdrop-blur-md sm:px-2.5 sm:py-1 sm:text-[9px]">
+            <Sparkles className="h-2.5 w-2.5 sm:h-3 sm:w-3" aria-hidden />
             <span>{text.badge}</span>
           </div>
-          <h2 id="traditional-products-banner-title" className="mt-2 text-lg font-black tracking-tight sm:text-2xl">{text.title}</h2>
-          <p className="mt-1 line-clamp-1 text-[9px] leading-4 text-white/75 sm:text-xs sm:leading-5">{text.subtitle}</p>
-          <span className="mt-3 inline-flex min-h-9 w-fit items-center gap-1.5 rounded-full bg-white px-3.5 py-2 text-[10px] font-extrabold text-slate-900 shadow-sm sm:text-xs">
-            {text.cta}<ArrowLeft className="h-3.5 w-3.5 rtl:rotate-180" aria-hidden />
+          <h2 id="traditional-products-banner-title" className="mt-1.5 text-base font-black tracking-tight sm:text-xl">{text.title}</h2>
+          <p className="mt-0.5 line-clamp-1 text-[8px] leading-3.5 text-white/75 sm:text-[11px] sm:leading-4">{text.subtitle}</p>
+          <span className="mt-2 inline-flex min-h-7 w-fit items-center gap-1 rounded-full bg-white px-2.5 py-1.5 text-[9px] font-extrabold text-slate-900 shadow-sm sm:min-h-8 sm:px-3 sm:py-1.5 sm:text-[10px]">
+            {text.cta}<ArrowLeft className="h-3 w-3 rtl:rotate-180" aria-hidden />
           </span>
         </div>
       </Link>
