@@ -10,6 +10,7 @@ import { logger } from '@/lib/logger';
 import { consumeSellerOrderStockReservations, syncParentOrderStatus } from '@/lib/orders/order-engine';
 import { canSellerTransition } from '@/lib/orders/state-machine';
 import { creditSellerOrder } from '@/lib/finance/wallet';
+import { randomUUID } from 'node:crypto';
 
 export const dynamic = 'force-dynamic';
 const patchSchema = z.object({ status: z.enum(['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled']) });
@@ -21,14 +22,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const guard = await requireSellerApi();
   if (!guard.ok) return guard.response;
   if (guard.user.role !== 'seller') return jsonError('forbidden', 'Use the admin order endpoint for administrative status changes.', { status: 403 });
-
   let body: unknown;
   try { body = await req.json(); } catch { return jsonError('invalid_json', 'Invalid JSON', { status: 400 }); }
   const parsed = patchSchema.safeParse(body);
   if (!parsed.success) return jsonError('invalid_body', 'Invalid status', { status: 422, details: { issues: parsed.error.issues } });
   if (!isDatabaseConfigured()) return jsonError('db_unavailable', 'Database is not configured', { status: 503 });
 
-  const order = await prisma.order.findFirst({ where: { OR: [{ id }, { reference: id }] }, select: { id: true, paymentMethod: true, paymentStatus: true } });
+  const order = await prisma.order.findFirst({ where: { OR: [{ id }, { reference: id }] }, select: { id: true, paymentMethod: true, paymentStatus: true, currency: true, total: true } });
   if (!order) return jsonError('not_found', 'Order not found', { status: 404 });
 
   try {
@@ -59,11 +59,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           if ((remaining[0]?.count ?? 0) === 0) {
             const codTxn = await tx.transaction.findFirst({ where: { orderId: order.id, method: 'cod', status: 'pending' }, orderBy: { createdAt: 'desc' } });
             if (codTxn) await tx.transaction.update({ where: { id: codTxn.id }, data: { status: 'paid', paidAt: new Date() } });
+            else await tx.transaction.create({ data: { orderId: order.id, reference: `TXN-COD-${randomUUID().replace(/-/g, '').slice(0, 24)}`, provider: 'cod', method: 'cod', status: 'paid', amount: order.total, currency: order.currency, paidAt: new Date() } });
             await tx.order.update({ where: { id: order.id }, data: { paymentStatus: 'paid' } });
           }
         }
       }
-
       await syncParentOrderStatus(tx, order.id);
     });
 
