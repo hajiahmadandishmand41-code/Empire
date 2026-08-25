@@ -1,4 +1,5 @@
 import type { CartLineBase, CartSummary } from './cart';
+import type { CurrencyCode } from './product';
 
 export type OrderStatus =
   'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
