@@ -1,5 +1,6 @@
 /** Payment domain helpers. */
 import { prisma } from '@/lib/db';
+import { Prisma } from '@prisma/client';
 import type { Order as POrder, Transaction as PTransaction, PaymentStatus as PPaymentStatus, OrderStatus as POrderStatus } from '@prisma/client';
 import { reverseSellersForOrderTx } from '@/lib/finance/wallet';
 import { toPrismaJson } from '@/lib/prisma-json';
@@ -49,23 +50,29 @@ export async function applyPaymentResult(params: {
 
     const order = await tx.order.findUniqueOrThrow({ where: { id: current.orderId } });
     if (status === 'paid') {
-      for (const item of current.order.items) {
-        await tx.product.update({ where: { id: item.productId }, data: { salesCount: { increment: item.quantity } } });
+      const alreadyPaid = order.paymentStatus === 'paid';
+      if (!alreadyPaid) {
+        for (const item of current.order.items) {
+          await tx.product.update({ where: { id: item.productId }, data: { salesCount: { increment: item.quantity } } });
+        }
+        await consumeOrderStockReservations(tx, order.id);
+        await setSellerOrdersStatus(tx, order.id, 'confirmed');
+        await tx.order.update({ where: { id: order.id }, data: { paymentStatus: 'paid', status: 'confirmed' as POrderStatus } });
       }
-      await consumeOrderStockReservations(tx, order.id);
-      await setSellerOrdersStatus(tx, order.id, 'confirmed');
-      await tx.order.update({ where: { id: order.id }, data: { paymentStatus: 'paid', status: 'confirmed' as POrderStatus } });
     } else if (status === 'failed' || status === 'cancelled') {
       await releaseOrderStockReservations(tx, order.id);
       await setSellerOrdersStatus(tx, order.id, 'cancelled');
       await tx.order.update({ where: { id: order.id }, data: { paymentStatus: status, status: 'cancelled' } });
     } else if (status === 'refunded') {
-      for (const item of current.order.items) {
-        await tx.$executeRaw`UPDATE "Product" SET "salesCount" = GREATEST(0, "salesCount" - ${item.quantity}) WHERE "id" = ${item.productId}`;
+      const wasAlreadyRefunded = order.paymentStatus === 'refunded';
+      if (!wasAlreadyRefunded) {
+        for (const item of current.order.items) {
+          await tx.$executeRaw`UPDATE "Product" SET "salesCount" = GREATEST(0, "salesCount" - ${item.quantity}) WHERE "id" = ${item.productId}`;
+        }
+        await reverseSellersForOrderTx(tx, order.id);
+        await setSellerOrdersStatus(tx, order.id, 'refunded');
+        await tx.order.update({ where: { id: order.id }, data: { paymentStatus: 'refunded' } });
       }
-      await reverseSellersForOrderTx(tx, order.id);
-      await setSellerOrdersStatus(tx, order.id, 'refunded');
-      await tx.order.update({ where: { id: order.id }, data: { paymentStatus: 'refunded' } });
     }
 
     await syncParentOrderStatus(tx, order.id);
