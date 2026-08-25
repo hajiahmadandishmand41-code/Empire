@@ -60,7 +60,7 @@ export async function listSellerOrders(args: SellerListArgs): Promise<Paged<Orde
   const offset = (page - 1) * pageSize;
   const statusSql = status ? Prisma.sql`AND so."status" = ${status}` : Prisma.empty;
   const querySql = q ? Prisma.sql`AND (o."reference" ILIKE ${`%${q}%`} OR o."shippingFullName" ILIKE ${`%${q}%`})` : Prisma.empty;
-  const rows = await prisma.$queryRaw<Array<OrderListItem & { total: Prisma.Decimal; createdAt: Date }>>(Prisma.sql`
+  const rows = await prisma.$queryRaw<Array<{ id: string; reference: string; status: string; paymentStatus: string; paymentMethod: string; itemCount: number; total: Prisma.Decimal; currency: string; createdAt: Date }>>(Prisma.sql`
     SELECT so."id", o."reference", so."status", o."paymentStatus", o."paymentMethod",
            so."itemCount", so."total", so."currency", o."createdAt"
     FROM "SellerOrder" so
@@ -124,13 +124,14 @@ export async function getOrderForViewer(
     if (!sellerOrder) return null;
     const sellerItems = row.items.filter((item) => item.product?.sellerId === viewer.id);
     const mapped = mapOrder(row);
-    mapped.items = mapped.items.filter((item) => sellerItems.some((source) => source.id === item.id));
+    const sellerProductIds = new Set(sellerItems.map((source) => source.productId));
+    mapped.items = mapped.items.filter((item) => Boolean(item.productId && sellerProductIds.has(item.productId)));
     mapped.itemCount = sellerOrder.itemCount;
     mapped.subtotal = new Prisma.Decimal(sellerOrder.subtotal).toNumber();
     mapped.shipping = new Prisma.Decimal(sellerOrder.shipping).toNumber();
     mapped.total = new Prisma.Decimal(sellerOrder.total).toNumber();
     mapped.status = sellerOrder.status as OrderStatus;
-    return { order: mapped, totals: { subtotal: mapped.subtotal, shipping: mapped.shipping, total: mapped.total } };
+    return { order: mapped, totals: { subtotal: mapped.subtotal ?? 0, shipping: mapped.shipping ?? 0, total: mapped.total ?? 0 } };
   }
 
   const isOwner = Boolean(viewer && row.userId && row.userId === viewer.id);
