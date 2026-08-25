@@ -1,6 +1,8 @@
 /** Seller-scoped order status endpoint. */
 import type { NextRequest } from 'next/server';
+import { z } from 'zod';
 import { Prisma } from '@prisma/client';
+import type { OrderStatus } from '@prisma/client';
 import { prisma, isDatabaseConfigured } from '@/lib/db';
 import { jsonError, jsonOk, jsonPreflight } from '@/lib/api/response';
 import { requireSellerApi } from '@/lib/auth/require-seller-api';
@@ -35,7 +37,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     `);
     const sellerOrder = rows[0];
     if (!sellerOrder) return jsonError('forbidden', 'You are not a seller for this order', { status: 403 });
-    if (!canSellerTransition(sellerOrder.status as import('@prisma/client').OrderStatus, parsed.data.status)) {
+    if (!canSellerTransition(sellerOrder.status as OrderStatus, parsed.data.status)) {
       return jsonError('invalid_transition', 'Seller order status can only advance one step at a time.', { status: 409 });
     }
     if (order.paymentMethod !== 'cod' && order.paymentStatus !== 'paid') return jsonError('payment_required', 'Online payment must be confirmed before the seller can process this order.', { status: 409 });
