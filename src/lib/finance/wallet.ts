@@ -36,29 +36,26 @@ export async function ensureWallet(sellerId: string, currency = 'AFN') {
   return prisma.sellerWallet.upsert({ where: { sellerId }, update: {}, create: { sellerId, currency, balance: new Prisma.Decimal(0) } });
 }
 
-type SellerOrderRow = { id: string; sellerId: string; commissionRate: Prisma.Decimal; currency: string };
+type SellerOrderRow = { id: string; orderId: string; sellerId: string; commissionRate: Prisma.Decimal; currency: string };
 
-async function loadSellerOrders(orderId: string, sellerId?: string): Promise<SellerOrderRow[]> {
+async function loadSellerOrders(orderId: string): Promise<SellerOrderRow[]> {
   return prisma.$queryRaw<SellerOrderRow[]>(Prisma.sql`
-    SELECT "id", "sellerId", "commissionRate", "currency"
-    FROM "SellerOrder"
-    WHERE "orderId" = ${orderId}
-      ${sellerId ? Prisma.sql`AND "sellerId" = ${sellerId}` : Prisma.empty}
+    SELECT "id", "orderId", "sellerId", "commissionRate", "currency"
+    FROM "SellerOrder" WHERE "orderId" = ${orderId}
   `);
 }
 
 /** Credit one delivered SellerOrder only. Safe for multi-seller partial delivery. */
 export async function creditSellerOrder(sellerOrderId: string): Promise<number> {
   const sellerRows = await prisma.$queryRaw<SellerOrderRow[]>(Prisma.sql`
-    SELECT "id", "sellerId", "commissionRate", "currency"
+    SELECT "id", "orderId", "sellerId", "commissionRate", "currency"
     FROM "SellerOrder" WHERE "id" = ${sellerOrderId} LIMIT 1
   `);
   const sellerOrder = sellerRows[0];
   if (!sellerOrder) return 0;
 
   const items = await prisma.orderItem.findMany({
-    where: { orderId: (await prisma.$queryRaw<Array<{ orderId: string }>>(Prisma.sql`SELECT "orderId" FROM "SellerOrder" WHERE "id" = ${sellerOrderId} LIMIT 1`))[0]?.orderId ?? '', product: { sellerId: sellerOrder.sellerId } },
-    include: { product: { select: { sellerId: true } } },
+    where: { orderId: sellerOrder.orderId, product: { sellerId: sellerOrder.sellerId } },
   });
 
   let created = 0;
@@ -80,7 +77,7 @@ export async function creditSellerOrder(sellerOrderId: string): Promise<number> 
             amount: split.sellerAmount,
             currency: sellerOrder.currency,
             orderItemId: item.id,
-            orderId: sellerOrder.id ? undefined : undefined,
+            orderId: sellerOrder.orderId,
             dedupeKey,
             description: `Sale ${item.id.slice(0, 8)} — gross ${split.gross} ${sellerOrder.currency}, commission ${split.commission} (${split.commissionRate}%)`,
           },
@@ -95,7 +92,7 @@ export async function creditSellerOrder(sellerOrderId: string): Promise<number> 
   return created;
 }
 
-/** Credit every seller in an order, preserving the commission rate snapshot. */
+/** Credit every seller in an order, preserving each SellerOrder commission snapshot. */
 export async function creditSellersForOrder(orderId: string): Promise<number> {
   const orders = await loadSellerOrders(orderId);
   let created = 0;
