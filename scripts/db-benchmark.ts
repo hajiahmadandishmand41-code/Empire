@@ -29,7 +29,7 @@ try {
       take: 24,
       select: { id: true, salesCount: true },
     }));
-    await measure('category:active-count', () => prisma.category.count({ where: { isActive: true } }));
+    await measure('category:count', () => prisma.category.count());
   }
 
   const grouped = new Map<string, number[]>();
