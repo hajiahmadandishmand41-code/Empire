@@ -1,5 +1,6 @@
 import { prisma, isDatabaseConfigured } from '@/lib/db';
 import { computeProductScore, RANKING_PRESETS } from '@/server/algorithms/product-ranking';
+import { diversifyProducts } from '@/server/algorithms/product-diversity';
 import type { ProductSummary } from '@/types';
 import type { OrderStatus } from '@/types/order';
 
@@ -14,21 +15,14 @@ type RecommendationProfile = {
   purchasedIds: string[];
 };
 
-function emptyProfile(): RecommendationProfile {
-  return { categoryScores: {}, sellerScores: {}, wishlistIds: [], reviewedIds: [], purchasedIds: [] };
-}
+function emptyProfile(): RecommendationProfile { return { categoryScores: {}, sellerScores: {}, wishlistIds: [], reviewedIds: [], purchasedIds: [] }; }
 
 async function loadProfile(userId: string): Promise<RecommendationProfile> {
   const rows = await prisma.$queryRaw<Array<{ profileJson: unknown; updatedAt: Date }>>`
-    SELECT "profileJson", "updatedAt"
-    FROM "UserRecommendationProfile"
-    WHERE "userId" = ${userId}
-    LIMIT 1
+    SELECT "profileJson", "updatedAt" FROM "UserRecommendationProfile" WHERE "userId" = ${userId} LIMIT 1
   `;
   const row = rows[0];
-  if (row && Date.now() - row.updatedAt.getTime() < PROFILE_TTL_MS) {
-    return (row.profileJson ?? emptyProfile()) as RecommendationProfile;
-  }
+  if (row && Date.now() - row.updatedAt.getTime() < PROFILE_TTL_MS) return (row.profileJson ?? emptyProfile()) as RecommendationProfile;
 
   const [wishlist, reviews, orders] = await Promise.all([
     prisma.wishlistItem.findMany({ where: { userId }, select: { productId: true, product: { select: { category: { select: { key: true } }, sellerId: true } } } }),
@@ -77,13 +71,12 @@ async function loadProfile(userId: string): Promise<RecommendationProfile> {
   await prisma.$executeRaw`
     INSERT INTO "UserRecommendationProfile" ("userId", "profileJson", "updatedAt")
     VALUES (${userId}, ${JSON.stringify(profile)}::jsonb, NOW())
-    ON CONFLICT ("userId") DO UPDATE
-      SET "profileJson" = EXCLUDED."profileJson", "updatedAt" = EXCLUDED."updatedAt"
+    ON CONFLICT ("userId") DO UPDATE SET "profileJson" = EXCLUDED."profileJson", "updatedAt" = EXCLUDED."updatedAt"
   `;
   return profile;
 }
 
-/** Re-ranks a global candidate set using a durable, periodically refreshed customer profile. */
+/** Personalized ranking: cached durable profile → global ranking → diversity. */
 export async function rankProductsForUser(products: ProductSummary[], userId: string | null, mode: 'popular' | 'bestSelling' | 'recommended' = 'recommended'): Promise<ProductSummary[]> {
   if (!userId || !isDatabaseConfigured() || products.length < 2) return products;
   try {
@@ -95,20 +88,21 @@ export async function rankProductsForUser(products: ProductSummary[], userId: st
     const purchasedIds = new Set(profile.purchasedIds);
     const preset = RANKING_PRESETS[mode === 'bestSelling' ? 'bestSelling' : mode === 'popular' ? 'popular' : 'default'];
 
-    const score = (product: ProductSummary) => {
-      const global = computeProductScore({ id: product.id, salesCount: product.salesCount, viewCount: product.viewCount, averageRating: product.averageRating, reviewCount: product.reviewCount, compareAtPrice: product.comparePrice, inStock: product.inStock }, preset) * 0.7;
-      const categoryBoost = Math.min(1, (categoryScores.get(product.categoryKey) ?? 0) / 12) * 60;
-      const sellerBoost = product.sellerId ? Math.min(1, (Number(sellerScores.get(product.sellerId) ?? 0)) / 10) * 24 : 0;
-      const wishlistBoost = wishlistIds.has(product.id) ? 32 : 0;
-      const reviewBoost = reviewedIds.has(product.id) ? 12 : 0;
-      const purchasedPenalty = purchasedIds.has(product.id) ? (mode === 'recommended' ? -8 : 0) : 0;
-      return global + categoryBoost + sellerBoost + wishlistBoost + reviewBoost + purchasedPenalty;
-    };
-
-    return [...products].sort((a, b) => {
+    const ranked = [...products].sort((a, b) => {
+      const score = (product: ProductSummary) => {
+        const global = computeProductScore({ id: product.id, salesCount: product.salesCount, viewCount: product.viewCount, averageRating: product.averageRating, reviewCount: product.reviewCount, compareAtPrice: product.comparePrice, inStock: product.inStock }, preset) * 0.7;
+        const categoryBoost = Math.min(1, (categoryScores.get(product.categoryKey) ?? 0) / 12) * 60;
+        const sellerBoost = product.sellerId ? Math.min(1, Number(sellerScores.get(product.sellerId) ?? 0) / 10) * 24 : 0;
+        const wishlistBoost = wishlistIds.has(product.id) ? 32 : 0;
+        const reviewBoost = reviewedIds.has(product.id) ? 12 : 0;
+        const purchasedPenalty = purchasedIds.has(product.id) ? (mode === 'recommended' ? -8 : 0) : 0;
+        return global + categoryBoost + sellerBoost + wishlistBoost + reviewBoost + purchasedPenalty;
+      };
       const diff = score(b) - score(a);
       return diff !== 0 ? diff : a.id.localeCompare(b.id);
     });
+
+    return diversifyProducts(ranked, { maxPerSeller: 3, maxPerCategory: 4 });
   } catch {
     return products;
   }
