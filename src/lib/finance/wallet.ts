@@ -26,10 +26,6 @@ async function loadSellerOrders(orderId: string): Promise<SellerOrderRow[]> {
 
 type WalletTxClient = Prisma.TransactionClient;
 
-/**
- * Credits one seller order using the caller's transaction. The idempotency key
- * is the order-item id, so concurrent delivery requests can never double-credit.
- */
 export async function creditSellerOrderTx(tx: WalletTxClient, sellerOrderId: string): Promise<number> {
   const rows = await tx.$queryRaw<SellerOrderRow[]>(Prisma.sql`
     SELECT "id", "orderId", "sellerId", "commissionRate", "currency"
@@ -37,7 +33,6 @@ export async function creditSellerOrderTx(tx: WalletTxClient, sellerOrderId: str
   `);
   const sellerOrder = rows[0];
   if (!sellerOrder) return 0;
-
   const items = await tx.orderItem.findMany({
     where: { orderId: sellerOrder.orderId, product: { sellerId: sellerOrder.sellerId } },
     select: { id: true, price: true, quantity: true },
@@ -45,104 +40,65 @@ export async function creditSellerOrderTx(tx: WalletTxClient, sellerOrderId: str
   let created = 0;
   for (const item of items) {
     const dedupeKey = `sale:${item.id}`;
-    const existing = await tx.walletTransaction.findUnique({ where: { dedupeKey } });
-    if (existing) continue;
-
-    const wallet = await tx.sellerWallet.upsert({
-      where: { sellerId: sellerOrder.sellerId },
-      update: {},
-      create: { sellerId: sellerOrder.sellerId, currency: sellerOrder.currency },
-    });
+    if (await tx.walletTransaction.findUnique({ where: { dedupeKey } })) continue;
+    const wallet = await tx.sellerWallet.upsert({ where: { sellerId: sellerOrder.sellerId }, update: {}, create: { sellerId: sellerOrder.sellerId, currency: sellerOrder.currency } });
     if (wallet.currency !== sellerOrder.currency) throw new Error(`WALLET_CURRENCY_MISMATCH:${wallet.currency}:${sellerOrder.currency}`);
-
     const split = computeSplit(item.price.mul(item.quantity), sellerOrder.commissionRate);
-    await tx.walletTransaction.create({ data: {
-      walletId: wallet.id, sellerId: sellerOrder.sellerId, type: 'sale', amount: split.sellerAmount,
-      currency: sellerOrder.currency, orderItemId: item.id, orderId: sellerOrder.orderId, dedupeKey,
-      description: `Sale ${item.id.slice(0, 8)} — gross ${split.gross} ${sellerOrder.currency}, commission ${split.commission} (${split.commissionRate}%)`,
-    } });
-    await tx.sellerWallet.update({
-      where: { id: wallet.id },
-      data: { balance: { increment: split.sellerAmount }, totalEarned: { increment: split.sellerAmount } },
-    });
+    await tx.walletTransaction.create({ data: { walletId: wallet.id, sellerId: sellerOrder.sellerId, type: 'sale', amount: split.sellerAmount, currency: sellerOrder.currency, orderItemId: item.id, orderId: sellerOrder.orderId, dedupeKey, description: `Sale ${item.id.slice(0, 8)} — gross ${split.gross} ${sellerOrder.currency}, commission ${split.commission} (${split.commissionRate}%)` } });
+    await tx.sellerWallet.update({ where: { id: wallet.id }, data: { balance: { increment: split.sellerAmount }, totalEarned: { increment: split.sellerAmount } } });
     created += 1;
   }
   return created;
 }
 
-export async function creditSellerOrder(sellerOrderId: string): Promise<number> {
-  try {
-    return await prisma.$transaction((tx) => creditSellerOrderTx(tx, sellerOrderId), {
-      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-    });
-  } catch (err) {
-    if (isUniqueViolation(err)) return 0;
-    throw err;
+export async function reverseSellersForOrderTx(tx: WalletTxClient, orderId: string): Promise<number> {
+  const credits = await tx.walletTransaction.findMany({ where: { orderId, type: 'sale' }, orderBy: { createdAt: 'asc' } });
+  let reversed = 0;
+  for (const credit of credits) {
+    if (!credit.orderItemId) continue;
+    const dedupeKey = `refund:${credit.orderItemId}`;
+    if (await tx.walletTransaction.findUnique({ where: { dedupeKey } })) continue;
+    const debited = await tx.sellerWallet.updateMany({ where: { id: credit.walletId, balance: { gte: credit.amount } }, data: { balance: { decrement: credit.amount }, totalEarned: { decrement: credit.amount } } });
+    if (debited.count !== 1) throw new Error('WALLET_REFUND_INSUFFICIENT_BALANCE');
+    await tx.walletTransaction.create({ data: { walletId: credit.walletId, sellerId: credit.sellerId, type: 'refund', amount: credit.amount.neg(), currency: credit.currency, orderItemId: credit.orderItemId, orderId: credit.orderId, dedupeKey, description: `Refund ${credit.orderId?.slice(0, 8) ?? ''}` } });
+    reversed += 1;
   }
+  return reversed;
 }
 
+export async function creditSellerOrder(sellerOrderId: string): Promise<number> {
+  try { return await prisma.$transaction((tx) => creditSellerOrderTx(tx, sellerOrderId), { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }); }
+  catch (err) { if (isUniqueViolation(err)) return 0; throw err; }
+}
 export async function creditSellersForOrder(orderId: string): Promise<number> {
   let created = 0;
   for (const sellerOrder of await loadSellerOrders(orderId)) created += await creditSellerOrder(sellerOrder.id);
   return created;
 }
 export async function reverseSellersForOrder(orderId: string): Promise<number> {
-  const credits = await prisma.walletTransaction.findMany({ where: { orderId, type: 'sale' } });
-  let reversed = 0;
-  for (const credit of credits) {
-    if (!credit.orderItemId) continue;
-    const dedupeKey = `refund:${credit.orderItemId}`;
-    try {
-      await prisma.$transaction(async (tx) => {
-        if (await tx.walletTransaction.findUnique({ where: { dedupeKey } })) return;
-        await tx.walletTransaction.create({ data: { walletId: credit.walletId, sellerId: credit.sellerId, type: 'refund', amount: credit.amount.neg(), currency: credit.currency, orderItemId: credit.orderItemId, orderId: credit.orderId, dedupeKey, description: `Refund ${credit.orderId?.slice(0, 8) ?? ''}` } });
-        await tx.sellerWallet.update({ where: { id: credit.walletId }, data: { balance: { decrement: credit.amount }, totalEarned: { decrement: credit.amount } } });
-        reversed += 1;
-      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
-    } catch (err) { if (!isUniqueViolation(err)) throw err; }
-  }
-  return reversed;
+  try { return await prisma.$transaction((tx) => reverseSellersForOrderTx(tx, orderId), { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }); }
+  catch (err) { if (isUniqueViolation(err)) return 0; throw err; }
 }
 
-export interface PayoutInput {
-  amount: Prisma.Decimal | string;
-  method: 'bank_transfer' | 'cash' | 'whatsapp' | 'atoma_pay';
-  accountInfo: string;
-  sellerNote?: string;
-  requestKey?: string;
-}
-
+export interface PayoutInput { amount: Prisma.Decimal | string; method: 'bank_transfer' | 'cash' | 'whatsapp' | 'atoma_pay'; accountInfo: string; sellerNote?: string; requestKey?: string; }
 export async function requestPayout(sellerId: string, input: PayoutInput) {
   let amount: Prisma.Decimal;
   try { amount = decimal(input.amount).toDecimalPlaces(2); } catch { throw new PayoutError('invalid_amount', 'مبلغ برداشت نامعتبر است.'); }
   if (amount.lessThanOrEqualTo(0)) throw new PayoutError('invalid_amount', 'مبلغ برداشت باید بزرگ‌تر از صفر باشد.');
-
   try {
     return await prisma.$transaction(async (tx) => {
       if (input.requestKey) {
-        const existing = await tx.$queryRaw<Array<{ id: string; sellerId: string }>>(Prisma.sql`
-          SELECT "id", "sellerId" FROM "Payout"
-          WHERE "requestKey" = ${input.requestKey}
-          FOR UPDATE
-        `);
+        const existing = await tx.$queryRaw<Array<{ id: string; sellerId: string }>>(Prisma.sql`SELECT "id", "sellerId" FROM "Payout" WHERE "requestKey" = ${input.requestKey} FOR UPDATE`);
         if (existing[0]) {
           if (existing[0].sellerId !== sellerId) throw new PayoutError('idempotency_conflict', 'Idempotency key is already in use.');
           return tx.payout.findUniqueOrThrow({ where: { id: existing[0].id } });
         }
       }
-
       const wallet = await tx.sellerWallet.upsert({ where: { sellerId }, update: {}, create: { sellerId } });
-      // Conditional debit makes concurrent payout requests mutually exclusive and
-      // prevents the authoritative balance from ever becoming negative.
       const debit = await tx.sellerWallet.updateMany({ where: { sellerId, balance: { gte: amount } }, data: { balance: { decrement: amount } } });
       if (debit.count === 0) throw new PayoutError('insufficient_funds', 'موجودی کیف پول برای این برداشت کافی نیست.');
-
       const reference = `PO-${randomUUID().replace(/-/g, '').slice(0, 20).toUpperCase()}`;
-      const payoutRows = await tx.$queryRaw<Array<{ id: string }>>(Prisma.sql`
-        INSERT INTO "Payout" ("id","reference","sellerId","amount","currency","method","status","accountInfo","sellerNote","requestKey")
-        VALUES (${randomUUID()}, ${reference}, ${sellerId}, ${amount}, ${wallet.currency}, ${input.method}, 'pending', ${input.accountInfo}, ${input.sellerNote ?? null}, ${input.requestKey ?? null})
-        RETURNING "id"
-      `);
+      const payoutRows = await tx.$queryRaw<Array<{ id: string }>>(Prisma.sql`INSERT INTO "Payout" ("id","reference","sellerId","amount","currency","method","status","accountInfo","sellerNote","requestKey") VALUES (${randomUUID()}, ${reference}, ${sellerId}, ${amount}, ${wallet.currency}, ${input.method}, 'pending', ${input.accountInfo}, ${input.sellerNote ?? null}, ${input.requestKey ?? null}) RETURNING "id"`);
       const payoutId = payoutRows[0]?.id;
       if (!payoutId) throw new PayoutError('payout_failed', 'ثبت درخواست برداشت انجام نشد.');
       const payout = await tx.payout.findUniqueOrThrow({ where: { id: payoutId } });
@@ -151,9 +107,7 @@ export async function requestPayout(sellerId: string, input: PayoutInput) {
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   } catch (err) {
     if (isUniqueViolation(err) && input.requestKey) {
-      const existing = await prisma.$queryRaw<Array<{ id: string; sellerId: string }>>(Prisma.sql`
-        SELECT "id", "sellerId" FROM "Payout" WHERE "requestKey" = ${input.requestKey} LIMIT 1
-      `);
+      const existing = await prisma.$queryRaw<Array<{ id: string; sellerId: string }>>(Prisma.sql`SELECT "id", "sellerId" FROM "Payout" WHERE "requestKey" = ${input.requestKey} LIMIT 1`);
       if (existing[0]?.sellerId === sellerId) return prisma.payout.findUniqueOrThrow({ where: { id: existing[0].id } });
       if (existing[0]) throw new PayoutError('idempotency_conflict', 'Idempotency key is already in use.');
     }
