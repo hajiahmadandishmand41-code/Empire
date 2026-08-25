@@ -14,6 +14,14 @@ import { mapOrder } from '@/lib/db-mappers';
 import { getCurrentUser } from '@/lib/auth/current-user';
 import { listUserOrders } from '@/features/orders/lib/queries';
 import { logger } from '@/lib/logger';
+import {
+  COD_RESERVATION_MINUTES,
+  MANUAL_PAYMENT_RESERVATION_MINUTES,
+  ONLINE_RESERVATION_MINUTES,
+  createOrderStockReservations,
+  createSellerOrders,
+  releaseExpiredStockReservations,
+} from '@/lib/orders/order-engine';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,6 +32,12 @@ class OrderCreationError extends Error {
 function idempotentReference(idempotencyKey: string, userId: string): string {
   const digest = crypto.createHash('sha256').update(`${userId}:${idempotencyKey}`).digest('hex').slice(0, 24).toUpperCase();
   return `EMP-I-${digest}`;
+}
+
+function reservationMinutes(paymentMethod: string): number {
+  if (paymentMethod === 'cod') return COD_RESERVATION_MINUTES;
+  if (paymentMethod === 'bank_transfer' || paymentMethod === 'whatsapp') return MANUAL_PAYMENT_RESERVATION_MINUTES;
+  return ONLINE_RESERVATION_MINUTES;
 }
 
 export async function OPTIONS() { return jsonPreflight(); }
@@ -102,6 +116,9 @@ export async function POST(req: NextRequest) {
     const total = subtotal.add(shipping).toDecimalPlaces(2);
 
     const createdBase = await prisma.$transaction(async (tx) => {
+      // Clean up reservations abandoned by previous checkouts before competing for stock.
+      await releaseExpiredStockReservations(tx);
+
       let addressId: string;
       let addressSnapshot: {
         fullName: string; phone: string; province: string; district: string; city: string | null;
@@ -125,7 +142,7 @@ export async function POST(req: NextRequest) {
         const product = bySlug.get(item.slug)!;
         const res = await tx.product.updateMany({
           where: { id: product.id, isActive: true, inStock: true, stockQuantity: { gte: item.quantity } },
-          data: { stockQuantity: { decrement: item.quantity }, salesCount: { increment: item.quantity } },
+          data: { stockQuantity: { decrement: item.quantity } },
         });
         if (res.count === 0) throw new OrderCreationError('out_of_stock', `Product out of stock: ${product.slug}`);
       }
@@ -135,7 +152,7 @@ export async function POST(req: NextRequest) {
         data: { inStock: false },
       });
 
-      return tx.order.create({
+      const order = await tx.order.create({
         data: {
           reference: reference!,
           status: 'pending',
@@ -162,6 +179,10 @@ export async function POST(req: NextRequest) {
           }) },
         },
       });
+
+      await createSellerOrders(tx, order.id, shipping, orderCurrency);
+      await createOrderStockReservations(tx, order.id, reservationMinutes(draft.paymentMethod));
+      return order;
     });
 
     const created = await prisma.order.findUniqueOrThrow({
