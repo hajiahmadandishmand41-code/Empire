@@ -7,6 +7,7 @@ import { creditSellersForOrder } from '@/lib/finance/wallet';
 import { recordAudit } from '@/lib/audit/log';
 import { logger } from '@/lib/logger';
 import { consumeOrderStockReservations, releaseOrderStockReservations, setSellerOrdersStatus, syncParentOrderStatus } from '@/lib/orders/order-engine';
+import { canTransition } from '@/lib/orders/state-machine';
 
 export const dynamic = 'force-dynamic';
 const patchSchema = z.object({ status: z.enum(['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled']) });
@@ -36,16 +37,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       if (goingToCancel && previous.status === 'delivered') throw new OrderTransitionError('invalid_transition', 'A delivered order cannot be cancelled — issue a refund instead.');
       if (goingToCancel && previous.paymentMethod !== 'cod' && previous.paymentStatus === 'paid') throw new OrderTransitionError('refund_required', 'A paid online order cannot be cancelled until a provider refund is completed.');
       if (parsed.data.status === 'delivered' && previous.paymentStatus !== 'paid' && !settlingCod) throw new OrderTransitionError('payment_required', 'Only paid orders can be marked as delivered. COD is settled at delivery.');
-
-      const allowed: Record<string, string[]> = {
-        pending: ['confirmed', 'cancelled'],
-        confirmed: ['processing', 'cancelled'],
-        processing: ['shipped', 'cancelled'],
-        shipped: ['delivered'],
-        delivered: [],
-        cancelled: [],
-      };
-      if (parsed.data.status !== previous.status && !allowed[previous.status].includes(parsed.data.status)) throw new OrderTransitionError('invalid_transition', `Cannot change order from ${previous.status} to ${parsed.data.status}.`);
+      if (!canTransition(previous.status, parsed.data.status)) throw new OrderTransitionError('invalid_transition', `Cannot change order from ${previous.status} to ${parsed.data.status}.`);
 
       const transitioned = await tx.order.updateMany({ where: { id, status: previous.status }, data: { status: parsed.data.status, ...(settlingCod ? { paymentStatus: 'paid' as const } : {}) } });
       if (transitioned.count === 0) throw new OrderTransitionError('conflict', 'Order status changed concurrently. Please refresh and retry.');
@@ -63,6 +55,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       } else if (goingToCancel) {
         const released = await releaseOrderStockReservations(tx, previous.id);
         if (!released.hadReservations) {
+          // Legacy orders created before reservations existed had already incremented
+          // salesCount and decremented stock at creation; preserve that compatibility path.
           for (const item of previous.items) {
             await tx.product.update({ where: { id: item.productId }, data: { stockQuantity: { increment: item.quantity }, salesCount: { decrement: item.quantity }, inStock: true } });
           }
