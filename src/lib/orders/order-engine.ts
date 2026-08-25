@@ -12,10 +12,15 @@ function id(prefix: string) {
   return `${prefix}-${randomUUID()}`;
 }
 
+/**
+ * Expire reservations exactly once, restore stock, and cancel still-pending
+ * orders that have lost their reservation. A caller should invoke this inside
+ * a transaction before creating another reservation or from a scheduled job.
+ */
 export async function releaseExpiredStockReservations(tx: Tx): Promise<number> {
-  const rows = await tx.$queryRaw<Array<{ productId: string; quantity: number }>>(Prisma.sql`
+  const rows = await tx.$queryRaw<Array<{ productId: string; quantity: number; orderId: string }>>(Prisma.sql`
     WITH expired AS (
-      SELECT "id", "productId", "quantity"
+      SELECT "id", "productId", "quantity", "orderId"
       FROM "StockReservation"
       WHERE "status" = 'reserved' AND "expiresAt" <= NOW()
       FOR UPDATE SKIP LOCKED
@@ -25,15 +30,49 @@ export async function releaseExpiredStockReservations(tx: Tx): Promise<number> {
       SET "status" = 'expired', "releasedAt" = NOW(), "updatedAt" = NOW()
       FROM expired e
       WHERE r."id" = e."id" AND r."status" = 'reserved'
-      RETURNING r."productId", r."quantity"
+      RETURNING r."productId", r."quantity", r."orderId"
     )
-    SELECT "productId", SUM("quantity")::int AS "quantity"
+    SELECT "productId", SUM("quantity")::int AS "quantity", "orderId"
     FROM marked
-    GROUP BY "productId"
+    GROUP BY "productId", "orderId"
   `);
+
   for (const row of rows) {
-    await tx.$executeRaw(Prisma.sql`UPDATE "Product" SET "stockQuantity" = "stockQuantity" + ${row.quantity}, "inStock" = true WHERE "id" = ${row.productId}`);
+    await tx.$executeRaw(Prisma.sql`
+      UPDATE "Product"
+      SET "stockQuantity" = "stockQuantity" + ${row.quantity},
+          "inStock" = true
+      WHERE "id" = ${row.productId}
+    `);
   }
+
+  const orderIds = [...new Set(rows.map((row) => row.orderId))];
+  for (const orderId of orderIds) {
+    const active = await tx.$queryRaw<Array<{ count: number }>>(Prisma.sql`
+      SELECT COUNT(*)::int AS "count"
+      FROM "StockReservation"
+      WHERE "orderId" = ${orderId} AND "status" = 'reserved'
+    `);
+    if ((active[0]?.count ?? 0) > 0) continue;
+
+    const order = await tx.order.findUnique({
+      where: { id: orderId },
+      select: { id: true, status: true, paymentStatus: true },
+    });
+    if (!order || order.status !== 'pending' || order.paymentStatus !== 'pending') continue;
+
+    await tx.order.updateMany({
+      where: { id: orderId, status: 'pending', paymentStatus: 'pending' },
+      data: { status: 'cancelled' },
+    });
+    await tx.$executeRaw(Prisma.sql`
+      UPDATE "SellerOrder"
+      SET "status" = 'cancelled', "updatedAt" = NOW()
+      WHERE "orderId" = ${orderId}
+        AND "status" NOT IN ('delivered','cancelled','refunded')
+    `);
+  }
+
   return rows.reduce((sum, row) => sum + row.quantity, 0);
 }
 
@@ -49,15 +88,21 @@ export async function releaseOrderStockReservations(tx: Tx, orderId: string): Pr
     FROM marked
     GROUP BY "productId"
   `);
+
   for (const row of rows) {
-    await tx.$executeRaw(Prisma.sql`UPDATE "Product" SET "stockQuantity" = "stockQuantity" + ${row.quantity}, "inStock" = true WHERE "id" = ${row.productId}`);
+    await tx.$executeRaw(Prisma.sql`
+      UPDATE "Product"
+      SET "stockQuantity" = "stockQuantity" + ${row.quantity}, "inStock" = true
+      WHERE "id" = ${row.productId}
+    `);
   }
   return { quantity: rows.reduce((sum, row) => sum + row.quantity, 0), hadReservations: rows.length > 0 };
 }
 
 export async function consumeOrderStockReservations(tx: Tx, orderId: string): Promise<number> {
   const result = await tx.$executeRaw(Prisma.sql`
-    UPDATE "StockReservation" SET "status" = 'consumed', "updatedAt" = NOW()
+    UPDATE "StockReservation"
+    SET "status" = 'consumed', "updatedAt" = NOW()
     WHERE "orderId" = ${orderId} AND "status" = 'reserved'
   `);
   return Number(result);
@@ -65,7 +110,10 @@ export async function consumeOrderStockReservations(tx: Tx, orderId: string): Pr
 
 export async function createOrderStockReservations(tx: Tx, orderId: string, expiresInMinutes: number): Promise<void> {
   const items = await tx.$queryRaw<Array<{ id: string; productId: string; quantity: number }>>(Prisma.sql`
-    SELECT "id", "productId", "quantity" FROM "OrderItem" WHERE "orderId" = ${orderId} ORDER BY "id" ASC
+    SELECT "id", "productId", "quantity"
+    FROM "OrderItem"
+    WHERE "orderId" = ${orderId}
+    ORDER BY "id" ASC
   `);
   for (const item of items) {
     await tx.$executeRaw(Prisma.sql`
