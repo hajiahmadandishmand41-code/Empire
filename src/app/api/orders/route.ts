@@ -1,9 +1,8 @@
 import crypto from 'crypto';
 /**
  * Orders API.
- * Guest orders receive an order-scoped signed receipt cookie so public order
- * references are not sufficient to view or pay for another guest's order.
- * The Idempotency-Key header prevents duplicate order creation on retries.
+ * Orders are authenticated-only. The Idempotency-Key header prevents
+ * duplicate order creation on retries.
  */
 import type { NextRequest } from 'next/server';
 import { prisma, isDatabaseConfigured } from '@/lib/db';
@@ -15,7 +14,6 @@ import { mapOrder } from '@/lib/db-mappers';
 import { getCurrentUser } from '@/lib/auth/current-user';
 import { listUserOrders } from '@/features/orders/lib/queries';
 import { logger } from '@/lib/logger';
-import { createGuestReceiptToken, guestReceiptCookieName, guestReceiptCookieOptions } from '@/lib/auth/guest-receipt';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,9 +21,8 @@ class OrderCreationError extends Error {
   constructor(public code: string, message: string) { super(message); }
 }
 
-function idempotentReference(idempotencyKey: string, userId: string | null): string {
-  const scope = userId ?? 'guest';
-  const digest = crypto.createHash('sha256').update(`${scope}:${idempotencyKey}`).digest('hex').slice(0, 24).toUpperCase();
+function idempotentReference(idempotencyKey: string, userId: string): string {
+  const digest = crypto.createHash('sha256').update(`${userId}:${idempotencyKey}`).digest('hex').slice(0, 24).toUpperCase();
   return `EMP-I-${digest}`;
 }
 
@@ -34,6 +31,9 @@ export async function OPTIONS() { return jsonPreflight(); }
 export async function POST(req: NextRequest) {
   const rl = await rateLimitAsync(clientKey(req, 'orders:create'), { limit: 20, windowMs: 60_000 });
   if (!rl.ok) return jsonError('rate_limited', 'Too many requests', { status: 429 });
+
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return jsonError('unauthorized', 'Authentication required before checkout', { status: 401 });
 
   let body: unknown;
   try { body = await req.json(); } catch { return jsonError('invalid_json', 'Request body is not valid JSON', { status: 400 }); }
@@ -47,22 +47,20 @@ export async function POST(req: NextRequest) {
   }
 
   const draft = parsed.data;
-  const currentUser = await getCurrentUser();
   let reference: string | null = null;
 
   try {
     if (!isDatabaseConfigured()) return jsonError('db_unavailable', 'Database is not configured', { status: 503 });
 
     reference = idempotencyKey
-      ? idempotentReference(idempotencyKey, currentUser?.id ?? null)
+      ? idempotentReference(idempotencyKey, currentUser.id)
       : `EMP-${Date.now().toString(36).toUpperCase()}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
 
     if (idempotencyKey) {
       const existing = await prisma.order.findUnique({ where: { reference }, include: { items: true, address: true, shippingMethod: true } });
       if (existing) {
-        if (existing.userId && existing.userId !== currentUser?.id) return jsonError('forbidden', 'This idempotency key belongs to another order owner', { status: 403 });
+        if (existing.userId !== currentUser.id) return jsonError('forbidden', 'This idempotency key belongs to another order owner', { status: 403 });
         const response = jsonOk(mapOrder(existing), { status: 200, meta: { source: 'idempotent-replay' } });
-        if (!existing.userId) response.cookies.set(guestReceiptCookieName(existing.id), createGuestReceiptToken(existing.id), guestReceiptCookieOptions());
         response.headers.set('Idempotency-Key', idempotencyKey);
         return response;
       }
@@ -111,13 +109,12 @@ export async function POST(req: NextRequest) {
       };
 
       if (draft.addressId) {
-        if (!currentUser) throw new OrderCreationError('address_requires_auth', 'An addressId requires an authenticated user');
         const existing = await tx.address.findFirst({ where: { id: draft.addressId, userId: currentUser.id } });
         if (!existing) throw new OrderCreationError('address_not_found', 'Address not found for user');
         addressId = existing.id;
         addressSnapshot = existing;
       } else if (draft.address) {
-        const addr = await tx.address.create({ data: { ...draft.address, userId: currentUser?.id ?? null } });
+        const addr = await tx.address.create({ data: { ...draft.address, userId: currentUser.id } });
         addressId = addr.id;
         addressSnapshot = addr;
       } else {
@@ -148,7 +145,7 @@ export async function POST(req: NextRequest) {
           total,
           currency: orderCurrency,
           itemCount,
-          userId: currentUser?.id ?? null,
+          userId: currentUser.id,
           addressId,
           shippingMethodId,
           shippingFullName: addressSnapshot.fullName,
@@ -174,7 +171,6 @@ export async function POST(req: NextRequest) {
 
     const response = jsonOk(mapOrder(created), { status: 201, meta: { source: 'db' } });
     if (idempotencyKey) response.headers.set('Idempotency-Key', idempotencyKey);
-    if (!currentUser) response.cookies.set(guestReceiptCookieName(created.id), createGuestReceiptToken(created.id), guestReceiptCookieOptions());
     return response;
   } catch (error) {
     if (error instanceof OrderCreationError) return jsonError(error.code, error.message, { status: error.code === 'out_of_stock' ? 409 : 422 });
@@ -183,9 +179,8 @@ export async function POST(req: NextRequest) {
       const code = (error as { code?: string }).code;
       if (code === 'P2002' && idempotencyKey && reference) {
         const existing = await prisma.order.findUnique({ where: { reference }, include: { items: true, address: true, shippingMethod: true } });
-        if (existing && (!existing.userId || existing.userId === currentUser?.id)) {
+        if (existing && existing.userId === currentUser.id) {
           const response = jsonOk(mapOrder(existing), { status: 200, meta: { source: 'idempotent-race-replay' } });
-          if (!existing.userId) response.cookies.set(guestReceiptCookieName(existing.id), createGuestReceiptToken(existing.id), guestReceiptCookieOptions());
           response.headers.set('Idempotency-Key', idempotencyKey);
           return response;
         }
