@@ -23,34 +23,25 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const { id } = await params;
   const guard = await requireSellerApi();
   if (!guard.ok) return guard.response;
+  if (guard.user.role !== 'seller') return jsonError('forbidden', 'Use the admin order endpoint for administrative status changes.', { status: 403 });
+
   let body: unknown;
   try { body = await req.json(); } catch { return jsonError('invalid_json', 'Invalid JSON', { status: 400 }); }
   const parsed = patchSchema.safeParse(body);
   if (!parsed.success) return jsonError('invalid_body', 'Invalid status', { status: 422, details: { issues: parsed.error.issues } });
   if (!isDatabaseConfigured()) return jsonError('db_unavailable', 'Database is not configured', { status: 503 });
 
-  const isAdmin = guard.user.role === 'admin';
   const order = await prisma.order.findFirst({ where: { OR: [{ id }, { reference: id }] }, select: { id: true, paymentMethod: true, paymentStatus: true } });
   if (!order) return jsonError('not_found', 'Order not found', { status: 404 });
 
   try {
-    if (isAdmin) {
-      const transitioned = await prisma.order.updateMany({ where: { id: order.id }, data: { status: parsed.data.status } });
-      if (transitioned.count === 0) return jsonError('conflict', 'Order was changed concurrently', { status: 409 });
-      return jsonOk({ id: order.id, status: parsed.data.status });
-    }
-
     const rows = await prisma.$queryRaw<Array<{ status: string }>>(Prisma.sql`
       SELECT "status" FROM "SellerOrder" WHERE "orderId" = ${order.id} AND "sellerId" = ${guard.user.id} LIMIT 1
     `);
     const sellerOrder = rows[0];
     if (!sellerOrder) return jsonError('forbidden', 'You are not a seller for this order', { status: 403 });
-    if (!SELLER_TRANSITIONS[sellerOrder.status]?.has(parsed.data.status)) {
-      return jsonError('invalid_transition', 'Seller order status can only advance one step at a time.', { status: 409 });
-    }
-    if (order.paymentMethod !== 'cod' && order.paymentStatus !== 'paid') {
-      return jsonError('payment_required', 'Online payment must be confirmed before the seller can process this order.', { status: 409 });
-    }
+    if (!SELLER_TRANSITIONS[sellerOrder.status]?.has(parsed.data.status)) return jsonError('invalid_transition', 'Seller order status can only advance one step at a time.', { status: 409 });
+    if (order.paymentMethod !== 'cod' && order.paymentStatus !== 'paid') return jsonError('payment_required', 'Online payment must be confirmed before the seller can process this order.', { status: 409 });
 
     const transitioned = await prisma.$executeRaw(Prisma.sql`
       UPDATE "SellerOrder"
