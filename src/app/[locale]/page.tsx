@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import Image from 'next/image';
-import { ShieldCheck, Star, Store } from 'lucide-react';
+import { Heart, ShieldCheck, Star, Store } from 'lucide-react';
 import { setRequestLocale } from 'next-intl/server';
 import { HomepageHeroCarousel } from '@/features/home/components/homepage-hero-carousel';
 import { HomeDiscoveryStrip } from '@/features/home/components/home-discovery-strip';
@@ -42,17 +42,17 @@ async function LowerRecommendationSections({ locale, userId, catalog }: { locale
     .filter((product) => !seen.has(product.id) && seen.add(product.id))
     .slice(0, 24);
   if (!uniquePool.length) return null;
-  return <><PersonalizedProductsSection products={uniquePool.map((product) => toSliderProduct(product))} locale={locale} /><RecentlyViewedSection products={uniquePool.map((product) => toSliderProduct(product))} locale={locale} /><HomeCatalogGrid products={uniquePool} locale={locale} /><HomePopularStores locale={locale} /></>;
+  return <><PersonalizedProductsSection products={uniquePool.map((product) => toSliderProduct(product))} locale={locale} /><RecentlyViewedSection products={uniquePool.map((product) => toSliderProduct(product))} locale={locale} /><HomeCatalogGrid products={uniquePool} locale={locale} /></>;
 }
 
 async function HomePopularStores({ locale }: { locale: Locale }) {
   const result = await getSellerRepository().findPublicMany({ q: '', page: 1, pageSize: 10, sort: 'popular' }).catch(() => ({ items: [] }));
   if (!result.items.length) return null;
   const copy = locale === 'en'
-    ? { title: 'Popular e-shops', subtitle: 'Discover stores customers choose most', all: 'View all stores', verified: 'Verified' }
+    ? { title: 'Popular e-shops', subtitle: 'Discover stores customers choose most', all: 'View all stores' }
     : locale === 'ps'
-      ? { title: 'مشهور ای‌شاپونه', subtitle: 'هغه پلورنځي ومومئ چې پیرودونکي یې ډېر غوره کوي', all: 'ټول پلورنځي', verified: 'تایید شوی' }
-      : { title: 'ای‌شاپ‌های محبوب', subtitle: 'فروشگاه‌هایی که مشتریان بیشتر انتخاب می‌کنند', all: 'مشاهده همه فروشگاه‌ها', verified: 'تأییدشده' };
+      ? { title: 'مشهور ای‌شاپونه', subtitle: 'هغه پلورنځي ومومئ چې پیرودونکي یې ډېر غوره کوي', all: 'ټول پلورنځي' }
+      : { title: 'ای‌شاپ‌های محبوب', subtitle: 'فروشگاه‌هایی که مشتریان بیشتر انتخاب می‌کنند', all: 'مشاهده همه فروشگاه‌ها' };
   return <section className="border-y border-border bg-card py-4 sm:py-6" aria-label={copy.title}>
     <div className="mx-auto max-w-screen-xl px-2.5 sm:px-6">
       <div className="mb-3 flex items-center justify-between gap-2 sm:mb-4">
@@ -62,13 +62,14 @@ async function HomePopularStores({ locale }: { locale: Locale }) {
         </div>
         <a href={locale === 'en' ? '/en/stores' : locale === 'ps' ? '/ps/stores' : '/fa/stores'} className="min-h-8 shrink-0 rounded-full border border-border bg-background px-2.5 py-1.5 text-[10px] font-bold sm:px-3 sm:text-xs">{copy.all}</a>
       </div>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-5 sm:gap-3">
-        {result.items.slice(0, 10).map((store) => <a key={store.id} href={locale === 'en' ? `/en/store/${store.id}` : locale === 'ps' ? `/ps/store/${store.id}` : `/fa/store/${store.id}`} aria-label={store.shopName} className="group flex min-w-0 items-center gap-2 rounded-2xl border border-border bg-background p-2 transition hover:border-primary/30 hover:shadow-sm">
+      <div className="grid grid-cols-2 gap-2 sm:gap-3">
+        {result.items.slice(0, 10).map((store) => <a key={store.id} href={locale === 'en' ? `/en/store/${store.id}` : locale === 'ps' ? `/ps/store/${store.id}` : `/fa/store/${store.id}`} aria-label={store.shopName} className="group relative flex min-w-0 items-center gap-2 rounded-2xl border border-border bg-background p-2.5 transition hover:border-primary/30 hover:shadow-sm sm:p-3">
+          <span className="pointer-events-none absolute end-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-background/90 text-rose-500 shadow-sm ring-1 ring-border/70" aria-hidden="true"><Heart className="h-3.5 w-3.5 fill-current" /></span>
           <span className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-muted sm:h-14 sm:w-14">
             {store.logoUrl ? <Image src={store.logoUrl} alt="" fill sizes="56px" className="object-cover" /> : <span className="text-sm font-black text-primary">{store.shopName.charAt(0)}</span>}
             <span className="absolute -end-0.5 -top-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full border border-background bg-emerald-500 text-white"><ShieldCheck className="h-2 w-2" aria-hidden="true" /></span>
           </span>
-          <span className="min-w-0"><strong className="block truncate text-[11px] font-black sm:text-xs">{store.shopName}</strong><span className="mt-0.5 block truncate text-[9px] text-muted-foreground sm:text-[10px]">{store.productCount} {locale === 'en' ? 'products' : locale === 'ps' ? 'محصولات' : 'محصول'}</span></span>
+          <span className="min-w-0 pe-7"><strong className="block truncate text-[11px] font-black sm:text-xs">{store.shopName}</strong><span className="mt-0.5 block truncate text-[9px] text-muted-foreground sm:text-[10px]">{store.productCount} {locale === 'en' ? 'products' : locale === 'ps' ? 'محصولات' : 'محصول'}</span></span>
         </a>)}
       </div>
     </div>
@@ -106,5 +107,6 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
     <Suspense fallback={<SectionSkeleton />}><LowerRecommendationSections locale={locale} userId={user?.id} catalog={catalog} /></Suspense>
     <Suspense fallback={<SectionSkeleton />}><PopularCategoryRanking locale={locale} /></Suspense>
     <Suspense fallback={<div className="h-44 animate-pulse bg-muted/30" />}><TrustSection /></Suspense>
+    <Suspense fallback={<div className="h-56 animate-pulse bg-muted/20" />}><HomePopularStores locale={locale} /></Suspense>
   </main><SiteFooter /><BottomNavigation /></div>;
 }
