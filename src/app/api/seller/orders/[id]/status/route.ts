@@ -1,6 +1,7 @@
 /** Seller-scoped order status endpoint. */
 import type { NextRequest } from 'next/server';
 import { z } from 'zod';
+import { Prisma } from '@prisma/client';
 import { prisma, isDatabaseConfigured } from '@/lib/db';
 import { jsonError, jsonOk, jsonPreflight } from '@/lib/api/response';
 import { requireSellerApi } from '@/lib/auth/require-seller-api';
