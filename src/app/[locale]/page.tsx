@@ -4,7 +4,6 @@ import { Heart, ShieldCheck, Star, Store } from 'lucide-react';
 import { setRequestLocale } from 'next-intl/server';
 import { HomepageHeroCarousel } from '@/features/home/components/homepage-hero-carousel';
 import { HomeDiscoveryStrip } from '@/features/home/components/home-discovery-strip';
-import { TrustedStoreLogos } from '@/features/home/components/trusted-store-logos';
 import { BrandsSection } from '@/features/home/components/brands-section';
 import { DynamicBannerStrip } from '@/features/home/components/dynamic-banner-strip';
 import { TraditionalProductsBanner } from '@/features/home/components/traditional-products-banner';
@@ -62,8 +61,8 @@ async function HomePopularStores({ locale }: { locale: Locale }) {
         </div>
         <a href={locale === 'en' ? '/en/stores' : locale === 'ps' ? '/ps/stores' : '/fa/stores'} className="min-h-8 shrink-0 rounded-full border border-border bg-background px-2.5 py-1.5 text-[10px] font-bold sm:px-3 sm:text-xs">{copy.all}</a>
       </div>
-      <div className="grid grid-cols-2 gap-2 sm:gap-3">
-        {result.items.slice(0, 10).map((store) => <a key={store.id} href={locale === 'en' ? `/en/store/${store.id}` : locale === 'ps' ? `/ps/store/${store.id}` : `/fa/store/${store.id}`} aria-label={store.shopName} className="group relative flex min-w-0 items-center gap-2 rounded-2xl border border-border bg-background p-2.5 transition hover:border-primary/30 hover:shadow-sm sm:p-3">
+      <div className="flex snap-x snap-mandatory gap-2 overflow-x-auto pb-1 [scrollbar-width:none] sm:gap-3 [&::-webkit-scrollbar]:hidden">
+        {result.items.slice(0, 10).map((store) => <a key={store.id} href={locale === 'en' ? `/en/store/${store.id}` : locale === 'ps' ? `/ps/store/${store.id}` : `/fa/store/${store.id}`} aria-label={store.shopName} className="group relative flex w-[180px] shrink-0 snap-start items-center gap-2 rounded-2xl border border-border bg-background p-2.5 transition hover:border-primary/30 hover:shadow-sm sm:w-[220px] sm:p-3">
           <span className="pointer-events-none absolute end-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-background/90 text-rose-500 shadow-sm ring-1 ring-border/70" aria-hidden="true"><Heart className="h-3.5 w-3.5 fill-current" /></span>
           <span className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-muted sm:h-14 sm:w-14">
             {store.logoUrl ? <Image src={store.logoUrl} alt="" fill sizes="56px" className="object-cover" /> : <span className="text-sm font-black text-primary">{store.shopName.charAt(0)}</span>}
@@ -96,8 +95,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
     <HomeDiscoveryStrip locale={locale} />
     <Suspense fallback={<HeroSkeleton />}><HomeHeroSection locale={locale} /></Suspense>
     <Suspense fallback={<div className="h-48 animate-pulse bg-muted/30" />}><CategoriesSection /></Suspense>
-    <Suspense fallback={<div className="h-32 animate-pulse bg-muted/20" />}><TrustedStoreLogos locale={locale} /></Suspense>
-    <Suspense fallback={<div className="h-40 animate-pulse bg-muted/20" />}><BrandsSection locale={locale} /></Suspense>
+    <Suspense fallback={<div className="h-56 animate-pulse bg-muted/20" />}><HomePopularStores locale={locale} /></Suspense>
     <DynamicBannerStrip locale={locale} placement="HOME_PROMO_1" />
     <Suspense fallback={<SectionSkeleton />}><TraditionalProductsBanner locale={locale} /></Suspense>
     <Suspense fallback={<SectionSkeleton />}><HomeProductSection section="featured" locale={locale} catalog={catalog} title={{ en: 'Today’s picks', ps: 'د نن غوره انتخابونه', fa: 'انتخاب‌های امروز' }} subtitle={{ en: 'A focused set of products worth your attention', ps: 'د پام وړ او غوره محصولات', fa: 'انتخابی از محصولات ارزشمند' }} href="/shop?sort=popular" badge="featured" accentColor="bg-rose-500" /></Suspense>
@@ -107,6 +105,6 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
     <Suspense fallback={<SectionSkeleton />}><LowerRecommendationSections locale={locale} userId={user?.id} catalog={catalog} /></Suspense>
     <Suspense fallback={<SectionSkeleton />}><PopularCategoryRanking locale={locale} /></Suspense>
     <Suspense fallback={<div className="h-44 animate-pulse bg-muted/30" />}><TrustSection /></Suspense>
-    <Suspense fallback={<div className="h-56 animate-pulse bg-muted/20" />}><HomePopularStores locale={locale} /></Suspense>
+    <Suspense fallback={<div className="h-40 animate-pulse bg-muted/20" />}><BrandsSection locale={locale} /></Suspense>
   </main><SiteFooter /><BottomNavigation /></div>;
 }
