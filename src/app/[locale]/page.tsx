@@ -20,6 +20,7 @@ import { getCategoryRepository, getSellerRepository } from '@/server/infrastruct
 import { getHomepageData, getHomepageSection, toSliderProduct } from '@/features/home/lib/homepage-data';
 import { listActiveBanners } from '@/server/services/banner.service';
 import { getCurrentUser } from '@/lib/auth/current-user';
+import { isDatabaseConfigured } from '@/lib/db';
 
 type Locale = 'fa' | 'ps' | 'en';
 type ProductSectionProps = { section: 'featured' | 'bestSelling' | 'newest'; locale: Locale; title: Record<Locale, string>; subtitle?: Record<Locale, string>; href: string; badge: string; accentColor?: string; catalog: Awaited<ReturnType<typeof getHomepageData>> };
@@ -46,6 +47,7 @@ async function LowerRecommendationSections({ locale, userId, catalog }: { locale
 }
 
 async function HomePopularStores({ locale }: { locale: Locale }) {
+  if (!isDatabaseConfigured()) return null;
   const result = await getSellerRepository().findPublicMany({ q: '', page: 1, pageSize: 10, sort: 'popular' }).catch(() => ({ items: [] }));
   if (!result.items.length) return null;
   const copy = locale === 'en'
@@ -77,6 +79,7 @@ async function HomePopularStores({ locale }: { locale: Locale }) {
 }
 
 async function PopularCategoryRanking({ locale }: { locale: Locale }) {
+  if (!isDatabaseConfigured()) return null;
   const categories = await getCategoryRepository().findAll(true, true).catch(() => []);
   const top = categories.filter((category) => !category.parentId).sort((a, b) => Number(b.productCount ?? 0) - Number(a.productCount ?? 0)).slice(0, 2);
   if (!top.length) return null;
