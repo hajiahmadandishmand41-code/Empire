@@ -55,6 +55,8 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Architecture contract
         run: npm run architecture:check
+      - name: Six-stage remediation contract
+        run: npm run remediation:check
       - name: Generate Prisma Client
         run: npx prisma generate
       - name: Lint
