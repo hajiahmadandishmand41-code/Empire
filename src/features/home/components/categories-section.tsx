@@ -4,13 +4,15 @@ import { Container } from '@/components/layout/container';
 import Link from 'next/link';
 import { CategoryCard } from './category-card';
 import { getCategoryRepository } from '@/server/infrastructure/registry';
+import { isDatabaseConfigured } from '@/lib/db';
 
 export async function CategoriesSection() {
-  const [t, locale, categories] = await Promise.all([
+  const [t, locale] = await Promise.all([
     getTranslations('home.categories'),
     getLocale(),
-    getCategoryRepository().findAll(true, true).catch(() => []),
   ]);
+  if (!isDatabaseConfigured()) return null;
+  const categories = await getCategoryRepository().findAll(true, true).catch(() => []);
   const roots = categories.filter((category) => !category.parentId).slice(0, 10);
   if (!roots.length) return null;
 
