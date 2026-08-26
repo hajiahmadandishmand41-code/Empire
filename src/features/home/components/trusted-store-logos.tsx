@@ -2,6 +2,7 @@ import Image from 'next/image';
 import { ShieldCheck, Store } from 'lucide-react';
 import { Link } from '@/i18n/routing';
 import { getSellerRepository } from '@/server/infrastructure/registry';
+import { isDatabaseConfigured } from '@/lib/db';
 
 type Locale = 'fa' | 'ps' | 'en';
 
@@ -12,6 +13,7 @@ const copy = {
 } as const;
 
 export async function TrustedStoreLogos({ locale }: { locale: Locale }) {
+  if (!isDatabaseConfigured()) return null;
   const result = await getSellerRepository().findPublicMany({ q: '', page: 1, pageSize: 10 });
   if (!result.items.length) return null;
   const t = copy[locale];
