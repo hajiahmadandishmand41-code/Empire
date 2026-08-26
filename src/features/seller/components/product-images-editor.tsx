@@ -20,7 +20,7 @@ interface Props {
   initialPrimaryIndex?: number;
 }
 
-const MAX_BYTES = 3 * 1024 * 1024; // 3 MB
+const MAX_BYTES = 3 * 1024 * 1024;
 const MIN_IMAGES = 3;
 const MAX_IMAGES = 10;
 
@@ -60,10 +60,7 @@ export function ProductImagesEditor({ productId, initial, initialPrimaryIndex = 
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({
-          imagesJson: JSON.stringify(nextImages),
-          primaryImageIndex: nextPrimaryIndex,
-        }),
+        body: JSON.stringify({ imagesJson: JSON.stringify(nextImages), primaryImageIndex: nextPrimaryIndex }),
       });
       if (!res.ok) throw new Error('order_update_failed');
       return true;
@@ -143,6 +140,8 @@ export function ProductImagesEditor({ productId, initial, initialPrimaryIndex = 
     if (dragIndex == null || dragIndex === targetIndex || busy) return;
     setBusy(true);
     const from = dragIndex;
+    const primaryUrl = images[primaryIndex];
+    const insertionIndex = from < targetIndex ? targetIndex - 1 : targetIndex;
     const next = [...images];
     const [moved] = next.splice(from, 1);
     if (!moved) {
@@ -150,14 +149,8 @@ export function ProductImagesEditor({ productId, initial, initialPrimaryIndex = 
       setDragIndex(null);
       return;
     }
-    next.splice(targetIndex, 0, moved);
-    const nextPrimary = primaryIndex === from
-      ? targetIndex
-      : from < primaryIndex && targetIndex >= primaryIndex
-        ? primaryIndex - 1
-        : from > primaryIndex && targetIndex <= primaryIndex
-          ? primaryIndex + 1
-          : primaryIndex;
+    next.splice(insertionIndex, 0, moved);
+    const nextPrimary = primaryUrl ? Math.max(0, next.indexOf(primaryUrl)) : 0;
 
     const previousImages = images;
     const previousPrimary = primaryIndex;
@@ -211,14 +204,10 @@ export function ProductImagesEditor({ productId, initial, initialPrimaryIndex = 
             onDragOver={(event) => event.preventDefault()}
             onDrop={() => onDrop(idx)}
             onDragEnd={() => setDragIndex(null)}
-            className={`group relative overflow-hidden rounded-xl border-2 transition-all ${
-              idx === primaryIndex ? 'border-rose-500 shadow-md shadow-rose-200 dark:shadow-rose-900' : 'border-border hover:border-rose-300'
-            } ${dragIndex === idx ? 'opacity-60' : ''}`}
+            className={`group relative overflow-hidden rounded-xl border-2 transition-all ${idx === primaryIndex ? 'border-rose-500 shadow-md shadow-rose-200 dark:shadow-rose-900' : 'border-border hover:border-rose-300'} ${dragIndex === idx ? 'opacity-60' : ''}`}
           >
             <img src={src} alt={`تصویر ${idx + 1}`} className="aspect-square w-full object-cover" loading="lazy" />
-            <div className="absolute start-1 bottom-1 flex items-center gap-1 rounded-full bg-black/60 px-1.5 py-0.5 text-[10px] text-white" title="برای تغییر ترتیب بکشید">
-              <GripVertical className="h-3 w-3" aria-hidden="true" />{idx + 1}
-            </div>
+            <div className="absolute start-1 bottom-1 flex items-center gap-1 rounded-full bg-black/60 px-1.5 py-0.5 text-[10px] text-white" title="برای تغییر ترتیب بکشید"><GripVertical className="h-3 w-3" aria-hidden="true" />{idx + 1}</div>
             {idx === primaryIndex && <div className="absolute start-1 top-1 flex items-center gap-0.5 rounded-full bg-rose-600 px-1.5 py-0.5 text-[10px] font-bold text-white shadow"><Star className="h-2.5 w-2.5 fill-white" /> اصلی</div>}
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/60 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
               {idx !== primaryIndex && <button type="button" onClick={() => onSetPrimary(idx)} disabled={busy} title="تنظیم به عنوان تصویر اصلی" className="flex items-center gap-1 rounded-full bg-rose-600/90 px-2.5 py-1.5 text-[11px] font-bold text-white transition-colors hover:bg-rose-700"><Star className="h-3 w-3" /> تصویر اصلی</button>}
@@ -227,10 +216,7 @@ export function ProductImagesEditor({ productId, initial, initialPrimaryIndex = 
           </li>
         ))}
         {Array.from({ length: emptySlots }).map((_, i) => (
-          <li key={`empty-${i}`} onClick={() => inputRef.current?.click()} className="flex aspect-square cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted/20 text-muted-foreground transition-colors hover:border-rose-300 hover:bg-rose-50/30 dark:hover:bg-rose-950/20">
-            <ImagePlus className="h-6 w-6" />
-            <span className="text-xs font-medium">تصویر {images.length + i + 1}</span>
-          </li>
+          <li key={`empty-${i}`} onClick={() => inputRef.current?.click()} className="flex aspect-square cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted/20 text-muted-foreground transition-colors hover:border-rose-300 hover:bg-rose-50/30 dark:hover:bg-rose-950/20"><ImagePlus className="h-6 w-6" /><span className="text-xs font-medium">تصویر {images.length + i + 1}</span></li>
         ))}
       </ul>
 
