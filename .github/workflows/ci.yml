@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, feature/eshop-marketplace-upgrade]
+    branches: [main, feature/eshop-marketplace-upgrade, chore/stage-1-architecture-audit-20260826]
   pull_request:
     branches: [main]
   workflow_dispatch:
