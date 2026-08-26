@@ -13,6 +13,7 @@
     "lint": "eslint src scripts prisma --max-warnings=0",
     "typecheck": "prisma generate && tsc --noEmit",
     "test": "VITE_CONFIG_NATIVE_IGNORE_WARNING=true vitest run",
+    "architecture:check": "node scripts/architecture-contract.mjs",
     "release-check": "node scripts/release-check.mjs",
     "release-gate": "node scripts/release-gate.mjs",
     "audit:prod": "npm audit --omit=dev",

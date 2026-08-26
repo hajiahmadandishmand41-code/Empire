@@ -2,20 +2,25 @@ import { cache } from 'react';
 import { getProductService } from '@/server/infrastructure/registry';
 import { rankProductsForUser } from './personalized-ranking';
 import { getCurrentUser } from '@/lib/auth/current-user';
+import { isDatabaseConfigured } from '@/lib/db';
 import type { ProductSummary } from '@/types';
 import type { SliderProduct } from '../components/product-slider-section';
 
 type HomeSection = 'featured' | 'bestSelling' | 'newest' | 'popular' | 'mostViewed';
 
+const EMPTY_HOME_DATA = { newest: [], bestSelling: [], mostViewed: [], popular: [], featured: [] } as const;
+
 export const getHomepageData = cache(async () => {
+  if (!isDatabaseConfigured()) return EMPTY_HOME_DATA;
   try {
     return await getProductService().getHomepageSections(12);
   } catch {
-    return { newest: [], bestSelling: [], mostViewed: [], popular: [], featured: [] };
+    return EMPTY_HOME_DATA;
   }
 });
 
 export const getHomepageSection = cache(async (section: HomeSection, size = 12, userId?: string | null): Promise<ProductSummary[]> => {
+  if (!isDatabaseConfigured()) return [];
   try {
     const service = getProductService();
     const personalized = section === 'popular' || section === 'bestSelling';
@@ -37,6 +42,7 @@ export const getHomepageSection = cache(async (section: HomeSection, size = 12, 
 });
 
 export const getHeroProducts = cache(async (): Promise<ProductSummary[]> => {
+  if (!isDatabaseConfigured()) return [];
   try {
     const result = await getProductService().listProducts({ badge: 'hero', page: 1, pageSize: 2, sort: 'newest', isActive: true });
     return result.products.slice(0, 2);
