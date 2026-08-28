@@ -21,7 +21,7 @@ if (!has('src/app/api/admin/media/route.ts', /deletePersistent\(uploadedUrl\)/))
 // Stage 3 — order/data integrity
 if (!has('src/app/api/orders/route.ts', /idempotentReference/)) failures.push('Stage 3: deterministic idempotency reference is missing.');
 if (!has('src/app/api/orders/route.ts', /const createdBase = await prisma\.\$transaction/)) failures.push('Stage 3: order creation is not transaction-protected.');
-if (!has('src/app/api/orders/route.ts', /p\.price\.mul\(item\.quantity\)/)) failures.push('Stage 3: server-side product pricing contract is missing.');
+if (!has('src/app/api/orders/route.ts', /\.price\.mul\(item\.quantity\)/)) failures.push('Stage 3: server-side product pricing contract is missing.');
 
 // Stage 4 — seller ownership isolation
 if (!has('src/lib/orders/order-engine.ts', /sellerOrderBelongsToSeller/)) failures.push('Stage 4: seller-order ownership helper is missing.');
