@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
-  "installCommand": "npm install --include=dev --no-audit --no-fund",
+  "installCommand": "npm install --include=dev --no-audit --no-fund && npm install --include=dev eslint-config-next@16.3.1 --no-audit --no-fund",
   "buildCommand": "node scripts/vercel-build.mjs",
   "regions": ["fra1"],
   "github": {
