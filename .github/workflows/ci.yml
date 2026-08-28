@@ -52,7 +52,9 @@ jobs:
       - name: Show runtime versions
         run: node --version && npm --version
       - name: Install dependencies
-        run: npm install --include=dev --no-audit --no-fund
+        run: |
+          npm install --include=dev --no-audit --no-fund
+          npm install --include=dev eslint-config-next@16.3.1 --no-audit --no-fund
       - name: Architecture contract
         run: npm run architecture:check
       - name: Six-stage remediation contract
