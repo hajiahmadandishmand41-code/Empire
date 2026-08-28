@@ -28,7 +28,7 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - run: npm ci --no-audit --no-fund
+      - run: npm ci --include=dev --no-audit --no-fund
       - run: npm run host:check
         env:
           NODE_ENV: production
