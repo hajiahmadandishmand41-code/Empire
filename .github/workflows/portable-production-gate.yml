@@ -30,7 +30,9 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - run: npm install --include=dev --no-audit --no-fund
+      - run: |
+          npm install --include=dev --no-audit --no-fund
+          npm install --include=dev eslint-config-next@16.3.1 --no-audit --no-fund
       - run: npm run host:check
         env:
           NODE_ENV: production
