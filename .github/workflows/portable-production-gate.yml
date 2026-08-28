@@ -47,6 +47,8 @@ jobs:
       - run: npm run test
       - run: npm run audit:prod
       - run: npm run build
+        env:
+          NODE_ENV: production
 
   container:
     needs: quality
