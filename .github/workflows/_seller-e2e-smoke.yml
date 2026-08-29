@@ -31,7 +31,7 @@ jobs:
       NEXTAUTH_SECRET: ci-seller-e2e-secret
       SESSION_SECRET: ci-seller-e2e-secret
       NEXT_PUBLIC_SITE_URL: http://127.0.0.1:3000
-      NODE_ENV: development
+      NODE_ENV: production
       SELLER_E2E_EMAIL: seller-e2e@empire.shop
       SELLER_E2E_PASSWORD: seller-e2e-password-12345
       ADMIN_SEED_EMAIL: admin2@empire.shop
