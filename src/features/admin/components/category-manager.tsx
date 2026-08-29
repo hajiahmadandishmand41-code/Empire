@@ -11,7 +11,6 @@ import type { AdminCategoryRow } from '@/features/admin/lib/mock-data';
 
 type AdminCategory = AdminCategoryRow & { parentId?: string | null; imageUrl?: string | null; isActive?: boolean; sortOrder?: number };
 interface CategoryManagerProps { initial: AdminCategoryRow[] }
-
 type ImagePickerProps = { value?: string | null; busy?: boolean; onUploaded: (url: string) => void };
 
 function ImagePicker({ value, busy, onUploaded }: ImagePickerProps) {
@@ -51,8 +50,9 @@ function ImagePicker({ value, busy, onUploaded }: ImagePickerProps) {
 }
 
 function toKey(name: string): string {
-  const normalized = name.trim().toLowerCase().replace(/[^a-z0-9آ-ی]+/gi, '-').replace(/^-+|-+$/g, '');
-  return normalized || `category-${Date.now().toString(36)}`;
+  const ascii = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 32);
+  const suffix = Date.now().toString(36).slice(-6);
+  return ascii ? `${ascii}-${suffix}` : `category-${suffix}`;
 }
 
 export function CategoryManager({ initial }: CategoryManagerProps) {
