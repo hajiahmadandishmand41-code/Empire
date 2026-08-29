@@ -22,7 +22,7 @@ const createSchema = z.object({
 export async function OPTIONS() { return jsonPreflight(); }
 
 export async function GET() {
-  const guard = await requireAdminApi();
+  const guard = await requireAdminApi('categories.view');
   if (!guard.ok) return guard.response;
   if (!isDatabaseConfigured()) return jsonError('db_unavailable', 'Database is not configured', { status: 503 });
   try {
@@ -35,7 +35,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const guard = await requireAdminApi();
+  const guard = await requireAdminApi('categories.manage');
   if (!guard.ok) return guard.response;
   if (!isDatabaseConfigured()) return jsonError('db_unavailable', 'Database is not configured', { status: 503 });
 
