@@ -6,74 +6,54 @@ import { jsonError, jsonOk, jsonPreflight } from '@/lib/api/response';
 import { requireSellerApi } from '@/lib/auth/require-seller-api';
 
 export const dynamic = 'force-dynamic';
-
 const INTERNAL_MEDIA_PATH = /^\/api\/media\/[A-Za-z0-9_-]{8,80}$/;
 const optionalText = (max: number) => z.string().trim().max(max).optional().nullable();
 const optionalHttpUrl = (max: number) => optionalText(max).refine((value) => {
   if (value == null || value === '') return true;
-  try { const url = new URL(value); return url.protocol === 'http:' || url.protocol === 'https:'; }
-  catch { return false; }
+  try { const url = new URL(value); return url.protocol === 'http:' || url.protocol === 'https:'; } catch { return false; }
 }, 'Invalid URL');
 const optionalMediaUrl = (max: number) => optionalText(max).refine((value) => {
   if (value == null || value === '' || INTERNAL_MEDIA_PATH.test(value)) return true;
-  try { const url = new URL(value); return url.protocol === 'http:' || url.protocol === 'https:'; }
-  catch { return false; }
+  try { const url = new URL(value); return url.protocol === 'http:' || url.protocol === 'https:'; } catch { return false; }
 }, 'Invalid media URL');
 const optionalJson = optionalText(4000).refine((value) => {
   if (value == null || value === '') return true;
   try { JSON.parse(value); return true; } catch { return false; }
 }, 'attributesJson must contain valid JSON');
-
 const brandSchema = z.object({
-  name: z.string().trim().min(2).max(120).optional(),
-  slug: z.string().trim().min(2).max(100).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).optional(),
+  name: z.string().trim().min(2).max(120).optional(), slug: z.string().trim().min(2).max(100).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).optional(),
   description: optionalText(1500), logoUrl: optionalMediaUrl(500), bannerUrl: optionalMediaUrl(500), website: optionalHttpUrl(300),
   country: optionalText(120), contactEmail: z.string().trim().email().max(200).optional().nullable(), contactPhone: optionalText(40),
   instagram: optionalHttpUrl(300), facebook: optionalHttpUrl(300), telegram: optionalHttpUrl(300), linkedin: optionalHttpUrl(300),
   attributesJson: optionalJson, isActive: z.boolean().optional(),
 }).strict().refine((value) => Object.keys(value).length > 0, { message: 'At least one brand field is required' });
-
-function slugify(value: string) {
-  const slug = value.normalize('NFKD').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 70);
-  return slug || `brand-${Date.now()}`;
-}
-
+function slugify(value: string) { const slug = value.normalize('NFKD').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 70); return slug || `brand-${Date.now()}`; }
 async function ensureSellerBrand(sellerId: string) {
   const existing = await prisma.$queryRaw<Array<Record<string, unknown>>>(Prisma.sql`SELECT * FROM "SellerBrand" WHERE "sellerId" = ${sellerId} LIMIT 1`);
   if (existing[0]) return existing[0];
   const seller = await prisma.user.findUnique({ where: { id: sellerId }, select: { fullName: true, sellerShopName: true, sellerBio: true, sellerLogoUrl: true, sellerBannerUrl: true, sellerWebsite: true, sellerCountry: true, sellerContactEmail: true, sellerContactPhone: true, sellerInstagram: true, sellerFacebook: true, sellerTelegram: true, sellerLinkedin: true } });
   if (!seller) return null;
-  const name = seller.sellerShopName?.trim() || seller.fullName;
-  const id = `brand_${sellerId}`;
-  const slug = `${slugify(name)}-${sellerId.slice(0, 8)}`;
+  const name = seller.sellerShopName?.trim() || seller.fullName, id = `brand_${sellerId}`, slug = `${slugify(name)}-${sellerId.slice(0, 8)}`;
   const rows = await prisma.$queryRaw<Array<Record<string, unknown>>>(Prisma.sql`INSERT INTO "SellerBrand" ("id","sellerId","name","slug","description","logoUrl","bannerUrl","website","country","contactEmail","contactPhone","instagram","facebook","telegram","linkedin") VALUES (${id},${sellerId},${name},${slug},${seller.sellerBio},${seller.sellerLogoUrl},${seller.sellerBannerUrl},${seller.sellerWebsite},${seller.sellerCountry},${seller.sellerContactEmail},${seller.sellerContactPhone},${seller.sellerInstagram},${seller.sellerFacebook},${seller.sellerTelegram},${seller.sellerLinkedin}) ON CONFLICT ("sellerId") DO UPDATE SET "updatedAt" = CURRENT_TIMESTAMP RETURNING *`);
   return rows[0] ?? null;
 }
-
 export async function OPTIONS() { return jsonPreflight(); }
-
 export async function GET() {
-  const guard = await requireSellerApi();
-  if (!guard.ok) return guard.response;
+  const guard = await requireSellerApi(); if (!guard.ok) return guard.response;
   if (guard.user.role === 'admin') return jsonError('forbidden', 'Seller access required', { status: 403 });
   if (!isDatabaseConfigured()) return jsonError('db_unavailable', 'Database is not configured', { status: 503 });
   try { const brand = await ensureSellerBrand(guard.user.id); if (!brand) return jsonError('not_found', 'Seller not found', { status: 404 }); return jsonOk(brand); }
   catch (err) { console.error('[seller/brand.GET]', err); return jsonError('query_failed', 'Unable to load brand', { status: 500 }); }
 }
-
 export async function PATCH(req: NextRequest) {
-  const guard = await requireSellerApi();
-  if (!guard.ok) return guard.response;
+  const guard = await requireSellerApi(); if (!guard.ok) return guard.response;
   if (guard.user.role === 'admin') return jsonError('forbidden', 'Seller access required', { status: 403 });
   if (!isDatabaseConfigured()) return jsonError('db_unavailable', 'Database is not configured', { status: 503 });
   let body: unknown; try { body = await req.json(); } catch { return jsonError('invalid_json', 'Invalid JSON', { status: 400 }); }
-  const parsed = brandSchema.safeParse(body);
-  if (!parsed.success) return jsonError('invalid_body', 'Invalid brand payload', { status: 422, details: { issues: parsed.error.issues } });
+  const parsed = brandSchema.safeParse(body); if (!parsed.success) return jsonError('invalid_body', 'Invalid brand payload', { status: 422, details: { issues: parsed.error.issues } });
   try {
-    const current = await ensureSellerBrand(guard.user.id);
-    if (!current) return jsonError('not_found', 'Seller not found', { status: 404 });
-    const data = parsed.data;
-    const setParts: Prisma.Sql[] = [Prisma.sql`"updatedAt" = CURRENT_TIMESTAMP`];
+    const current = await ensureSellerBrand(guard.user.id); if (!current) return jsonError('not_found', 'Seller not found', { status: 404 });
+    const data = parsed.data; const setParts: Prisma.Sql[] = [Prisma.sql`"updatedAt" = CURRENT_TIMESTAMP`];
     if (data.name !== undefined) setParts.push(Prisma.sql`"name" = ${data.name}`);
     if (data.slug !== undefined) setParts.push(Prisma.sql`"slug" = ${data.slug}`);
     for (const [column, value] of [
@@ -88,7 +68,6 @@ export async function PATCH(req: NextRequest) {
   } catch (err: unknown) {
     const code = typeof err === 'object' && err && 'code' in err ? String((err as { code?: unknown }).code) : '';
     if (code === '23505' || code === 'P2002') return jsonError('duplicate_slug', 'A brand with this slug already exists.', { status: 409 });
-    console.error('[seller/brand.PATCH]', err);
-    return jsonError('update_failed', 'Brand update failed', { status: 500 });
+    console.error('[seller/brand.PATCH]', err); return jsonError('update_failed', 'Brand update failed', { status: 500 });
   }
 }
