@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, feature/eshop-marketplace-upgrade, chore/stage-1-architecture-audit-20260826]
+    branches: [main, admin-commerce-4stage-20260829, feature/eshop-marketplace-upgrade, chore/stage-1-architecture-audit-20260826]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -51,19 +51,6 @@ jobs:
           cache: npm
       - name: Show runtime versions
         run: node --version && npm --version
-      - name: Generate lockfile candidate for diagnostics
-        shell: bash
-        run: |
-          cp package-lock.json "$RUNNER_TEMP/package-lock.original.json"
-          npm install --package-lock-only --include=dev --no-audit --no-fund
-          cp package-lock.json "$RUNNER_TEMP/package-lock.generated.json"
-          cp "$RUNNER_TEMP/package-lock.original.json" package-lock.json
-      - name: Upload generated lockfile candidate
-        uses: actions/upload-artifact@v4
-        with:
-          name: generated-package-lock
-          path: ${{ runner.temp }}/package-lock.generated.json
-          if-no-files-found: error
       - name: Install dependencies
         run: npm ci --include=dev --no-audit --no-fund
       - name: Architecture contract
