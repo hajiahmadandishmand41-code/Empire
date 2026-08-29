@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma, isDatabaseConfigured } from '@/lib/db';
 import { jsonError, jsonOk, jsonPreflight } from '@/lib/api/response';
 import { recordAudit } from '@/lib/audit/log';
+import { requireAdminApi } from '@/lib/auth/require-admin-api';
 export const dynamic='force-dynamic';
 const imageUrlSchema=z.string().trim().url().max(1000);
 const patchSchema=z.object({name:z.string().trim().min(2).max(120).optional(),shortDescription:z.string().trim().min(2).max(300).optional(),price:z.number().positive().optional(),inStock:z.boolean().optional(),badge:z.string().trim().max(40).nullable().optional(),description:z.string().optional(),region:z.string().trim().min(1).optional(),categoryId:z.string().trim().min(1).optional(),stockQuantity:z.number().int().min(0).optional(),isActive:z.boolean().optional(),imagesJson:z.array(imageUrlSchema).max(12).optional(),primaryImageIndex:z.number().int().min(0).max(11).optional()}).strict();
