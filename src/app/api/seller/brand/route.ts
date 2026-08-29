@@ -33,7 +33,10 @@ const brandSchema = z.object({
   attributesJson: optionalJson, isActive: z.boolean().optional(),
 }).strict().refine((value) => Object.keys(value).length > 0, { message: 'At least one brand field is required' });
 
-function slugify(value: string) { const slug = value.normalize('NFKD').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 70); return slug || `brand-${Date.now()}`; }
+function slugify(value: string) {
+  const slug = value.normalize('NFKD').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 70);
+  return slug || `brand-${Date.now()}`;
+}
 
 async function ensureSellerBrand(sellerId: string) {
   const existing = await prisma.$queryRaw<Array<Record<string, unknown>>>(Prisma.sql`SELECT * FROM "SellerBrand" WHERE "sellerId" = ${sellerId} LIMIT 1`);
