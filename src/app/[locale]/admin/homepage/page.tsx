@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronDown, ChevronUp, Eye, Plus, Trash2 } from 'lucide-react';
+import Link from 'next/link';
+import { ChevronDown, ChevronUp, Eye, Megaphone, Plus, Trash2 } from 'lucide-react';
 
 type Section = {
   id: string;
@@ -18,15 +19,14 @@ const SECTION_TYPES = [
   ['products', 'محصولات'],
   ['categories', 'دسته‌بندی‌ها'],
   ['stores', 'فروشگاه‌ها'],
-  ['banner', 'بنر'],
   ['traditional', 'محصولات وطنی'],
   ['custom', 'سفارشی'],
 ] as const;
 
-export default function HomepageBuilderPage() {
+export default function HomepageBuilderPage({ params }: { params?: Promise<{ locale: string }> }) {
+  const [locale, setLocale] = useState('fa');
   const [sections, setSections] = useState<Section[]>([]);
   const [status, setStatus] = useState('');
-  const [expanded, setExpanded] = useState<string | null>(null);
   const [draft, setDraft] = useState({
     key: 'featured-products',
     title: 'محصولات ویژه',
@@ -34,13 +34,21 @@ export default function HomepageBuilderPage() {
     type: 'products',
     sortOrder: 0,
     isActive: true,
-    configJson: '{"limit":8}',
+    limit: 8,
   });
 
+  useEffect(() => {
+    if (params) void params.then((value) => setLocale(value.locale));
+  }, [params]);
+
   async function load() {
-    const r = await fetch('/api/admin/homepage');
-    const j = await r.json();
-    setSections(j.data ?? []);
+    try {
+      const r = await fetch('/api/admin/homepage', { cache: 'no-store' });
+      const j = await r.json();
+      setSections(j.data ?? []);
+    } catch {
+      setStatus('بارگذاری بخش‌های صفحه اصلی ناموفق بود.');
+    }
   }
 
   useEffect(() => { void load(); }, []);
@@ -49,20 +57,19 @@ export default function HomepageBuilderPage() {
 
   async function save() {
     setStatus('در حال ذخیره…');
-    let config: Record<string, unknown>;
+    const configJson = draft.type === 'products' ? { limit: Math.min(48, Math.max(1, Number(draft.limit) || 8)) } : {};
     try {
-      config = JSON.parse(draft.configJson || '{}');
+      const r = await fetch('/api/admin/homepage', {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ key: draft.key.trim(), title: draft.title.trim() || null, subtitle: draft.subtitle.trim() || null, type: draft.type, sortOrder: Math.max(0, Number(draft.sortOrder) || 0), isActive: draft.isActive, configJson }),
+      });
+      const j = await r.json().catch(() => null);
+      setStatus(r.ok ? 'بخش با موفقیت ذخیره شد.' : (j?.error?.message ?? 'ذخیره بخش ناموفق بود.'));
+      if (r.ok) await load();
     } catch {
-      setStatus('تنظیمات JSON معتبر نیست.');
-      return;
+      setStatus('ذخیره بخش ناموفق بود.');
     }
-    const r = await fetch('/api/admin/homepage', {
-      method: 'PUT',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ ...draft, configJson: config }),
-    });
-    setStatus(r.ok ? 'بخش با موفقیت ذخیره شد.' : 'ذخیره بخش ناموفق بود.');
-    if (r.ok) await load();
   }
 
   async function remove(id: string) {
@@ -75,12 +82,9 @@ export default function HomepageBuilderPage() {
     const targetIndex = sorted.findIndex((item) => item.id === section.id) + direction;
     if (targetIndex < 0 || targetIndex >= sorted.length) return;
     const target = sorted[targetIndex];
-    const currentOrder = section.sortOrder;
-    const payloadA = { ...section, sortOrder: target.sortOrder };
-    const payloadB = { ...target, sortOrder: currentOrder };
     await Promise.all([
-      fetch('/api/admin/homepage', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payloadA) }),
-      fetch('/api/admin/homepage', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payloadB) }),
+      fetch('/api/admin/homepage', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: section.id, key: section.key, title: section.title, subtitle: section.subtitle, type: section.type, configJson: section.configJson, sortOrder: target.sortOrder, isActive: section.isActive }) }),
+      fetch('/api/admin/homepage', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: target.id, key: target.key, title: target.title, subtitle: target.subtitle, type: target.type, configJson: target.configJson, sortOrder: section.sortOrder, isActive: target.isActive }) }),
     ]);
     await load();
   }
@@ -91,9 +95,12 @@ export default function HomepageBuilderPage() {
         <div>
           <p className="text-xs font-bold text-primary">مدیریت محتوای صفحه اصلی</p>
           <h1 className="mt-1 text-2xl font-black">سازنده صفحه اصلی</h1>
-          <p className="mt-2 text-sm text-muted-foreground">ترتیب، محتوای قابل نمایش و فعال/غیرفعال بودن بخش‌ها را بدون تغییر کد مدیریت کنید.</p>
+          <p className="mt-2 text-sm text-muted-foreground">چینش و محتوای بخش‌های صفحه اصلی را بدون JSON و بدون دستکاری کد مدیریت کنید.</p>
         </div>
-        <a href="/fa" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-sm font-bold hover:bg-muted"><Eye className="h-4 w-4" /> پیش‌نمایش سایت</a>
+        <div className="flex flex-wrap gap-2">
+          <Link href={`/${locale}/admin/banners`} className="inline-flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-sm font-bold hover:bg-muted"><Megaphone className="h-4 w-4" /> مدیریت متمرکز بنرها</Link>
+          <a href={`/${locale}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-sm font-bold hover:bg-muted"><Eye className="h-4 w-4" /> پیش‌نمایش سایت</a>
+        </div>
       </header>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
@@ -107,17 +114,17 @@ export default function HomepageBuilderPage() {
             </div>
             <label><span className="mb-2 block text-sm font-semibold">زیرعنوان</span><input value={draft.subtitle} onChange={(e) => setDraft({ ...draft, subtitle: e.target.value })} className="h-11 w-full rounded-xl border border-input bg-background px-3 text-sm" /></label>
             <div className="grid gap-4 sm:grid-cols-2">
-              <label><span className="mb-2 block text-sm font-semibold">ترتیب نمایش</span><input type="number" value={draft.sortOrder} onChange={(e) => setDraft({ ...draft, sortOrder: Number(e.target.value) })} className="h-11 w-full rounded-xl border border-input bg-background px-3 text-sm" /></label>
-              <label className="flex items-end"><span className="flex h-11 w-full items-center gap-3 rounded-xl border border-input bg-background px-3 text-sm"><input type="checkbox" checked={draft.isActive} onChange={(e) => setDraft({ ...draft, isActive: e.target.checked })} className="h-4 w-4" /> بخش فعال باشد</span></label>
+              <label><span className="mb-2 block text-sm font-semibold">ترتیب نمایش</span><input type="number" min={0} value={draft.sortOrder} onChange={(e) => setDraft({ ...draft, sortOrder: Number(e.target.value) || 0 })} className="h-11 w-full rounded-xl border border-input bg-background px-3 text-sm" /></label>
+              {draft.type === 'products' ? <label><span className="mb-2 block text-sm font-semibold">تعداد محصولات</span><input type="number" min={1} max={48} value={draft.limit} onChange={(e) => setDraft({ ...draft, limit: Number(e.target.value) || 1 })} className="h-11 w-full rounded-xl border border-input bg-background px-3 text-sm" /></label> : <div className="flex items-end"><label className="flex h-11 w-full items-center gap-3 rounded-xl border border-input bg-background px-3 text-sm"><input type="checkbox" checked={draft.isActive} onChange={(e) => setDraft({ ...draft, isActive: e.target.checked })} className="h-4 w-4" /> بخش فعال باشد</label></div>}
             </div>
-            <label><span className="mb-2 block text-sm font-semibold">تنظیمات پیشرفته</span><textarea value={draft.configJson} onChange={(e) => setDraft({ ...draft, configJson: e.target.value })} rows={7} className="w-full rounded-xl border border-input bg-background px-3 py-2.5 font-mono text-xs" /><span className="mt-1 block text-xs text-muted-foreground">برای نمونه: {'{"limit":8}'}</span></label>
+            {draft.type === 'products' ? <label className="flex h-11 items-center gap-3 rounded-xl border border-input bg-background px-3 text-sm"><input type="checkbox" checked={draft.isActive} onChange={(e) => setDraft({ ...draft, isActive: e.target.checked })} className="h-4 w-4" /> بخش فعال باشد</label> : null}
             <button onClick={() => void save()} className="rounded-xl bg-primary px-4 py-3 text-sm font-bold text-primary-foreground">ذخیره بخش</button>
             {status && <p className="text-xs font-semibold text-muted-foreground">{status}</p>}
           </div>
         </section>
 
         <section className="rounded-3xl border border-border bg-card p-5">
-          <div className="flex items-center justify-between gap-3"><div><h2 className="text-lg font-black">چینش فعلی صفحه اصلی</h2><p className="mt-1 text-xs text-muted-foreground">هر بخش را با دکمه‌های بالا/پایین جابه‌جا کنید.</p></div><span className="rounded-full bg-muted px-3 py-1 text-xs font-bold">{sorted.length} بخش</span></div>
+          <div className="flex items-center justify-between gap-3"><div><h2 className="text-lg font-black">چینش فعلی صفحه اصلی</h2><p className="mt-1 text-xs text-muted-foreground">بنرها اینجا مدیریت نمی‌شوند و فقط در صفحه «بنرها» کنترل می‌شوند.</p></div><span className="rounded-full bg-muted px-3 py-1 text-xs font-bold">{sorted.length} بخش</span></div>
           <div className="mt-5 space-y-3">
             {sorted.map((section, index) => (
               <article key={section.id} className="rounded-2xl border border-border bg-background p-4">
