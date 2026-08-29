@@ -13,42 +13,25 @@ const patchSchema = z.object({
   adminNote: z.string().max(500).optional(),
 });
 
-export async function OPTIONS() {
-  return jsonPreflight();
-}
+export async function OPTIONS() { return jsonPreflight(); }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const guard = await requireAdminApi();
+  const guard = await requireAdminApi('sellers.manage');
   if (!guard.ok) return guard.response;
 
   let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return jsonError('invalid_json', 'Invalid JSON', { status: 400 });
-  }
+  try { body = await req.json(); } catch { return jsonError('invalid_json', 'Invalid JSON', { status: 400 }); }
   const parsed = patchSchema.safeParse(body);
-  if (!parsed.success) {
-    return jsonError('invalid_body', 'اطلاعات نامعتبر است.', {
-      status: 422,
-      details: { issues: parsed.error.issues },
-    });
-  }
+  if (!parsed.success) return jsonError('invalid_body', 'اطلاعات نامعتبر است.', { status: 422, details: { issues: parsed.error.issues } });
+
   try {
-    // Snapshot previous state for the audit entry (best-effort — a
-    // failure here must not block the decision itself).
     let previousStatus: string | null = null;
     if (isDatabaseConfigured()) {
-      const existing = await prisma.payout.findUnique({
-        where: { id },
-        select: { status: true },
-      });
+      const existing = await prisma.payout.findUnique({ where: { id }, select: { status: true } });
       previousStatus = existing?.status ?? null;
     }
-
     const payout = await updatePayoutStatus(id, parsed.data.decision, parsed.data.adminNote);
-
     await recordAudit({
       actor: { id: guard.user.id, role: guard.user.role },
       action: 'payout.decision',
@@ -56,23 +39,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       entityId: payout.id,
       before: { status: previousStatus },
       after: { status: payout.status },
-      metadata: {
-        decision: parsed.data.decision,
-        amount: payout.amount.toFixed(2),
-        currency: payout.currency,
-        sellerId: payout.sellerId,
-        adminNote: parsed.data.adminNote ?? null,
-      },
+      metadata: { decision: parsed.data.decision, amount: payout.amount.toFixed(2), currency: payout.currency, sellerId: payout.sellerId, adminNote: parsed.data.adminNote ?? null },
       req,
     });
-
     return jsonOk({ payout: { ...payout, amount: payout.amount.toFixed(2) } });
   } catch (err) {
-    if (err instanceof PayoutError) {
-      return jsonError(err.code, err.message, {
-        status: err.code === 'not_found' ? 404 : 400,
-      });
-    }
+    if (err instanceof PayoutError) return jsonError(err.code, err.message, { status: err.code === 'not_found' ? 404 : 400 });
     console.error('[admin/payouts.PATCH]', err);
     return jsonError('update_failed', 'به‌روزرسانی برداشت با خطا مواجه شد.', { status: 500 });
   }
