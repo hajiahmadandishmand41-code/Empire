@@ -23,6 +23,27 @@ const patchSchema = z.object({
   primaryImageIndex: z.number().int().min(0).max(11).optional(),
 }).strict();
 
+function normalizeImageUrls(raw: unknown): string[] {
+  if (raw == null) return [];
+  let value: unknown = raw;
+  if (typeof raw === 'string') {
+    try { value = JSON.parse(raw); } catch { return []; }
+  }
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (typeof item === 'string') return [item];
+    if (item && typeof item === 'object' && 'src' in item) {
+      const src = (item as { src?: unknown }).src;
+      return typeof src === 'string' ? [src] : [];
+    }
+    if (item && typeof item === 'object' && 'url' in item) {
+      const url = (item as { url?: unknown }).url;
+      return typeof url === 'string' ? [url] : [];
+    }
+    return [];
+  });
+}
+
 export async function OPTIONS() { return jsonPreflight(); }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -39,7 +60,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   try {
     const before = await prisma.product.findUnique({ where: { id } });
     if (!before) return jsonError('not_found', 'Product not found', { status: 404 });
-    const nextImages = p.data.imagesJson ?? (Array.isArray(before.imagesJson) ? before.imagesJson.filter((item): item is string => typeof item === 'string') : []);
+    const nextImages = p.data.imagesJson ?? normalizeImageUrls(before.imagesJson);
     const nextPrimary = p.data.primaryImageIndex ?? before.primaryImageIndex;
     if (nextImages.length === 0 && nextPrimary !== 0) return jsonError('invalid_primary_image', 'Primary image index must be 0 when there are no images', { status: 422 });
     if (nextImages.length > 0 && nextPrimary >= nextImages.length) return jsonError('invalid_primary_image', 'Primary image index is out of range', { status: 422 });
