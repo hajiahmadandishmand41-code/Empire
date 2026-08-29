@@ -24,6 +24,14 @@ const routes = [
   '/fa/seller/settings',
 ];
 
+async function login(page) {
+  await page.goto(`${base}/fa/auth/login`, { waitUntil: 'domcontentloaded' });
+  await page.locator('input[type="text"], input[type="email"]').first().fill(email);
+  await page.locator('input[type="password"]').fill(password);
+  await page.locator('form[aria-label]').getByRole('button', { name: /ورود|login/i }).click();
+  await expect(page).toHaveURL(/\/fa\/seller(?:[/?#]|$)/, { timeout: 20000 });
+}
+
 test('seller can authenticate and open every seller-center route', async ({ page }) => {
   const errors = [];
   page.on('pageerror', (error) => errors.push(`pageerror: ${error.message}`));
@@ -31,11 +39,7 @@ test('seller can authenticate and open every seller-center route', async ({ page
     if (msg.type() === 'error') errors.push(`console: ${msg.text()}`);
   });
 
-  await page.goto(`${base}/fa/auth/login`, { waitUntil: 'domcontentloaded' });
-  await page.locator('input[type="text"], input[type="email"]').first().fill(email);
-  await page.locator('input[type="password"]').fill(password);
-  await page.locator('form[aria-label]').getByRole('button', { name: /ورود|login/i }).click();
-  await expect(page).toHaveURL(/\/fa\/seller(?:[/?#]|$)/, { timeout: 20000 });
+  await login(page);
 
   for (const route of routes) {
     errors.length = 0;
@@ -50,19 +54,17 @@ test('seller can authenticate and open every seller-center route', async ({ page
 });
 
 test('seller can create and reload a real product through the UI', async ({ page }) => {
-  await page.goto(`${base}/fa/auth/login`, { waitUntil: 'domcontentloaded' });
-  await page.locator('input[type="text"], input[type="email"]').first().fill(email);
-  await page.locator('input[type="password"]').fill(password);
-  await page.locator('form[aria-label]').getByRole('button', { name: /ورود|login/i }).click();
-  await expect(page).toHaveURL(/\/fa\/seller(?:[/?#]|$)/, { timeout: 20000 });
+  await login(page);
 
   await page.goto(`${base}/fa/seller/products/new`, { waitUntil: 'domcontentloaded' });
   const form = page.locator('form').last();
   const textInputs = form.locator('input[type="text"]');
+  const numericInputs = form.locator('input[type="number"]');
+
   await textInputs.nth(0).fill('محصول تست فروشنده E2E');
   await form.locator('textarea').nth(0).fill('توضیح تست واقعی محصول فروشنده');
-  await form.locator('input[type="number"]').nth(0).fill('2500');
-  await form.locator('input[type="number"]').nth(1).fill('12');
+  await numericInputs.nth(0).fill('2500'); // price
+  await numericInputs.nth(2).fill('12'); // stockQuantity
   await form.locator('select').first().selectOption({ index: 0 });
 
   await form.locator('button[type="submit"]').click();
@@ -74,11 +76,7 @@ test('seller can create and reload a real product through the UI', async ({ page
 });
 
 test('seller is blocked from admin-only area and admin remains reachable separately', async ({ page }) => {
-  await page.goto(`${base}/fa/auth/login`, { waitUntil: 'domcontentloaded' });
-  await page.locator('input[type="text"], input[type="email"]').first().fill(email);
-  await page.locator('input[type="password"]').fill(password);
-  await page.locator('form[aria-label]').getByRole('button', { name: /ورود|login/i }).click();
-  await expect(page).toHaveURL(/\/fa\/seller(?:[/?#]|$)/, { timeout: 20000 });
+  await login(page);
 
   const response = await page.goto(`${base}/fa/admin`, { waitUntil: 'domcontentloaded' });
   expect(response).not.toBeNull();
