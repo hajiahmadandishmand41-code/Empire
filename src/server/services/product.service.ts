@@ -81,13 +81,8 @@ export class ProductService {
   async createProduct(input: { slug: string; name: string; shortDescription: string; price: number; compareAtPrice?: number | null; categoryId: string; sellerId: string; region: string; currency?: string; inStock?: boolean; isActive?: boolean; stockQuantity?: number; description?: string | null; whatsappNumber?: string | null; videoUrl?: string | null; isTraditional?: boolean; imagesJson?: string | null; weightKg?: number | null; dimensionsJson?: string | null; tagsJson?: string | null; attributesJson?: string | null; primaryImageIndex?: number; }) {
     const category = await this.categories.findById(input.categoryId);
     if (!category) throw new ProductServiceError('category_not_found', 'دسته‌بندی انتخاب‌شده وجود ندارد. لطفاً یک دسته‌بندی معتبر انتخاب کنید.', 422);
-    try {
-      return await this.products.create(input);
-    } catch (err: unknown) {
-      const e = err as { code?: string };
-      if (e.code === 'P2002') throw new ProductServiceError('slug_exists', 'محصولی با این شناسه (slug) قبلاً ثبت شده است. لطفاً شناسه دیگری انتخاب کنید.', 409);
-      throw err;
-    }
+    try { return await this.products.create(input); }
+    catch (err: unknown) { const e = err as { code?: string }; if (e.code === 'P2002') throw new ProductServiceError('slug_exists', 'محصولی با این شناسه (slug) قبلاً ثبت شده است. لطفاً شناسه دیگری انتخاب کنید.', 409); throw err; }
   }
 
   async updateProduct(id: string, input: { name?: string; shortDescription?: string; price?: number; compareAtPrice?: number | null; categoryId?: string; region?: string; currency?: string; inStock?: boolean; isActive?: boolean; stockQuantity?: number; description?: string | null; whatsappNumber?: string | null; videoUrl?: string | null; isTraditional?: boolean; imagesJson?: string | null; tagsJson?: string | null; attributesJson?: string | null; weightKg?: number | null; dimensionsJson?: string | null; primaryImageIndex?: number; }) {
