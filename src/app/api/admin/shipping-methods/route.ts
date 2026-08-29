@@ -15,30 +15,23 @@ export const dynamic = 'force-dynamic';
 export async function OPTIONS() { return jsonPreflight(); }
 
 export async function GET() {
-  const guard = await requireAdminApi();
+  const guard = await requireAdminApi('orders.view');
   if (!guard.ok) return guard.response;
   if (!isDatabaseConfigured()) return jsonOk({ items: [] });
-
-  const rows = await prisma.shippingMethod.findMany({
-    orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
-  });
+  const rows = await prisma.shippingMethod.findMany({ orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }] });
   return jsonOk({ items: rows.map(mapShippingMethod) });
 }
 
 export async function POST(req: NextRequest) {
-  const guard = await requireAdminApi();
+  const guard = await requireAdminApi('orders.manage');
   if (!guard.ok) return guard.response;
   if (!isDatabaseConfigured()) return jsonError('db_unavailable', 'DB not configured', { status: 503 });
-
   let body: unknown;
   try { body = await req.json(); } catch { return jsonError('invalid_json', 'Bad JSON', { status: 400 }); }
   const parsed = shippingMethodInputSchema.safeParse(body);
-  if (!parsed.success) {
-    return jsonError('invalid_body', 'Invalid shipping method', { status: 422, details: { issues: parsed.error.issues } });
-  }
+  if (!parsed.success) return jsonError('invalid_body', 'Invalid shipping method', { status: 422, details: { issues: parsed.error.issues } });
   const exists = await prisma.shippingMethod.findUnique({ where: { key: parsed.data.key } });
   if (exists) return jsonError('duplicate_key', 'A method with this key already exists', { status: 409 });
-
   const created = await prisma.shippingMethod.create({ data: parsed.data });
   return jsonOk(mapShippingMethod(created), { status: 201 });
 }
