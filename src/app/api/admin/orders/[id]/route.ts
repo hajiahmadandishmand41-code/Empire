@@ -16,7 +16,7 @@ export async function OPTIONS() { return jsonPreflight(); }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const guard = await requireAdminApi();
+  const guard = await requireAdminApi('orders.manage');
   if (!guard.ok) return guard.response;
   let body: unknown;
   try { body = await req.json(); } catch { return jsonError('invalid_json', 'Invalid JSON', { status: 400 }); }
@@ -55,8 +55,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       } else if (goingToCancel) {
         const released = await releaseOrderStockReservations(tx, previous.id);
         if (!released.hadReservations) {
-          // Legacy orders created before reservations existed had already incremented
-          // salesCount and decremented stock at creation; preserve that compatibility path.
           for (const item of previous.items) {
             await tx.product.update({ where: { id: item.productId }, data: { stockQuantity: { increment: item.quantity }, salesCount: { decrement: item.quantity }, inStock: true } });
           }
