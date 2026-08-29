@@ -51,10 +51,21 @@ jobs:
           cache: npm
       - name: Show runtime versions
         run: node --version && npm --version
-      - name: Install dependencies
+      - name: Generate lockfile candidate for diagnostics
+        shell: bash
         run: |
-          npm install --include=dev --no-audit --no-fund
-          npm install --include=dev eslint-config-next@16.3.1 --no-audit --no-fund
+          cp package-lock.json "$RUNNER_TEMP/package-lock.original.json"
+          npm install --package-lock-only --include=dev --no-audit --no-fund
+          cp package-lock.json "$RUNNER_TEMP/package-lock.generated.json"
+          cp "$RUNNER_TEMP/package-lock.original.json" package-lock.json
+      - name: Upload generated lockfile candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-package-lock
+          path: ${{ runner.temp }}/package-lock.generated.json
+          if-no-files-found: error
+      - name: Install dependencies
+        run: npm ci --include=dev --no-audit --no-fund
       - name: Architecture contract
         run: npm run architecture:check
       - name: Six-stage remediation contract
