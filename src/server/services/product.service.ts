@@ -23,16 +23,6 @@ function readJsonArray(raw: unknown): string[] {
   try { const value: unknown = typeof raw === 'string' ? JSON.parse(raw) : raw; return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []; } catch { return []; }
 }
 
-function imageCount(raw: unknown): number {
-  if (raw == null) return 0;
-  try {
-    const value: unknown = typeof raw === 'string' ? JSON.parse(raw) : raw;
-    return Array.isArray(value) ? value.length : 0;
-  } catch {
-    return 0;
-  }
-}
-
 export class ProductService {
   constructor(private readonly products: IProductRepository, private readonly categories: ICategoryRepository, private readonly reviews: IReviewRepository) {}
 
@@ -91,10 +81,8 @@ export class ProductService {
   async createProduct(input: { slug: string; name: string; shortDescription: string; price: number; compareAtPrice?: number | null; categoryId: string; sellerId: string; region: string; currency?: string; inStock?: boolean; isActive?: boolean; stockQuantity?: number; description?: string | null; whatsappNumber?: string | null; videoUrl?: string | null; isTraditional?: boolean; imagesJson?: string | null; weightKg?: number | null; dimensionsJson?: string | null; tagsJson?: string | null; attributesJson?: string | null; primaryImageIndex?: number; }) {
     const category = await this.categories.findById(input.categoryId);
     if (!category) throw new ProductServiceError('category_not_found', 'دسته‌بندی انتخاب‌شده وجود ندارد. لطفاً یک دسته‌بندی معتبر انتخاب کنید.', 422);
-    const requestedActive = input.isActive !== false;
-    const isActive = requestedActive && imageCount(input.imagesJson) >= 3;
     try {
-      return await this.products.create({ ...input, isActive });
+      return await this.products.create(input);
     } catch (err: unknown) {
       const e = err as { code?: string };
       if (e.code === 'P2002') throw new ProductServiceError('slug_exists', 'محصولی با این شناسه (slug) قبلاً ثبت شده است. لطفاً شناسه دیگری انتخاب کنید.', 409);
@@ -104,13 +92,6 @@ export class ProductService {
 
   async updateProduct(id: string, input: { name?: string; shortDescription?: string; price?: number; compareAtPrice?: number | null; categoryId?: string; region?: string; currency?: string; inStock?: boolean; isActive?: boolean; stockQuantity?: number; description?: string | null; whatsappNumber?: string | null; videoUrl?: string | null; isTraditional?: boolean; imagesJson?: string | null; tagsJson?: string | null; attributesJson?: string | null; weightKg?: number | null; dimensionsJson?: string | null; primaryImageIndex?: number; }) {
     if (input.categoryId) { const category = await this.categories.findById(input.categoryId); if (!category) throw new ProductServiceError('category_not_found', 'دسته‌بندی انتخاب‌شده وجود ندارد.', 422); }
-    if (input.isActive === true) {
-      const current = await this.products.findById(id);
-      const effectiveImages = input.imagesJson !== undefined ? input.imagesJson : current?.imagesJson;
-      if (imageCount(effectiveImages) < 3) {
-        throw new ProductServiceError('images_required', 'برای فعال‌سازی محصول حداقل ۳ تصویر لازم است.', 422);
-      }
-    }
     return this.products.update(id, input);
   }
 
