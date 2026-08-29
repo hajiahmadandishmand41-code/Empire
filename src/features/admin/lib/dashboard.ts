@@ -4,8 +4,19 @@ type Numeric = number | string | bigint;
 type SummaryRow = { today: Numeric; week: Numeric; month: Numeric; revenue: Numeric; totalOrders: Numeric; newOrders: Numeric; users: Numeric; sellers: Numeric; products: Numeric; inactiveProducts: Numeric; lowStock: Numeric; pendingSellers: Numeric; avgOrderValue: Numeric };
 type SalesRow = { date: string; orders: Numeric; revenue: Numeric };
 type NameMetricRow = { name: string; units: Numeric; revenue: Numeric };
+export type DashboardLowStock = { id: string; name: string; stockQuantity: number; isActive: boolean };
+export type DashboardOrder = { id: string; reference: string; status: string; paymentStatus: string; total: number; currency: string; createdAt: Date; address: { fullName: string } };
+export type DashboardMetric = { name: string; units: number; revenue: number };
+export type DashboardSeller = { id: string; fullName: string; sellerShopName: string | null; sellerStatus: string; isActive: boolean; createdAt: Date };
+export type AdminDashboardMetrics = {
+  today: number; week: number; month: number; revenue: number; totalOrders: number; newOrders: number; users: number;
+  sellerCount: number; products: number; inactiveProducts: number; lowStockCount: number; pendingSellers: number; avgOrderValue: number;
+  currency: string; salesByDay: Array<{ date: string; orders: number; revenue: number }>;
+  pendingProducts: Array<never>; lowStock: DashboardLowStock[]; sellers: DashboardSeller[]; recentOrders: DashboardOrder[];
+  topProducts: DashboardMetric[]; topCategories: DashboardMetric[]; topSellers: DashboardMetric[];
+};
 
-export async function getAdminDashboardMetrics() {
+export async function getAdminDashboardMetrics(): Promise<AdminDashboardMetrics> {
   if (!isDatabaseConfigured()) throw new Error('Database not configured');
 
   const [summary, sales, lowStock, recentOrders, topProducts, topSellers] = await Promise.all([
@@ -19,25 +30,15 @@ export async function getAdminDashboardMetrics() {
 
   const s = summary[0] ?? ({} as SummaryRow);
   return {
-    today: Number(s.today ?? 0),
-    week: Number(s.week ?? 0),
-    month: Number(s.month ?? 0),
-    revenue: Number(s.revenue ?? 0),
-    totalOrders: Number(s.totalOrders ?? 0),
-    newOrders: Number(s.newOrders ?? 0),
-    users: Number(s.users ?? 0),
-    sellerCount: Number(s.sellers ?? 0),
-    products: Number(s.products ?? 0),
-    inactiveProducts: Number(s.inactiveProducts ?? 0),
-    lowStockCount: Number(s.lowStock ?? 0),
-    pendingSellers: Number(s.pendingSellers ?? 0),
-    avgOrderValue: Number(s.avgOrderValue ?? 0),
-    currency: 'AFN',
+    today: Number(s.today ?? 0), week: Number(s.week ?? 0), month: Number(s.month ?? 0), revenue: Number(s.revenue ?? 0),
+    totalOrders: Number(s.totalOrders ?? 0), newOrders: Number(s.newOrders ?? 0), users: Number(s.users ?? 0),
+    sellerCount: Number(s.sellers ?? 0), products: Number(s.products ?? 0), inactiveProducts: Number(s.inactiveProducts ?? 0),
+    lowStockCount: Number(s.lowStock ?? 0), pendingSellers: Number(s.pendingSellers ?? 0), avgOrderValue: Number(s.avgOrderValue ?? 0), currency: 'AFN',
     salesByDay: sales.map((r) => ({ date: r.date, orders: Number(r.orders), revenue: Number(r.revenue ?? 0) })),
     pendingProducts: [],
-    lowStock,
+    lowStock: lowStock.map((p) => ({ id: p.id, name: p.name, stockQuantity: p.stockQuantity, isActive: p.isActive })),
     sellers: [],
-    recentOrders: recentOrders.map((o) => { const { total, ...order } = o; return { ...order, total: Number(total) }; }),
+    recentOrders: recentOrders.map((o) => ({ ...o, total: Number(o.total) })),
     topProducts: topProducts.map((r) => ({ name: r.name, units: Number(r.units), revenue: Number(r.revenue ?? 0) })),
     topCategories: [],
     topSellers: topSellers.map((r) => ({ name: r.name, units: Number(r.units), revenue: Number(r.revenue ?? 0) })),
