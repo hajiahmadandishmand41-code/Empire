@@ -7,11 +7,21 @@ import { getCategoryService } from '@/server/infrastructure/registry';
 
 export const dynamic = 'force-dynamic';
 
+const imageUrlSchema = z.string().trim().max(1000).refine((value) => {
+  try {
+    if (value.startsWith('/')) return /^\/[A-Za-z0-9_~:/?#[\]@!$&'()*+,;=%.-]*$/.test(value);
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}, 'Invalid image URL');
+
 const patchSchema = z.object({
   name: z.string().trim().min(1).max(80).optional(),
   slug: z.string().trim().min(1).max(80).regex(/^[a-z0-9-_]+$/i).optional(),
   parentId: z.string().trim().min(1).max(80).nullable().optional(),
-  imageUrl: z.string().trim().url().max(1000).nullable().optional(),
+  imageUrl: imageUrlSchema.nullable().optional(),
   isActive: z.boolean().optional(),
   sortOrder: z.number().int().min(0).max(100000).optional(),
 }).strict();
