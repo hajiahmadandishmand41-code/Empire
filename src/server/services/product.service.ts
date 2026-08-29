@@ -104,8 +104,12 @@ export class ProductService {
 
   async updateProduct(id: string, input: { name?: string; shortDescription?: string; price?: number; compareAtPrice?: number | null; categoryId?: string; region?: string; currency?: string; inStock?: boolean; isActive?: boolean; stockQuantity?: number; description?: string | null; whatsappNumber?: string | null; videoUrl?: string | null; isTraditional?: boolean; imagesJson?: string | null; tagsJson?: string | null; attributesJson?: string | null; weightKg?: number | null; dimensionsJson?: string | null; primaryImageIndex?: number; }) {
     if (input.categoryId) { const category = await this.categories.findById(input.categoryId); if (!category) throw new ProductServiceError('category_not_found', 'دسته‌بندی انتخاب‌شده وجود ندارد.', 422); }
-    if (input.isActive === true && imageCount(input.imagesJson) < 3) {
-      throw new ProductServiceError('images_required', 'برای فعال‌سازی محصول حداقل ۳ تصویر لازم است.', 422);
+    if (input.isActive === true) {
+      const current = await this.products.findById(id);
+      const effectiveImages = input.imagesJson !== undefined ? input.imagesJson : current?.imagesJson;
+      if (imageCount(effectiveImages) < 3) {
+        throw new ProductServiceError('images_required', 'برای فعال‌سازی محصول حداقل ۳ تصویر لازم است.', 422);
+      }
     }
     return this.products.update(id, input);
   }
