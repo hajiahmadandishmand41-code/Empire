@@ -45,7 +45,7 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci --include=dev --no-audit --no-fund
-      - run: npm run db:deploy
+      - run: npx prisma migrate deploy
       - run: npx tsx scripts/seed-admin.ts
       - run: npm run build
       - name: Start app
