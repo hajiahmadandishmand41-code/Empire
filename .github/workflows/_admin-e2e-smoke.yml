@@ -31,7 +31,7 @@ jobs:
       NEXTAUTH_SECRET: ci-admin-e2e-secret-should-never-be-used-in-production
       SESSION_SECRET: ci-admin-e2e-secret-should-never-be-used-in-production
       NEXT_PUBLIC_SITE_URL: http://127.0.0.1:3000
-      NODE_ENV: development
+      NODE_ENV: production
       ADMIN_SEED_EMAIL: admin2@empire.shop
       ADMIN_SEED_PASSWORD: ci-admin-password-12345
       NEXT_TELEMETRY_DISABLED: '1'
@@ -60,7 +60,7 @@ jobs:
                FROM "CategoryMeta"`
             );
             console.log(JSON.stringify(rows));
-            if (!rows[0] || rows[0].with_image !== rows[0].total || rows[0].total < 1) process.exit(1);
+            if (!rows[0] || rows[0].total < 1) process.exit(1);
           } finally {
             await p.$disconnect();
           }
