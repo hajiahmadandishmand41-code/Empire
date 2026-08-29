@@ -52,8 +52,9 @@ export async function GET(req: NextRequest) {
   if (!guard.ok) return guard.response;
   try {
     const page = positiveInt(req.nextUrl.searchParams.get('page'), 1);
-    const pageSize = positiveInt(req.nextUrl.searchParams.get('pageSize'), 30, 100);
-    return jsonOk(await listMediaAssets({ q: req.nextUrl.searchParams.get('q') ?? undefined, kind: req.nextUrl.searchParams.get('kind') ?? undefined, page, pageSize: Math.max(10, pageSize) }));
+    const requestedPageSize = positiveInt(req.nextUrl.searchParams.get('pageSize'), 30, 100);
+    const pageSize = Math.max(10, requestedPageSize);
+    return jsonOk(await listMediaAssets({ q: req.nextUrl.searchParams.get('q') ?? undefined, kind: req.nextUrl.searchParams.get('kind') ?? undefined, page, pageSize }));
   } catch { return jsonError('db_unavailable', 'Media library is unavailable', { status: 503 }); }
 }
 
