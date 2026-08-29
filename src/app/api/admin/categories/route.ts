@@ -10,8 +10,8 @@ export const dynamic = 'force-dynamic';
 const keySchema = z.string().trim().min(1).max(40).regex(/^[a-z0-9-_]+$/i, 'Only letters, digits, dash, underscore');
 const slugSchema = z.string().trim().min(1).max(80).regex(/^[a-z0-9-_]+$/i, 'Invalid slug');
 const imageUrlSchema = z.string().trim().max(1000).refine((value) => {
+  if (/^\/api\/media\/[A-Za-z0-9_-]{8,80}$/.test(value)) return true;
   try {
-    if (value.startsWith('/')) return /^\/[A-Za-z0-9_~:/?#[\]@!$&'()*+,;=%.-]*$/.test(value);
     const url = new URL(value);
     return url.protocol === 'http:' || url.protocol === 'https:';
   } catch {
