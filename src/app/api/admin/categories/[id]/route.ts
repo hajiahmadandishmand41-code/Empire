@@ -8,8 +8,8 @@ import { getCategoryService } from '@/server/infrastructure/registry';
 export const dynamic = 'force-dynamic';
 
 const imageUrlSchema = z.string().trim().max(1000).refine((value) => {
+  if (/^\/api\/media\/[A-Za-z0-9_-]{8,80}$/.test(value)) return true;
   try {
-    if (value.startsWith('/')) return /^\/[A-Za-z0-9_~:/?#[\]@!$&'()*+,;=%.-]*$/.test(value);
     const url = new URL(value);
     return url.protocol === 'http:' || url.protocol === 'https:';
   } catch {
