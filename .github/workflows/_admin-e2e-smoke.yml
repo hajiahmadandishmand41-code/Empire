@@ -32,6 +32,7 @@ jobs:
       SESSION_SECRET: ci-admin-e2e-secret-should-never-be-used-in-production
       NEXT_PUBLIC_SITE_URL: http://127.0.0.1:3000
       NODE_ENV: development
+      ADMIN_SEED_EMAIL: admin2@empire.shop
       ADMIN_SEED_PASSWORD: ci-admin-password-12345
       NEXT_TELEMETRY_DISABLED: '1'
       PRISMA_HIDE_UPDATE_MESSAGE: '1'
@@ -75,7 +76,7 @@ jobs:
           const login = await fetch(`${base}/api/auth/login`, {
             method: 'POST',
             headers: {'content-type': 'application/json', accept: 'application/json'},
-            body: JSON.stringify({identifier: 'admin@empire.shop', password: process.env.ADMIN_SEED_PASSWORD}),
+            body: JSON.stringify({identifier: process.env.ADMIN_SEED_EMAIL, password: process.env.ADMIN_SEED_PASSWORD}),
           });
           if (!login.ok) throw new Error(`Admin login failed: ${login.status} ${await login.text()}`);
           const rawCookie = login.headers.get('set-cookie');
