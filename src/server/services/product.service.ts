@@ -23,6 +23,16 @@ function readJsonArray(raw: unknown): string[] {
   try { const value: unknown = typeof raw === 'string' ? JSON.parse(raw) : raw; return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []; } catch { return []; }
 }
 
+function imageCount(raw: unknown): number {
+  if (raw == null) return 0;
+  try {
+    const value: unknown = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    return Array.isArray(value) ? value.length : 0;
+  } catch {
+    return 0;
+  }
+}
+
 export class ProductService {
   constructor(private readonly products: IProductRepository, private readonly categories: ICategoryRepository, private readonly reviews: IReviewRepository) {}
 
@@ -36,28 +46,19 @@ export class ProductService {
     const logicalOffset = (page - 1) * pageSize;
     const candidatePage = useCandidateRanking ? Math.floor(logicalOffset / candidatePageSize) + 1 : page;
     const candidateOffset = useCandidateRanking ? logicalOffset % candidatePageSize : 0;
-
     const paginated = await this.products.findMany({ ...opts, page: candidatePage, pageSize: candidatePageSize, isActive: true });
     const ratings = await this.products.getRatings(paginated.items.map((r) => r.id));
     const mapped = paginated.items.map((row) => {
       const rating = ratings.get(row.id);
       return { row, summary: mapProductSummary(row as never, { averageRating: rating?.average ?? 0, reviewCount: rating?.count ?? 0 }) };
     });
-
     let ranked: ProductSummary[];
     if (isSearch && opts.q && opts.rerank !== false) {
-      ranked = mapped
-        .map(({ row, summary }) => ({ product: summary, score: computeSearchScore({ id: row.id, name: row.name, shortDescription: row.shortDescription, description: row.description, categoryName: row.category?.name, region: row.region, sellerShopName: row.seller?.sellerShopName, tags: readJsonArray(row.tagsJson) }, opts.q!) }))
-        .filter((x) => x.score > 0)
-        .sort((a, b) => b.score - a.score || (b.product.salesCount ?? 0) - (a.product.salesCount ?? 0) || a.product.id.localeCompare(b.product.id))
-        .map((x) => x.product);
+      ranked = mapped.map(({ row, summary }) => ({ product: summary, score: computeSearchScore({ id: row.id, name: row.name, shortDescription: row.shortDescription, description: row.description, categoryName: row.category?.name, region: row.region, sellerShopName: row.seller?.sellerShopName, tags: readJsonArray(row.tagsJson) }, opts.q!) })).filter((x) => x.score > 0).sort((a, b) => b.score - a.score || (b.product.salesCount ?? 0) - (a.product.salesCount ?? 0) || a.product.id.localeCompare(b.product.id)).map((x) => x.product);
     } else if (useSmartFeed) {
       ranked = rankProducts(mapped.map(({ summary }) => ({ ...summary, averageRating: summary.averageRating ?? 0, reviewCount: summary.reviewCount ?? 0, salesCount: summary.salesCount ?? 0, viewCount: summary.viewCount ?? 0, compareAtPrice: summary.comparePrice ?? null, createdAt: summary.createdAt ?? undefined })), DEFAULT_RANKING_CONFIG);
       ranked = diversifyProducts(ranked, { maxPerSeller: 3, maxPerCategory: 4 });
-    } else {
-      ranked = mapped.map(({ summary }) => summary);
-    }
-
+    } else ranked = mapped.map(({ summary }) => summary);
     const start = useCandidateRanking ? candidateOffset : 0;
     const products = ranked.slice(start, start + pageSize);
     const hasMore = useCandidateRanking ? logicalOffset + products.length < paginated.total : paginated.hasMore;
@@ -90,13 +91,25 @@ export class ProductService {
   async createProduct(input: { slug: string; name: string; shortDescription: string; price: number; compareAtPrice?: number | null; categoryId: string; sellerId: string; region: string; currency?: string; inStock?: boolean; isActive?: boolean; stockQuantity?: number; description?: string | null; whatsappNumber?: string | null; videoUrl?: string | null; isTraditional?: boolean; imagesJson?: string | null; weightKg?: number | null; dimensionsJson?: string | null; tagsJson?: string | null; attributesJson?: string | null; primaryImageIndex?: number; }) {
     const category = await this.categories.findById(input.categoryId);
     if (!category) throw new ProductServiceError('category_not_found', 'دسته‌بندی انتخاب‌شده وجود ندارد. لطفاً یک دسته‌بندی معتبر انتخاب کنید.', 422);
-    try { return await this.products.create(input); } catch (err: unknown) { const e = err as { code?: string }; if (e.code === 'P2002') throw new ProductServiceError('slug_exists', 'محصولی با این شناسه (slug) قبلاً ثبت شده است. لطفاً شناسه دیگری انتخاب کنید.', 409); throw err; }
+    const requestedActive = input.isActive !== false;
+    const isActive = requestedActive && imageCount(input.imagesJson) >= 3;
+    try {
+      return await this.products.create({ ...input, isActive });
+    } catch (err: unknown) {
+      const e = err as { code?: string };
+      if (e.code === 'P2002') throw new ProductServiceError('slug_exists', 'محصولی با این شناسه (slug) قبلاً ثبت شده است. لطفاً شناسه دیگری انتخاب کنید.', 409);
+      throw err;
+    }
   }
 
   async updateProduct(id: string, input: { name?: string; shortDescription?: string; price?: number; compareAtPrice?: number | null; categoryId?: string; region?: string; currency?: string; inStock?: boolean; isActive?: boolean; stockQuantity?: number; description?: string | null; whatsappNumber?: string | null; videoUrl?: string | null; isTraditional?: boolean; imagesJson?: string | null; tagsJson?: string | null; attributesJson?: string | null; weightKg?: number | null; dimensionsJson?: string | null; primaryImageIndex?: number; }) {
     if (input.categoryId) { const category = await this.categories.findById(input.categoryId); if (!category) throw new ProductServiceError('category_not_found', 'دسته‌بندی انتخاب‌شده وجود ندارد.', 422); }
+    if (input.isActive === true && imageCount(input.imagesJson) < 3) {
+      throw new ProductServiceError('images_required', 'برای فعال‌سازی محصول حداقل ۳ تصویر لازم است.', 422);
+    }
     return this.products.update(id, input);
   }
+
   async deleteProduct(id: string): Promise<void> { await this.products.delete(id); }
   async checkOwnership(productId: string, userId: string, isAdmin: boolean): Promise<'ok' | 'not_found' | 'forbidden'> { const product = await this.products.findById(productId); if (!product) return 'not_found'; if (isAdmin) return 'ok'; return product.sellerId === userId ? 'ok' : 'forbidden'; }
 
