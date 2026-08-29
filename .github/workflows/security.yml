@@ -2,7 +2,7 @@ name: Security Gate
 
 on:
   push:
-    branches: [main]
+    branches: [main, admin-commerce-4stage-20260829]
   pull_request:
     branches: [main]
   schedule:

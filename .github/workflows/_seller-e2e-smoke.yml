@@ -1,0 +1,161 @@
+name: Seller E2E smoke
+
+on:
+  push:
+    branches: [admin-commerce-4stage-20260829]
+
+permissions:
+  contents: read
+
+jobs:
+  seller-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U ci -d ci"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    env:
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+      AUTH_SECRET: ci-seller-e2e-secret
+      NEXTAUTH_SECRET: ci-seller-e2e-secret
+      SESSION_SECRET: ci-seller-e2e-secret
+      NEXT_PUBLIC_SITE_URL: http://127.0.0.1:3000
+      NODE_ENV: production
+      SELLER_E2E_EMAIL: seller-e2e@empire.shop
+      SELLER_E2E_PASSWORD: seller-e2e-password-12345
+      ADMIN_SEED_EMAIL: admin2@empire.shop
+      ADMIN_SEED_PASSWORD: ci-admin-password-12345
+      NEXT_TELEMETRY_DISABLED: '1'
+      PRISMA_HIDE_UPDATE_MESSAGE: '1'
+      CLOUDINARY_CLOUD_NAME: ci
+      CLOUDINARY_API_KEY: ci
+      CLOUDINARY_API_SECRET: ci
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --include=dev --no-audit --no-fund
+      - run: npx prisma migrate deploy
+      - name: Seed seller and admin QA users
+        run: |
+          npx tsx scripts/seed-admin.ts
+          node --input-type=module <<'NODE'
+          import { PrismaClient } from '@prisma/client';
+          import bcrypt from 'bcryptjs';
+          const prisma = new PrismaClient();
+          const email = process.env.SELLER_E2E_EMAIL;
+          const passwordHash = await bcrypt.hash(process.env.SELLER_E2E_PASSWORD, 12);
+          await prisma.user.upsert({
+            where: { email },
+            update: {
+              passwordHash,
+              role: 'seller',
+              sellerStatus: 'approved',
+              isActive: true,
+              fullName: 'فروشنده تستی Empire',
+              sellerShopName: 'فروشگاه تستی Empire',
+              sellerBio: 'فروشنده برای تست End-to-End',
+              commissionRate: 10,
+              sellerContactEmail: email,
+              sellerContactPhone: '+93700000000',
+              sellerCity: 'Kabul',
+              sellerCountry: 'AF',
+              sellerAddress: 'QA Test Address',
+            },
+            create: {
+              email,
+              passwordHash,
+              role: 'seller',
+              sellerStatus: 'approved',
+              isActive: true,
+              fullName: 'فروشنده تستی Empire',
+              sellerShopName: 'فروشگاه تستی Empire',
+              sellerBio: 'فروشنده برای تست End-to-End',
+              commissionRate: 10,
+              sellerContactEmail: email,
+              sellerContactPhone: '+93700000000',
+              sellerCity: 'Kabul',
+              sellerCountry: 'AF',
+              sellerAddress: 'QA Test Address',
+            },
+          });
+          await prisma.$disconnect();
+          NODE
+      - run: npm run build
+      - name: Install browser test runtime
+        run: |
+          npm install --no-save --package-lock=false @playwright/test@1.62.1
+          npx playwright install chromium --with-deps
+      - name: Start app
+        run: |
+          nohup node .next/standalone/server.js > "$RUNNER_TEMP/empire-seller.log" 2>&1 &
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const deadline = Date.now() + 120000;
+          const url = 'http://127.0.0.1:3000/api/healthz';
+          while (Date.now() < deadline) {
+            try {
+              const r = await fetch(url);
+              if (r.ok) process.exit(0);
+            } catch {}
+            await new Promise(r => setTimeout(r, 1000));
+          }
+          console.error(fs.readFileSync(process.env.RUNNER_TEMP + '/empire-seller.log', 'utf8'));
+          process.exit(1);
+          NODE
+        env:
+          HOSTNAME: 0.0.0.0
+          PORT: 3000
+      - name: Seller API route smoke
+        run: |
+          node --input-type=module <<'NODE'
+          const base = 'http://127.0.0.1:3000';
+          const login = await fetch(`${base}/api/auth/login`, {
+            method: 'POST',
+            headers: {'content-type': 'application/json', accept: 'application/json'},
+            body: JSON.stringify({identifier: process.env.SELLER_E2E_EMAIL, password: process.env.SELLER_E2E_PASSWORD}),
+          });
+          if (!login.ok) throw new Error(`Seller login failed: ${login.status} ${await login.text()}`);
+          const rawCookie = login.headers.get('set-cookie');
+          if (!rawCookie) throw new Error('Seller login succeeded without session cookie');
+          const cookie = rawCookie.split(';', 1)[0];
+          const routes = [
+            '/fa/seller', '/fa/seller/products', '/fa/seller/products/new', '/fa/seller/inventory',
+            '/fa/seller/orders', '/fa/seller/customers', '/fa/seller/discounts', '/fa/seller/reviews',
+            '/fa/seller/notifications', '/fa/seller/wallet', '/fa/seller/reports',
+            '/fa/seller/storefront', '/fa/seller/settings'
+          ];
+          let failures = 0;
+          for (const path of routes) {
+            const r = await fetch(`${base}${path}`, {redirect: 'manual', headers: {cookie}});
+            const body = await r.text();
+            const bad = r.status >= 500 || body.includes('Application error') || body.includes('Internal Server Error') || body.includes('NEXT_HTTP_ERROR_FALLBACK');
+            console.log(`${bad ? 'FAIL' : 'PASS'} ${r.status} ${path}`);
+            if (bad) failures++;
+          }
+          const products = await fetch(`${base}/api/seller/products`, {headers: {cookie}});
+          if (!products.ok) { console.error('Seller products API failed', products.status, await products.text()); failures++; }
+          if (failures) process.exit(1);
+          NODE
+      - name: Authenticated seller browser UI smoke
+        run: npx playwright test tests/seller-authenticated-e2e.spec.mjs --reporter=line
+      - name: Upload app log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: seller-e2e-log
+          path: ${{ runner.temp }}/empire-seller.log
+          if-no-files-found: ignore

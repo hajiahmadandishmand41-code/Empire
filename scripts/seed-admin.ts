@@ -13,13 +13,19 @@ async function main() {
     throw new Error('ADMIN_SEED_PASSWORD must be provided and at least 12 characters long.');
   }
 
+  const email = (process.env.ADMIN_SEED_EMAIL ?? 'admin@empire.shop').trim().toLowerCase();
+  if (!/^\S+@\S+\.\S+$/.test(email)) {
+    throw new Error('ADMIN_SEED_EMAIL must be a valid email address.');
+  }
+
+  const fullName = (process.env.ADMIN_SEED_NAME ?? 'مدیر سیستم').trim() || 'مدیر سیستم';
   const hash = await bcrypt.hash(seedPassword, 12);
   await prisma.user.upsert({
-    where: { email: 'admin@empire.shop' },
-    update: { passwordHash: hash, role: 'admin', isActive: true },
+    where: { email },
+    update: { passwordHash: hash, role: 'admin', isActive: true, fullName },
     create: {
-      fullName: 'مدیر سیستم',
-      email: 'admin@empire.shop',
+      fullName,
+      email,
       passwordHash: hash,
       role: 'admin',
       isActive: true,

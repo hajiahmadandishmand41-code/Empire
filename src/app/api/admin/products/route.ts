@@ -3,11 +3,11 @@ import { z } from 'zod';
 import { prisma, isDatabaseConfigured } from '@/lib/db';
 import { jsonError, jsonOk, jsonPreflight } from '@/lib/api/response';
 import { requireAdminApi } from '@/lib/auth/require-admin-api';
+import { adminMediaUrlSchema } from '@/features/admin/lib/media-url';
 import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
-const imageUrlSchema = z.string().trim().url().max(1000);
 const createSchema = z.object({
   slug: z.string().trim().min(2).max(80),
   name: z.string().trim().min(2).max(120),
@@ -17,9 +17,9 @@ const createSchema = z.object({
   region: z.string().trim().min(1),
   currency: z.string().trim().min(3).max(3).default('AFN'),
   inStock: z.boolean().default(true),
-  badge: z.string().trim().max(40).optional(),
+  badge: z.string().trim().max(40).nullable().optional(),
   description: z.string().optional(),
-  imagesJson: z.array(imageUrlSchema).max(12).default([]),
+  imagesJson: z.array(adminMediaUrlSchema).max(12).default([]),
   primaryImageIndex: z.number().int().min(0).max(11).default(0),
 });
 

@@ -1,5 +1,6 @@
 import { setRequestLocale } from 'next-intl/server';
 import { StoreSettingsForm } from '@/features/seller/components/store-settings-form';
+import { BrandSettingsForm } from '@/features/seller/components/brand-settings-form';
 import { requireSeller } from '@/lib/auth/roles';
 
 export const dynamic = 'force-dynamic';
@@ -18,10 +19,11 @@ export default async function SellerSettingsPage({
       <header>
         <h1 className="text-2xl font-bold text-foreground">تنظیمات فروشگاه</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          اطلاعات نمایشی فروشگاه، راه‌های تماس، و حساب‌های بانکی یا ATOMA Pay برای دریافت تسویه.
+          اطلاعات فروشگاه، برند اختصاصی، تصاویر، راه‌های تماس و حساب‌های تسویه را مدیریت کنید.
         </p>
       </header>
       <StoreSettingsForm />
+      <BrandSettingsForm />
     </div>
   );
 }

@@ -1,10 +1,21 @@
 #!/usr/bin/env node
 /** Strict production startup validation. Never prints secret values. */
 
-const dbKeys = ['DATABASE_URL', 'DATABASE_URL_UNPOOLED', 'DIRECT_DATABASE_URL', 'DIRECT_URL', 'POSTGRES_PRISMA_URL', 'POSTGRES_URL'];
+const dbKeys = [
+  'STORAGE_POSTGRES_PRISMA_URL',
+  'STORAGE_POSTGRES_URL',
+  'STORAGE_POSTGRES_URL_NON_POOLING',
+  'POSTGRES_PRISMA_URL',
+  'POSTGRES_URL',
+  'POSTGRES_URL_NON_POOLING',
+  'DATABASE_URL',
+  'DATABASE_URL_UNPOOLED',
+  'DIRECT_DATABASE_URL',
+  'DIRECT_URL',
+  'SUPABASE_DB_URL',
+];
 const required = [
   'AUTH_SECRET',
-  'NEXT_PUBLIC_SITE_URL',
   'UPSTASH_REDIS_REST_URL',
   'UPSTASH_REDIS_REST_TOKEN',
   'CLOUDINARY_CLOUD_NAME',
@@ -17,6 +28,11 @@ const required = [
   'ATOMA_PAY_CREATE_PATH',
   'ATOMA_PAY_STATUS_PATH',
 ];
+
+const productionSiteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim()
+  || (process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim()
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL.trim()}`
+    : '');
 
 const errors = [];
 
@@ -35,10 +51,10 @@ const authSecret = process.env.AUTH_SECRET ?? '';
 if (authSecret.length < 32) errors.push('AUTH_SECRET must be at least 32 characters');
 
 try {
-  const url = new URL(process.env.NEXT_PUBLIC_SITE_URL ?? '');
-  if (url.protocol !== 'https:') errors.push('NEXT_PUBLIC_SITE_URL must use https in production');
+  const url = new URL(productionSiteUrl);
+  if (url.protocol !== 'https:') errors.push('production site URL must use https');
 } catch {
-  errors.push('NEXT_PUBLIC_SITE_URL must be a valid absolute URL');
+  errors.push('NEXT_PUBLIC_SITE_URL or VERCEL_PROJECT_PRODUCTION_URL must provide a valid production URL');
 }
 
 for (const key of ['UPSTASH_REDIS_REST_URL', 'ATOMA_PAY_BASE_URL']) {

@@ -4,27 +4,18 @@ import { jsonError, jsonOk, jsonPreflight } from '@/lib/api/response';
 import { requireAdminApi } from '@/lib/auth/require-admin-api';
 import { isDatabaseConfigured } from '@/lib/db';
 import { getCategoryService } from '@/server/infrastructure/registry';
+import { adminMediaUrlSchema } from '@/features/admin/lib/media-url';
 
 export const dynamic = 'force-dynamic';
 
 const keySchema = z.string().trim().min(1).max(40).regex(/^[a-z0-9-_]+$/i, 'Only letters, digits, dash, underscore');
 const slugSchema = z.string().trim().min(1).max(80).regex(/^[a-z0-9-_]+$/i, 'Invalid slug');
-const imageUrlSchema = z.string().trim().max(1000).refine((value) => {
-  if (/^\/api\/media\/[A-Za-z0-9_-]{8,80}$/.test(value)) return true;
-  try {
-    const url = new URL(value);
-    return url.protocol === 'http:' || url.protocol === 'https:';
-  } catch {
-    return false;
-  }
-}, 'Invalid image URL');
-
 const createSchema = z.object({
   key: keySchema,
   name: z.string().trim().min(1).max(80),
   slug: slugSchema.optional(),
   parentId: z.string().trim().min(1).max(80).nullable().optional(),
-  imageUrl: imageUrlSchema.nullable().optional(),
+  imageUrl: adminMediaUrlSchema.nullable().optional(),
   isActive: z.boolean().optional(),
   sortOrder: z.number().int().min(0).max(100000).optional(),
 });
