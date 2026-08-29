@@ -41,13 +41,19 @@ async function mediaUsage(url: string): Promise<string | null> {
   return null;
 }
 
+function positiveInt(value: string | null, fallback: number, max?: number): number {
+  const parsed = Number.parseInt(value ?? '', 10);
+  if (!Number.isFinite(parsed) || parsed < 1) return fallback;
+  return max === undefined ? parsed : Math.min(max, parsed);
+}
+
 export async function GET(req: NextRequest) {
   const guard = await requireAdminApi('media.manage');
   if (!guard.ok) return guard.response;
   try {
-    const page = Math.max(1, Number(req.nextUrl.searchParams.get('page') ?? 1));
-    const pageSize = Math.min(100, Math.max(10, Number(req.nextUrl.searchParams.get('pageSize') ?? 30)));
-    return jsonOk(await listMediaAssets({ q: req.nextUrl.searchParams.get('q') ?? undefined, kind: req.nextUrl.searchParams.get('kind') ?? undefined, page, pageSize }));
+    const page = positiveInt(req.nextUrl.searchParams.get('page'), 1);
+    const pageSize = positiveInt(req.nextUrl.searchParams.get('pageSize'), 30, 100);
+    return jsonOk(await listMediaAssets({ q: req.nextUrl.searchParams.get('q') ?? undefined, kind: req.nextUrl.searchParams.get('kind') ?? undefined, page, pageSize: Math.max(10, pageSize) }));
   } catch { return jsonError('db_unavailable', 'Media library is unavailable', { status: 503 }); }
 }
 
@@ -68,7 +74,7 @@ export async function POST(req: NextRequest) {
     const ext = extensionOf(file.name);
     if (!extensionMatches(file.type, ext)) return jsonError('invalid_extension', 'File extension does not match its media type', { status: 400 });
     const header = Buffer.from(await file.slice(0, 64).arrayBuffer());
-    if (!hasValidSignature(header, file.type)) return jsonError('invalid_signature', 'File contents do not match the declared media type', { status: 400 });
+    if (!hasValidSignature(header, file.type)) return jsonError('invalid_signature', 'File contents do not match its media type', { status: 400 });
 
     const kind = isVideo ? 'video' : 'image';
     const uploaded = await uploadPersistent(file, `admin/${kind}s`);
