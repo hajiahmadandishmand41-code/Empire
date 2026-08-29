@@ -53,7 +53,7 @@ test('seller can authenticate and open every seller-center route', async ({ page
   }
 });
 
-test('seller can create and reload a real product through the UI', async ({ page }) => {
+test('seller product flow exposes the required three-image workflow', async ({ page }) => {
   await login(page);
 
   await page.goto(`${base}/fa/seller/products/new`, { waitUntil: 'domcontentloaded' });
@@ -63,16 +63,37 @@ test('seller can create and reload a real product through the UI', async ({ page
 
   await textInputs.nth(0).fill('محصول تست فروشنده E2E');
   await form.locator('textarea').nth(0).fill('توضیح تست واقعی محصول فروشنده');
-  await numericInputs.nth(0).fill('2500'); // price
-  await numericInputs.nth(2).fill('12'); // stockQuantity
+  await numericInputs.nth(0).fill('2500');
+  await numericInputs.nth(2).fill('12');
   await form.locator('select').first().selectOption({ index: 0 });
 
   await form.locator('button[type="submit"]').click();
   await expect(page).toHaveURL(/\/fa\/seller\/products(?:[/?#]|$)/, { timeout: 20000 });
   await expect(page.locator('body')).toContainText('محصول تست فروشنده E2E');
 
+  const editLink = page.locator('a[href*="/seller/products/"][href*="/edit"]').first();
+  await expect(editLink).toBeVisible({ timeout: 10000 });
+  await editLink.click();
+  await expect(page).toHaveURL(/\/fa\/seller\/products\/[^/]+\/edit/);
+  await expect(page.locator('body')).toContainText(/حداقل ۳ تصویر|تصویر 1|تصویر ۱/);
+  await expect(page.locator('input[type="file"]').first()).toHaveAttribute('accept', /image/);
+
   await page.reload({ waitUntil: 'domcontentloaded' });
   await expect(page.locator('body')).toContainText('محصول تست فروشنده E2E');
+});
+
+test('seller brand settings are real and scoped to the current store', async ({ page }) => {
+  await login(page);
+  await page.goto(`${base}/fa/seller/settings`, { waitUntil: 'domcontentloaded' });
+  await expect(page.locator('body')).toContainText('برند اختصاصی فروشگاه');
+  await expect(page.locator('input').filter({ has: undefined }).first()).toBeVisible();
+
+  const response = await page.request.get(`${base}/api/seller/brand`);
+  expect(response.status()).toBe(200);
+  const body = await response.json();
+  expect(body.ok).toBeTruthy();
+  expect(body.data.name).toBeTruthy();
+  expect(body.data.sellerId).toBeTruthy();
 });
 
 test('seller is blocked from admin-only area and admin remains reachable separately', async ({ page }) => {
