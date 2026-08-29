@@ -3,6 +3,7 @@ import { prisma, isDatabaseConfigured } from '@/lib/db';
 import { jsonError, jsonOk } from '@/lib/api/response';
 import { requireAdminApi } from '@/lib/auth/require-admin-api';
 import { createMediaAsset, deleteMediaAsset, listMediaAssets } from '@/features/admin/lib/control-store';
+import { isInternalMediaUrl } from '@/features/admin/lib/media-url';
 import { uploadPersistent, deletePersistent, isPersistentStorageConfigured } from '@/lib/storage';
 
 export const dynamic = 'force-dynamic';
@@ -23,7 +24,7 @@ function hasValidSignature(buffer: Buffer, mime: string): boolean {
   if (mime === 'image/webp') return buffer.length >= 12 && buffer.subarray(0,4).toString('ascii') === 'RIFF' && buffer.subarray(8,12).toString('ascii') === 'WEBP';
   if (mime === 'video/webm') return buffer.length >= 4 && buffer.subarray(0,4).equals(Buffer.from([0x1a,0x45,0xdf,0xa3]));
   if (mime === 'video/ogg') return buffer.length >= 4 && buffer.subarray(0,4).toString('ascii') === 'OggS';
-  if (mime === 'video/mp4') return buffer.length >= 8 && buffer.subarray(4,8).toString('ascii') === 'ftyp';
+  if (mime === 'video/mp4') return buffer.length >= 12 && buffer.subarray(4,8).toString('ascii') === 'ftyp';
   return false;
 }
 
@@ -71,10 +72,9 @@ export async function POST(req: NextRequest) {
 
     const kind = isVideo ? 'video' : 'image';
     const uploaded = await uploadPersistent(file, `admin/${kind}s`);
-    uploadedUrl = uploaded.secure_url ?? null;
+    uploadedUrl = uploaded.secure_url;
     if (!uploadedUrl) return jsonError('storage_no_url', 'Storage did not return a media URL', { status: 502 });
 
-    // Database fallback already creates its MediaAsset row; Cloudinary needs the metadata row created here.
     const dbFallback = typeof uploaded.public_id === 'string' && uploaded.public_id.startsWith('db/');
     const id = dbFallback ? uploaded.public_id.slice(3) : await createMediaAsset({ url: uploadedUrl, kind, mimeType: file.type, fileName: file.name, sizeBytes: file.size, folder: `admin/${kind}s`, createdById: guard.user.id });
     if (dbFallback && isDatabaseConfigured()) await prisma.$executeRaw`UPDATE "MediaAsset" SET "createdById" = ${guard.user.id} WHERE "id" = ${id}`;
@@ -98,7 +98,7 @@ export async function DELETE(req: NextRequest) {
     const usage = await mediaUsage(asset.url);
     if (usage) return jsonError('media_in_use', `Media is still referenced by ${usage}`, { status: 409 });
     await deletePersistent(asset.url);
-    await deleteMediaAsset(id);
+    if (!isInternalMediaUrl(asset.url)) await deleteMediaAsset(id);
     return jsonOk({ deleted: true });
   } catch { return jsonError('delete_failed', 'Media deletion failed', { status: 500 }); }
 }
