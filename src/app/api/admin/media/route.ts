@@ -72,14 +72,16 @@ export async function POST(req: NextRequest) {
 
     const kind = isVideo ? 'video' : 'image';
     const uploaded = await uploadPersistent(file, `admin/${kind}s`);
-    uploadedUrl = uploaded.secure_url;
-    if (!uploadedUrl) return jsonError('storage_no_url', 'Storage did not return a media URL', { status: 502 });
+    const secureUrl = uploaded.secure_url ?? null;
+    if (!secureUrl) return jsonError('storage_no_url', 'Storage did not return a media URL', { status: 502 });
+    uploadedUrl = secureUrl;
 
-    const dbFallback = typeof uploaded.public_id === 'string' && uploaded.public_id.startsWith('db/');
-    const id = dbFallback ? uploaded.public_id.slice(3) : await createMediaAsset({ url: uploadedUrl, kind, mimeType: file.type, fileName: file.name, sizeBytes: file.size, folder: `admin/${kind}s`, createdById: guard.user.id });
+    const publicId = uploaded.public_id ?? null;
+    const dbFallback = publicId?.startsWith('db/') === true;
+    const id = dbFallback && publicId ? publicId.slice(3) : await createMediaAsset({ url: secureUrl, kind, mimeType: file.type, fileName: file.name, sizeBytes: file.size, folder: `admin/${kind}s`, createdById: guard.user.id });
     if (dbFallback && isDatabaseConfigured()) await prisma.$executeRaw`UPDATE "MediaAsset" SET "createdById" = ${guard.user.id} WHERE "id" = ${id}`;
 
-    return jsonOk({ id, url: uploadedUrl, kind, mimeType: file.type, fileName: file.name, sizeBytes: file.size }, { status: 201 });
+    return jsonOk({ id, url: secureUrl, kind, mimeType: file.type, fileName: file.name, sizeBytes: file.size }, { status: 201 });
   } catch {
     if (uploadedUrl) { try { await deletePersistent(uploadedUrl); } catch { /* best effort */ } }
     return jsonError('upload_failed', 'Media upload failed', { status: 500 });
