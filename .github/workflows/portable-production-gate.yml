@@ -2,7 +2,7 @@ name: Portable production gate
 
 on:
   push:
-    branches: [main]
+    branches: [main, admin-commerce-4stage-20260829]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -30,9 +30,7 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - run: |
-          npm install --include=dev --no-audit --no-fund
-          npm install --include=dev eslint-config-next@16.3.1 --no-audit --no-fund
+      - run: npm ci --include=dev --no-audit --no-fund
       - run: npm run host:check
         env:
           NODE_ENV: production
