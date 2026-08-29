@@ -10,7 +10,7 @@ permissions:
 jobs:
   admin-smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     services:
       postgres:
         image: postgres:16
@@ -48,7 +48,21 @@ jobs:
       - run: npm ci --include=dev --no-audit --no-fund
       - run: npx prisma migrate deploy
       - run: npx tsx scripts/seed-admin.ts
+      - name: Verify category artwork was seeded
+        run: |
+          npx tsx --eval '
+          import { PrismaClient } from "@prisma/client";
+          const p = new PrismaClient();
+          const rows = await p.$queryRawUnsafe(`SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE NULLIF(TRIM("imageUrl"), '''') IS NOT NULL)::int AS with_image FROM "CategoryMeta"`);
+          console.log(JSON.stringify(rows));
+          if (!rows[0] || rows[0].with_image !== rows[0].total || rows[0].total < 1) process.exit(1);
+          await p.$disconnect();
+          '
       - run: npm run build
+      - name: Install browser test runtime
+        run: |
+          npm install --no-save --package-lock=false @playwright/test@1.62.1
+          npx playwright install chromium --with-deps
       - name: Start app
         run: |
           nohup node .next/standalone/server.js > "$RUNNER_TEMP/empire-admin.log" 2>&1 &
@@ -69,7 +83,7 @@ jobs:
         env:
           HOSTNAME: 0.0.0.0
           PORT: 3000
-      - name: Login and verify Admin routes
+      - name: Auth/API route smoke
         run: |
           node --input-type=module <<'NODE'
           const base = 'http://127.0.0.1:3000';
@@ -84,41 +98,24 @@ jobs:
           const cookie = rawCookie.split(';', 1)[0];
 
           const routes = [
-            '/fa/admin',
-            '/fa/admin/products',
-            '/fa/admin/categories',
-            '/fa/admin/orders',
-            '/fa/admin/sellers',
-            '/fa/admin/users',
-            '/fa/admin/shipping-methods',
-            '/fa/admin/payments',
-            '/fa/admin/payouts',
-            '/fa/admin/reports',
-            '/fa/admin/reviews',
-            '/fa/admin/media',
-            '/fa/admin/banners',
-            '/fa/admin/marketplace',
-            '/fa/admin/analytics',
-            '/fa/admin/audit',
-            '/fa/admin/notifications',
-            '/fa/admin/roles',
-            '/fa/admin/search',
+            '/fa/admin', '/fa/admin/products', '/fa/admin/categories', '/fa/admin/orders',
+            '/fa/admin/sellers', '/fa/admin/users', '/fa/admin/shipping-methods',
+            '/fa/admin/payments', '/fa/admin/payouts', '/fa/admin/reports', '/fa/admin/reviews',
+            '/fa/admin/media', '/fa/admin/banners', '/fa/admin/marketplace', '/fa/admin/analytics',
+            '/fa/admin/audit', '/fa/admin/notifications', '/fa/admin/roles', '/fa/admin/search'
           ];
-
           let failures = 0;
           for (const path of routes) {
             const r = await fetch(`${base}${path}`, {redirect: 'manual', headers: {cookie}});
             const body = await r.text();
             const bad = r.status >= 500 || body.includes('Application error') || body.includes('Internal Server Error') || body.includes('NEXT_HTTP_ERROR_FALLBACK');
             console.log(`${bad ? 'FAIL' : 'PASS'} ${r.status} ${path}`);
-            if (bad) {
-              failures++;
-              console.log(body.slice(0, 1200));
-            }
+            if (bad) failures++;
           }
           if (failures) process.exit(1);
-          console.log(`Admin authenticated route smoke passed: ${routes.length} routes`);
           NODE
+      - name: Authenticated browser UI smoke
+        run: npx playwright test tests/admin-authenticated-e2e.spec.ts --reporter=line
       - name: Upload app log on failure
         if: failure()
         uses: actions/upload-artifact@v4
