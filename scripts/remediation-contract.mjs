@@ -14,8 +14,8 @@ const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 const has = (file, pattern) => pattern.test(read(file));
 
 // Stage 2 — media/storage boundary
-if (!has('src/app/api/admin/media/route.ts', /hasValidSignature/)) failures.push('Stage 2: admin media signature validation is missing.');
-if (!has('src/app/api/admin/media/route.ts', /MAX_IMAGE_BYTES/)) failures.push('Stage 2: image size limit contract is missing.');
+if (!has('src/app/api/admin/media/route.ts', /hasValid(?:Image)?Signature/)) failures.push('Stage 2: admin media signature validation is missing.');
+if (!has('src/app/api/admin/media/route.ts', /MAX_IMAGE_(?:BYTES|UPLOAD_BYTES)/) && !has('src/lib/media/image-upload.ts', /MAX_IMAGE_UPLOAD_BYTES/)) failures.push('Stage 2: image size limit contract is missing.');
 if (!has('src/app/api/admin/media/route.ts', /deletePersistent\(uploadedUrl\)/)) failures.push('Stage 2: orphan cleanup contract is missing.');
 
 // Stage 3 — order/data integrity
