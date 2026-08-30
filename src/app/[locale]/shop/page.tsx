@@ -5,15 +5,17 @@ import { SiteFooter } from '@/features/home/components/site-footer';
 import { BottomNavigation } from '@/features/home/components/bottom-navigation';
 import { ShopPageClient } from '@/features/shop';
 import { ShopHotProducts } from '@/features/shop/components/shop-hot-products';
-import { getProductService } from '@/server/infrastructure/registry';
+import { getCategoryRepository, getProductService } from '@/server/infrastructure/registry';
 import { getProductLocalizedTexts, normalizeCatalogLocale } from '@/server/localization/product-localization';
 import { productListQuerySchema } from '@/lib/validation/product';
-import { prisma } from '@/lib/db';
-import { releaseExpiredStockReservations } from '@/lib/orders/order-engine';
+import { isDatabaseConfigured } from '@/lib/db';
+import { Link } from '@/i18n/routing';
 
 export const dynamic = 'force-dynamic';
 
 interface Props { params: Promise<{ locale: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }
+type CatalogState = { status: 'ok'; products: Awaited<ReturnType<ReturnType<typeof getProductService>['listProducts']>>['products']; meta: { total: number; page: number; pageSize: number; hasMore: boolean } } | { status: 'unavailable'; products: []; meta: null };
+type CategoryNavState = { status: 'ok'; items: Array<{ id: string; key: string; name: string; slug: string }> } | { status: 'unavailable'; items: [] };
 
 function toQueryObject(input: Record<string, string | string[] | undefined>): Record<string, string> {
   const output: Record<string, string> = {};
@@ -24,39 +26,34 @@ function toQueryObject(input: Record<string, string | string[] | undefined>): Re
   return output;
 }
 
-async function getInitialCatalog(rawLocale: string, rawSearchParams: Record<string, string | string[] | undefined>) {
+async function getInitialCatalog(rawLocale: string, rawSearchParams: Record<string, string | string[] | undefined>): Promise<CatalogState> {
+  if (!isDatabaseConfigured()) return { status: 'unavailable', products: [], meta: null };
   try {
-    await releaseExpiredStockReservations(prisma);
     const parsed = productListQuerySchema.safeParse(toQueryObject(rawSearchParams));
     const query = parsed.success ? parsed.data : {};
     const locale = normalizeCatalogLocale(rawLocale);
-    const pageSize = query.limit ?? query.pageSize ?? 40;
+    const pageSize = Math.min(32, query.limit ?? query.pageSize ?? 32);
     const result = await getProductService().listProducts({
-      q: query.q,
-      categoryKey: query.categoryKey,
-      subcategoryKey: query.subcategoryKey,
-      sellerId: query.sellerId,
-      priceMin: query.priceMin,
-      priceMax: query.priceMax,
-      inStock: query.inStock,
-      featured: query.featured,
-      hasDiscount: query.hasDiscount,
-      minRating: query.minRating,
-      badge: query.badge,
-      sort: query.sort,
-      page: 1,
-      pageSize,
-      rerank: Boolean(query.q),
-      isTraditional: query.isTraditional ?? false,
+      q: query.q, categoryKey: query.categoryKey, subcategoryKey: query.subcategoryKey, sellerId: query.sellerId,
+      priceMin: query.priceMin, priceMax: query.priceMax, inStock: query.inStock, featured: query.featured,
+      hasDiscount: query.hasDiscount, minRating: query.minRating, badge: query.badge, sort: query.sort,
+      page: 1, pageSize, rerank: Boolean(query.q), isTraditional: query.isTraditional ?? false,
     });
     const localized = await getProductLocalizedTexts(result.products.map((product) => product.id), locale);
-    const products = result.products.map((product) => {
-      const text = localized.get(product.id);
-      return text ? { ...product, name: text.name, shortDescription: text.shortDescription } : product;
-    });
-    return { products, meta: { total: result.total, page: result.page, pageSize: result.pageSize, hasMore: result.hasMore } };
+    const products = result.products.map((product) => { const text = localized.get(product.id); return text ? { ...product, name: text.name, shortDescription: text.shortDescription } : product; });
+    return { status: 'ok', products, meta: { total: result.total, page: result.page, pageSize: result.pageSize, hasMore: result.hasMore } };
   } catch {
-    return { products: [], meta: null };
+    return { status: 'unavailable', products: [], meta: null };
+  }
+}
+
+async function getCategoryNav(): Promise<CategoryNavState> {
+  if (!isDatabaseConfigured()) return { status: 'unavailable', items: [] };
+  try {
+    const rows = await getCategoryRepository().findAll(false, true);
+    return { status: 'ok', items: rows.map(({ id, key, name, slug }) => ({ id, key, name, slug })) };
+  } catch {
+    return { status: 'unavailable', items: [] };
   }
 }
 
@@ -76,6 +73,8 @@ export default async function ShopPage({ params, searchParams }: Props) {
   const t = await getTranslations('shop');
   const tNav = await getTranslations('nav');
   const safeLocale = (['fa', 'ps', 'en'].includes(locale) ? locale : 'fa') as 'fa' | 'ps' | 'en';
-  const initialCatalog = await getInitialCatalog(locale, resolvedSearchParams);
-  return <><SiteHeader /><main id="main" className="min-h-dvh bg-background pb-16 md:pb-0"><div className="mx-auto max-w-screen-xl px-2 py-5 sm:px-6"><nav aria-label={t('breadcrumb.label')} className="mb-4 flex items-center gap-1.5 text-xs text-muted-foreground"><a href={`/${locale}`} className="transition-colors hover:text-primary">{tNav('home')}</a><span className="text-border" aria-hidden="true">/</span><span className="font-semibold text-foreground" aria-current="page">{tNav('shop')}</span></nav><ShopPageClient locale={locale} currency="AFN" initialProducts={initialCatalog.products} initialMeta={initialCatalog.meta} /></div><ShopHotProducts locale={safeLocale} /></main><SiteFooter /><BottomNavigation /></>;
+  const [initialCatalog, categoryNav] = await Promise.all([getInitialCatalog(locale, resolvedSearchParams), getCategoryNav()]);
+  const categoryCopy = locale === 'ps' ? 'د محصولاتو کټګورۍ' : locale === 'en' ? 'Product categories' : 'دسته‌بندی محصولات';
+  const unavailableCopy = locale === 'ps' ? 'د ډیټابېس پیوستون برابر شوی نه دی.' : locale === 'en' ? 'The database is not configured for this preview yet.' : 'اتصال پایگاه داده برای این پیش‌نمایش هنوز تنظیم نشده است.';
+  return <><SiteHeader /><main id="main" className="min-h-dvh bg-background pb-16 md:pb-0"><div className="mx-auto max-w-screen-xl px-2 py-4 sm:px-6"><nav aria-label={t('breadcrumb.label')} className="mb-3 flex items-center gap-1.5 text-xs text-muted-foreground"><Link href="/" className="transition-colors hover:text-primary">{tNav('home')}</Link><span className="text-border" aria-hidden="true">/</span><span className="font-semibold text-foreground" aria-current="page">{tNav('shop')}</span></nav><section aria-label={categoryCopy} className="sticky top-0 z-20 -mx-2 mb-5 border-y border-border bg-background/95 px-2 py-2 backdrop-blur sm:mx-0 sm:rounded-2xl sm:border"><div className="flex items-center gap-2 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"><Link href="/shop" className="shrink-0 rounded-xl bg-primary px-3.5 py-2.5 text-xs font-extrabold text-primary-foreground">{locale === 'ps' ? 'ټول' : locale === 'en' ? 'All' : 'همه'}</Link>{categoryNav.status === 'unavailable' ? <span className="shrink-0 rounded-xl border border-amber-300/40 bg-amber-50 px-3.5 py-2.5 text-xs font-semibold text-amber-900 dark:border-amber-500/20 dark:bg-amber-950/20 dark:text-amber-200">{unavailableCopy}</span> : categoryNav.items.map((category) => <Link key={category.id} href={`/category/${category.slug}`} className="shrink-0 rounded-xl border border-border bg-card px-3.5 py-2.5 text-xs font-bold text-foreground transition hover:border-primary/30 hover:bg-primary/5">{category.name}</Link>)}</div></section><ShopPageClient locale={locale} currency="AFN" initialProducts={initialCatalog.products} initialMeta={initialCatalog.meta} /></div><ShopHotProducts locale={safeLocale} /></main><SiteFooter /><BottomNavigation /></>;
 }
