@@ -8,6 +8,7 @@ import { mapProductSummary, mapProduct } from '@/lib/db-mappers';
 import { computeSearchScore } from '../algorithms/search-scoring';
 import { rankProducts, DEFAULT_RANKING_CONFIG } from '../algorithms/product-ranking';
 import { diversifyProducts } from '../algorithms/product-diversity';
+import { deterministicSlugFallback, slugifyProductName } from '@/features/products/product-slug';
 import type { Product, ProductSummary } from '@/types';
 export interface ProductListOptions extends ProductListFilter { rerank?: boolean; }
 export interface ProductListResult { products: ProductSummary[]; total: number; page: number; pageSize: number; hasMore: boolean; source: 'db'; }
@@ -19,9 +20,39 @@ export class ProductService {
   async getProductBySlug(slug:string):Promise<Product|null>{const row=await this.products.findBySlug(slug);if(!row||!row.isActive)return null;void this.products.incrementViewCount(row.id).catch(()=>undefined);const agg=await this.reviews.summarize(row.id);return mapProduct(row as never,{averageRating:agg.average,reviewCount:agg.count});}
   async getProductById(id:string):Promise<Product|null>{const row=await this.products.findById(id);if(!row||!row.isActive)return null;void this.products.incrementViewCount(row.id).catch(()=>undefined);const agg=await this.reviews.summarize(row.id);return mapProduct(row as never,{averageRating:agg.average,reviewCount:agg.count});}
   async getRelatedProducts(slug:string,limit=4):Promise<ProductSummary[]>{const product=await this.products.findBySlug(slug);if(!product||!product.isActive)return[];const related=await this.products.findRelated(product.id,limit);return related.map(r=>mapProductSummary(r as never));}
-  async createProduct(input:{slug:string;name:string;shortDescription:string;price:number;compareAtPrice?:number|null;categoryId:string;sellerId:string;region:string;currency?:string;inStock?:boolean;isActive?:boolean;stockQuantity?:number;description?:string|null;whatsappNumber?:string|null;videoUrl?:string|null;isTraditional?:boolean;imagesJson?:string|null;weightKg?:number|null;dimensionsJson?:string|null;tagsJson?:string|null;attributesJson?:string|null;primaryImageIndex?:number;}){const category=await this.categories.findById(input.categoryId);if(!category)throw new ProductServiceError('category_not_found','دسته‌بندی انتخاب‌شده وجود ندارد. لطفاً یک دسته‌بندی معتبر انتخاب کنید.',422);try{return await this.products.create(input)}catch(err:unknown){const e=err as{code?:string};if(e.code==='P2002')throw new ProductServiceError('slug_exists','محصولی با این شناسه (slug) قبلاً ثبت شده است. لطفاً شناسه دیگری انتخاب کنید.',409);throw err;}}
-  async updateProduct(id:string,input:{name?:string;shortDescription?:string;price?:number;compareAtPrice?:number|null;categoryId?:string;region?:string;currency?:string;inStock?:boolean;isActive?:boolean;stockQuantity?:number;description?:string|null;whatsappNumber?:string|null;videoUrl?:string|null;isTraditional?:boolean;imagesJson?:string|null;tagsJson?:string|null;attributesJson?:string|null;weightKg?:number|null;dimensionsJson?:string|null;primaryImageIndex?:number;}){if(input.categoryId){const category=await this.categories.findById(input.categoryId);if(!category)throw new ProductServiceError('category_not_found','دسته‌بندی انتخاب‌شده وجود ندارد.',422)}return this.products.update(id,input)}
+
+  private async uniqueSlug(preferred: string, name: string, categoryId: string): Promise<string> {
+    const base = slugifyProductName(preferred || name);
+    if (!(await this.products.slugExists(base))) return base;
+    const fallback = deterministicSlugFallback(name, categoryId);
+    if (!(await this.products.slugExists(fallback))) return fallback;
+    for (let suffix = 2; suffix <= 100; suffix += 1) {
+      const candidate = `${fallback}-${suffix}`.slice(0, 80).replace(/-+$/g, '');
+      if (!(await this.products.slugExists(candidate))) return candidate;
+    }
+    throw new ProductServiceError('slug_unavailable', 'Unable to allocate a unique product slug.', 409);
+  }
+
+  async createProduct(input:{slug?:string|null;name:string;shortDescription:string;price:number;compareAtPrice?:number|null;categoryId:string;sellerId?:string|null;region:string;currency?:string;inStock?:boolean;isActive?:boolean;stockQuantity?:number;description?:string|null;whatsappNumber?:string|null;videoUrl?:string|null;isTraditional?:boolean;images?:string[];weightKg?:number|null;dimensionsJson?:string|null;tagsJson?:string|null;attributesJson?:string|null;primaryImageIndex?:number;badge?:string|null;}){
+    const category=await this.categories.findById(input.categoryId);
+    if(!category)throw new ProductServiceError('category_not_found','دسته‌بندی انتخاب‌شده وجود ندارد. لطفاً یک دسته‌بندی معتبر انتخاب کنید.',422);
+    const images=input.images??[];
+    if(input.primaryImageIndex!==undefined && input.primaryImageIndex >= images.length && images.length > 0) throw new ProductServiceError('invalid_primary_image','Primary image index is out of range',422);
+    const slug=await this.uniqueSlug(input.slug??'',input.name,input.categoryId);
+    try{return await this.products.create({...input,slug,images,primaryImageIndex:images.length>0?(input.primaryImageIndex??0):0});}
+    catch(err:unknown){const e=err as{code?:string};if(e.code==='P2002')throw new ProductServiceError('slug_exists','Unable to allocate a unique product slug. Please retry.',409);throw err;}
+  }
+  async updateProduct(id:string,input:{name?:string;shortDescription?:string;price?:number;compareAtPrice?:number|null;categoryId?:string;region?:string;currency?:string;inStock?:boolean;isActive?:boolean;stockQuantity?:number;description?:string|null;whatsappNumber?:string|null;videoUrl?:string|null;isTraditional?:boolean;images?:string[];tagsJson?:string|null;attributesJson?:string|null;weightKg?:number|null;dimensionsJson?:string|null;primaryImageIndex?:number;}){
+    if(input.categoryId){const category=await this.categories.findById(input.categoryId);if(!category)throw new ProductServiceError('category_not_found','دسته‌بندی انتخاب‌شده وجود ندارد.',422)}
+    const current=await this.products.findById(id);
+    if(!current)throw new ProductServiceError('not_found','Product not found',404);
+    const images=input.images??readJsonArray(current.imagesJson);
+    const nextPrimary=input.primaryImageIndex??current.primaryImageIndex;
+    if(images.length===0&&nextPrimary!==0)throw new ProductServiceError('invalid_primary_image','Primary image index must be 0 when there are no images',422);
+    if(images.length>0&&nextPrimary>=images.length)throw new ProductServiceError('invalid_primary_image','Primary image index is out of range',422);
+    return this.products.update(id,{...input,images,primaryImageIndex:images.length>0?nextPrimary:0});
+  }
   async deleteProduct(id:string):Promise<void>{await this.products.delete(id)}
   async checkOwnership(productId:string,userId:string,isAdmin:boolean):Promise<'ok'|'not_found'|'forbidden'>{const product=await this.products.findById(productId);if(!product)return'not_found';if(isAdmin)return'ok';return product.sellerId===userId?'ok':'forbidden'}
-  async getHomepageSections(sectionSize=8):Promise<{newest:ProductSummary[];bestSelling:ProductSummary[];mostViewed:ProductSummary[];popular:ProductSummary[];featured:ProductSummary[]}>{const baseFilter:ProductListFilter={isActive:true,pageSize:sectionSize};const [newResult,bestResult,viewedResult,popularResult,featuredResult]=await Promise.all([this.products.findMany({...baseFilter,sort:'newest',page:1}),this.products.findMany({...baseFilter,sort:'bestSelling',page:1}),this.products.findMany({...baseFilter,sort:'mostViewed',page:1}),this.products.findMany({...baseFilter,sort:'popular',page:1}),this.products.findMany({...baseFilter,featured:true,sort:'featured',page:1})]);return{newest:newResult.items.map(r=>mapProductSummary(r as never)),bestSelling:bestResult.items.map(r=>mapProductSummary(r as never)),mostViewed:viewedResult.items.map(r=>mapProductSummary(r as never)),popular:popularResult.items.map(r=>mapProductSummary(r as never)),featured:featuredResult.items.map(r=>mapProductSummary(r as never))};}
+  async getHomepageSections(sectionSize=8):Promise<{newest:ProductSummary[];bestSelling:ProductSummary[];mostViewed:ProductSummary[];popular:ProductSummary[];featured:ProductSummary[]}>{const baseFilter:ProductListFilter={isActive:true,pageSize:sectionSize}; const [newResult,bestResult,viewedResult,popularResult,featuredResult]=await Promise.all([this.products.findMany({...baseFilter,sort:'newest',page:1}),this.products.findMany({...baseFilter,sort:'bestSelling',page:1}),this.products.findMany({...baseFilter,sort:'mostViewed',page:1}),this.products.findMany({...baseFilter,sort:'popular',page:1}),this.products.findMany({...baseFilter,featured:true,sort:'featured',page:1})]);return{newest:newResult.items.map(r=>mapProductSummary(r as never)),bestSelling:bestResult.items.map(r=>mapProductSummary(r as never)),mostViewed:viewedResult.items.map(r=>mapProductSummary(r as never)),popular:popularResult.items.map(r=>mapProductSummary(r as never)),featured:featuredResult.items.map(r=>mapProductSummary(r as never))};}
 }
