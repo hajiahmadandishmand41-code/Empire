@@ -5,30 +5,47 @@ export const PRODUCT_MAX_IMAGES = 12;
 export const PRODUCT_MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 export const PRODUCT_IMAGE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'] as const;
 
-const mediaUrlSchema = z.string().trim().min(1).max(1000).refine(isAllowedAdminMediaUrl, 'Invalid media URL');
-const currencySchema = z.string().trim().regex(/^[A-Z]{3}$/, 'Currency must be a 3-letter ISO code');
+export function normalizePersianDigits(value: string): string {
+  return value
+    .replace(/[۰-۹]/g, (digit) => String(digit.charCodeAt(0) - '۰'.charCodeAt(0)))
+    .replace(/[٠-٩]/g, (digit) => String(digit.charCodeAt(0) - '٠'.charCodeAt(0)))
+    .replace(/٬/g, ',')
+    .replace(/٫/g, '.');
+}
+
+const numeric = z.preprocess((value) => {
+  if (typeof value !== 'string') return value;
+  const normalized = normalizePersianDigits(value).replace(/,/g, '').trim();
+  return normalized === '' ? undefined : Number(normalized);
+}, z.number().finite());
+
+const positiveNumeric = numeric.refine((value) => value > 0, 'مقدار باید بیشتر از صفر باشد');
+const nonNegativeNumeric = numeric.refine((value) => value >= 0, 'مقدار نمی‌تواند منفی باشد');
+const integerNumeric = numeric.int();
+const mediaUrlSchema = z.string().trim().min(1).max(1000).refine(isAllowedAdminMediaUrl, 'آدرس تصویر نامعتبر است');
+const currencySchema = z.string().trim().toUpperCase().regex(/^[A-Z]{3}$/, 'واحد پول نامعتبر است');
 export const productImagesSchema = z.array(mediaUrlSchema).max(PRODUCT_MAX_IMAGES);
 
 const productWriteShape = {
-  slug: z.string().trim().min(1).max(120).nullable().optional(),
-  name: z.string().trim().min(2).max(120),
-  shortDescription: z.string().trim().min(2).max(300),
+  slug: z.string().trim().max(120).nullable().optional(),
+  name: z.string().trim().min(2, 'نام محصول حداقل ۲ حرف باشد').max(120),
+  shortDescription: z.string().trim().min(2, 'توضیح کوتاه حداقل ۲ حرف باشد').max(300),
   description: z.string().trim().max(10000).nullable().optional(),
-  price: z.number().finite().positive(),
+  price: positiveNumeric,
   currency: currencySchema.default('AFN'),
   categoryId: z.string().trim().min(1, 'انتخاب دسته‌بندی الزامی است'),
-  region: z.string().trim().min(1).max(120).default('AF'),
+  region: z.string().trim().min(1, 'کشور یا منطقه الزامی است').max(120).default('AF'),
   badge: z.string().trim().max(40).nullable().optional(),
   inStock: z.boolean().default(true),
-  stockQuantity: z.number().int().min(0).default(0),
+  stockQuantity: integerNumeric.pipe(z.number().min(0)).default(0),
   images: productImagesSchema.default([]),
-  primaryImageIndex: z.number().int().min(0).default(0),
-  compareAtPrice: z.number().finite().positive().nullable().optional(),
+  primaryImageIndex: integerNumeric.pipe(z.number().min(0)).default(0),
+  compareAtPrice: positiveNumeric.nullable().optional(),
   isActive: z.boolean().default(true),
   whatsappNumber: z.string().trim().max(40).nullable().optional(),
   videoUrl: z.string().trim().max(500).nullable().optional(),
   isTraditional: z.boolean().default(false),
-  weightKg: z.number().finite().min(0).nullable().optional(),
+  weightKg: nonNegativeNumeric.nullable().optional(),
   dimensionsJson: z.string().max(200).nullable().optional(),
   tagsJson: z.string().max(500).nullable().optional(),
   attributesJson: z.string().max(2000).nullable().optional(),
@@ -37,14 +54,14 @@ const productWriteShape = {
 const productWriteSchema = z.object(productWriteShape);
 
 export const productCreateSchema = productWriteSchema.superRefine((value, ctx) => {
-  if (value.images.length === 0 && value.primaryImageIndex !== 0) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['primaryImageIndex'], message: 'Primary image index must be 0 when there are no images' });
-  if (value.images.length > 0 && value.primaryImageIndex >= value.images.length) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['primaryImageIndex'], message: 'Primary image index is out of range' });
+  if (value.images.length === 0 && value.primaryImageIndex !== 0) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['primaryImageIndex'], message: 'وقتی تصویر ندارید، شاخص تصویر اصلی باید صفر باشد' });
+  if (value.images.length > 0 && value.primaryImageIndex >= value.images.length) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['primaryImageIndex'], message: 'تصویر اصلی انتخاب‌شده معتبر نیست' });
 });
 
 export const productUpdateSchema = productWriteSchema.partial().strict().superRefine((value, ctx) => {
   if (value.images === undefined || value.primaryImageIndex === undefined) return;
-  if (value.images.length === 0 && value.primaryImageIndex !== 0) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['primaryImageIndex'], message: 'Primary image index must be 0 when there are no images' });
-  if (value.images.length > 0 && value.primaryImageIndex >= value.images.length) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['primaryImageIndex'], message: 'Primary image index is out of range' });
+  if (value.images.length === 0 && value.primaryImageIndex !== 0) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['primaryImageIndex'], message: 'وقتی تصویر ندارید، شاخص تصویر اصلی باید صفر باشد' });
+  if (value.images.length > 0 && value.primaryImageIndex >= value.images.length) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['primaryImageIndex'], message: 'تصویر اصلی انتخاب‌شده معتبر نیست' });
 });
 
 export type ProductCreateInput = z.infer<typeof productCreateSchema>;
@@ -61,4 +78,25 @@ export function parseProductImages(raw: unknown): string[] {
     if (item && typeof item === 'object' && 'url' in item) { const url = (item as { url?: unknown }).url; return typeof url === 'string' ? url : ''; }
     return '';
   }).filter((url): url is string => url.trim().length > 0).slice(0, PRODUCT_MAX_IMAGES);
+}
+
+export const PRODUCT_VALIDATION_LABELS: Record<string, string> = {
+  name: 'نام محصول',
+  shortDescription: 'توضیح کوتاه',
+  price: 'قیمت',
+  currency: 'واحد پول',
+  categoryId: 'دسته‌بندی',
+  region: 'منطقه',
+  stockQuantity: 'موجودی',
+  images: 'تصاویر',
+  primaryImageIndex: 'تصویر اصلی',
+  compareAtPrice: 'قیمت قبلی',
+};
+
+export function productValidationMessage(issues: z.ZodIssue[]): string {
+  const first = issues[0];
+  if (!first) return 'اطلاعات محصول معتبر نیست.';
+  const key = String(first.path[0] ?? '');
+  const label = PRODUCT_VALIDATION_LABELS[key] ?? 'اطلاعات محصول';
+  return `${label}: ${first.message}`;
 }
