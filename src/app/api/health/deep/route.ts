@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma, isDatabaseConfigured } from '@/lib/db';
-import { isPersistentStorageConfigured } from '@/lib/storage';
+import { checkPersistentStorage } from '@/lib/storage';
+import { hasValidAuthSecret } from '@/lib/auth/session';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -17,9 +18,11 @@ export async function GET() {
     }
   }
 
-  const auth: 'ok' | 'unavailable' = Boolean(process.env.AUTH_SECRET?.trim() || process.env.NEXTAUTH_SECRET?.trim() || process.env.SESSION_SECRET?.trim()) ? 'ok' : 'unavailable';
-  const storage: 'ok' | 'unavailable' = isPersistentStorageConfigured || database === 'ok' ? 'ok' : 'unavailable';
-  const ok = database === 'ok' && auth === 'ok';
+  const auth: 'ok' | 'unavailable' = hasValidAuthSecret() ? 'ok' : 'unavailable';
+  const storage: 'ok' | 'unavailable' = await checkPersistentStorage()
+    ? 'ok'
+    : 'unavailable';
+  const ok = database === 'ok' && auth === 'ok' && storage === 'ok';
 
   return NextResponse.json(
     { application: 'ok', database, auth, storage },
