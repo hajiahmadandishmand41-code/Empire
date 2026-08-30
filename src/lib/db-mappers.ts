@@ -1,6 +1,4 @@
-/**
- * Prisma -> domain type mappers.
- */
+/** Prisma -> domain type mappers. */
 import type {
   Category as PCategory,
   Order as POrder,
@@ -37,7 +35,7 @@ function parseJson<T>(raw: unknown, fallback: T): T {
 const moneyNumber = (value: unknown): number => Number(value ?? 0);
 
 type ProductWithCategoryAndSeller = ProductWithCategory & {
-  seller?: { id: string; sellerShopName: string | null } | null;
+  seller?: { id: string; fullName: string; sellerShopName: string | null } | null;
 };
 
 export function mapProductSummary(
@@ -58,6 +56,7 @@ export function mapProductSummary(
     images,
     inStock: p.inStock,
     sellerId: p.sellerId ?? null,
+    sellerName: p.seller?.fullName ?? null,
     sellerShopName: p.seller?.sellerShopName ?? null,
     salesCount: (p as unknown as { salesCount?: number }).salesCount ?? 0,
     viewCount: (p as unknown as { viewCount?: number }).viewCount ?? 0,
@@ -84,102 +83,28 @@ export function mapProduct(
 }
 
 export function mapCategory(c: PCategory & { _count?: { products: number } }): Category {
-  return {
-    key: c.key as CategoryKey,
-    name: c.name,
-    slug: c.slug,
-    productCount: c._count?.products,
-  };
+  return { key: c.key as CategoryKey, name: c.name, slug: c.slug, productCount: c._count?.products };
 }
 
 export function mapAddress(a: PAddress): ShippingAddress {
-  return {
-    id: a.id,
-    label: a.label ?? undefined,
-    fullName: a.fullName,
-    phone: a.phone,
-    province: a.province,
-    district: a.district,
-    city: a.city ?? undefined,
-    addressLine: a.addressLine,
-    postalCode: a.postalCode ?? undefined,
-    notes: a.notes ?? undefined,
-    isDefault: a.isDefault ?? false,
-  };
+  return { id: a.id, label: a.label ?? undefined, fullName: a.fullName, phone: a.phone, province: a.province, district: a.district, city: a.city ?? undefined, addressLine: a.addressLine, postalCode: a.postalCode ?? undefined, notes: a.notes ?? undefined, isDefault: a.isDefault ?? false };
 }
 
 export function mapShippingMethod(m: PShippingMethod): ShippingMethod {
-  return {
-    id: m.id,
-    key: m.key,
-    name: m.name,
-    description: m.description ?? undefined,
-    kind: m.kind as ShippingKind,
-    cost: moneyNumber(m.cost),
-    currency: m.currency,
-    etaDays: m.etaDays ?? undefined,
-    isActive: m.isActive,
-    sortOrder: m.sortOrder,
-  };
+  return { id: m.id, key: m.key, name: m.name, description: m.description ?? undefined, kind: m.kind as ShippingKind, cost: moneyNumber(m.cost), currency: m.currency, etaDays: m.etaDays ?? undefined, isActive: m.isActive, sortOrder: m.sortOrder };
 }
 
-export function mapOrder(
-  o: POrder & {
-    items: POrderItem[];
-    address: PAddress;
-    shippingMethod?: PShippingMethod | null;
-  },
-): Order {
+export function mapOrder(o: POrder & { items: POrderItem[]; address: PAddress; shippingMethod?: PShippingMethod | null }): Order {
   return {
-    id: o.id,
-    reference: o.reference,
-    status: o.status,
-    paymentMethod: o.paymentMethod,
-    paymentStatus: o.paymentStatus,
-    createdAt: o.createdAt.toISOString(),
-    updatedAt: o.updatedAt.toISOString(),
-    items: o.items.map((i) => ({
-      slug: i.slug,
-      name: i.name,
-      price: moneyNumber(i.price),
-      quantity: i.quantity,
-    })),
-    address: {
-      ...mapAddress(o.address),
-      ...(o.shippingFullName ? { fullName: o.shippingFullName } : {}),
-      ...(o.shippingPhone ? { phone: o.shippingPhone } : {}),
-      ...(o.shippingProvince ? { province: o.shippingProvince } : {}),
-      ...(o.shippingDistrict ? { district: o.shippingDistrict } : {}),
-      ...(o.shippingCity !== null && o.shippingCity !== undefined ? { city: o.shippingCity ?? undefined } : {}),
-      ...(o.shippingAddressLine ? { addressLine: o.shippingAddressLine } : {}),
-      ...(o.shippingPostalCode !== null && o.shippingPostalCode !== undefined ? { postalCode: o.shippingPostalCode ?? undefined } : {}),
-      ...(o.shippingNotes !== null && o.shippingNotes !== undefined ? { notes: o.shippingNotes ?? undefined } : {}),
-    },
-    shippingCost: moneyNumber(o.shipping),
-    shippingMethod: o.shippingMethod ? mapShippingMethod(o.shippingMethod) : null,
-    shippingMethodId: o.shippingMethodId ?? undefined,
-    summary: {
-      itemCount: o.itemCount,
-      subtotal: moneyNumber(o.subtotal),
-      currency: (o.currency as CurrencyCode) ?? 'USD',
-    },
+    id: o.id, reference: o.reference, status: o.status, paymentMethod: o.paymentMethod, paymentStatus: o.paymentStatus,
+    createdAt: o.createdAt.toISOString(), updatedAt: o.updatedAt.toISOString(),
+    items: o.items.map((i) => ({ slug: i.slug, name: i.name, price: moneyNumber(i.price), quantity: i.quantity })),
+    address: { ...mapAddress(o.address), ...(o.shippingFullName ? { fullName: o.shippingFullName } : {}), ...(o.shippingPhone ? { phone: o.shippingPhone } : {}), ...(o.shippingProvince ? { province: o.shippingProvince } : {}), ...(o.shippingDistrict ? { district: o.shippingDistrict } : {}), ...(o.shippingCity !== null && o.shippingCity !== undefined ? { city: o.shippingCity ?? undefined } : {}), ...(o.shippingAddressLine ? { addressLine: o.shippingAddressLine } : {}), ...(o.shippingPostalCode !== null && o.shippingPostalCode !== undefined ? { postalCode: o.shippingPostalCode ?? undefined } : {}), ...(o.shippingNotes !== null && o.shippingNotes !== undefined ? { notes: o.shippingNotes ?? undefined } : {}) },
+    shippingCost: moneyNumber(o.shipping), shippingMethod: o.shippingMethod ? mapShippingMethod(o.shippingMethod) : null, shippingMethodId: o.shippingMethodId ?? undefined,
+    summary: { itemCount: o.itemCount, subtotal: moneyNumber(o.subtotal), currency: (o.currency as CurrencyCode) ?? 'USD' },
   };
 }
 
 export function mapTransaction(t: PTransaction): Transaction {
-  return {
-    id: t.id,
-    orderId: t.orderId,
-    reference: t.reference,
-    provider: t.provider,
-    method: t.method,
-    status: t.status,
-    amount: moneyNumber(t.amount),
-    currency: t.currency,
-    providerTxnId: t.providerTxnId ?? undefined,
-    failureReason: t.failureReason ?? undefined,
-    paidAt: t.paidAt ? t.paidAt.toISOString() : undefined,
-    createdAt: t.createdAt.toISOString(),
-    updatedAt: t.updatedAt.toISOString(),
-  };
+  return { id: t.id, orderId: t.orderId, reference: t.reference, provider: t.provider, method: t.method, status: t.status, amount: moneyNumber(t.amount), currency: t.currency, providerTxnId: t.providerTxnId ?? undefined, failureReason: t.failureReason ?? undefined, paidAt: t.paidAt ? t.paidAt.toISOString() : undefined, createdAt: t.createdAt.toISOString(), updatedAt: t.updatedAt.toISOString() };
 }

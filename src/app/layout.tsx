@@ -1,9 +1,11 @@
+import { ImageUploadGuard } from '@/components/providers/image-upload-guard';
+
 /**
  * Root layout — required by Next.js App Router.
  * The locale layout owns the document because it sets locale-aware lang/dir.
  */
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return children;
+  return <><ImageUploadGuard />{children}</>;
 }
 
 export const metadata = {

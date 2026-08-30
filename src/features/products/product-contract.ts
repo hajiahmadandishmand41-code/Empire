@@ -3,7 +3,10 @@ import { isAllowedAdminMediaUrl } from '@/features/admin/lib/media-url';
 
 export const PRODUCT_MAX_IMAGES = 12;
 export const PRODUCT_MAX_IMAGE_BYTES = 10 * 1024 * 1024;
-export const PRODUCT_IMAGE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'] as const;
+export const PRODUCT_IMAGE_MIME_TYPES = [
+  'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif', 'image/bmp', 'image/tiff',
+  'image/x-icon', 'image/vnd.microsoft.icon', 'image/heic', 'image/heif', 'image/jxl', 'image/apng', 'image/svg+xml',
+] as const;
 
 export function normalizePersianDigits(value: string): string {
   return value

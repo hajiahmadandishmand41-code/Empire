@@ -1,15 +1,13 @@
 /** Seller product queries — server-only, database-authoritative. */
 import { prisma, isDatabaseConfigured } from '@/lib/db';
-import type { AdminProductRow, AdminCategoryRow } from '@/features/admin/lib/mock-data';
 import { parseProductImages } from '@/features/products/product-contract';
 
-export interface SellerProductRow extends AdminProductRow {
-  isActive: boolean;
-  stockQuantity: number;
-  compareAtPrice: number | null;
-  imageCount: number;
+export interface SellerProductRow {
+  id: string; slug: string; name: string; price: number; currency: string; categoryName: string;
+  region: string; inStock: boolean; createdAt: string; isActive: boolean; stockQuantity: number;
+  compareAtPrice: number | null; imageCount: number;
 }
-export type SellerCategoryRow = AdminCategoryRow;
+export interface SellerCategoryRow { id: string; key: string; name: string; slug: string; productCount: number; }
 export interface ListFilters { q?: string; page?: number; pageSize?: number; sellerId?: string; }
 export interface Paged<T> { items: T[]; total: number; page: number; pageSize: number; source: 'db' | 'empty' | 'unavailable'; }
 
@@ -25,18 +23,10 @@ export async function listSellerProducts(f: ListFilters = {}): Promise<Paged<Sel
   ] } : {};
   const where = f.sellerId ? { AND: [{ sellerId: f.sellerId }, textWhere] } : textWhere;
   const [rows, total] = await Promise.all([
-    prisma.product.findMany({
-      where,
-      select: { id: true, slug: true, name: true, price: true, currency: true, region: true, inStock: true, isActive: true, stockQuantity: true, compareAtPrice: true, imagesJson: true, createdAt: true, category: { select: { name: true } } },
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: pageSize, skip: (page - 1) * pageSize,
-    }),
+    prisma.product.findMany({ where, select: { id: true, slug: true, name: true, price: true, currency: true, region: true, inStock: true, isActive: true, stockQuantity: true, compareAtPrice: true, imagesJson: true, createdAt: true, category: { select: { name: true } } }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: pageSize, skip: (page - 1) * pageSize }),
     prisma.product.count({ where }),
   ]);
-  const items: SellerProductRow[] = rows.map((p) => ({
-    id: p.id, slug: p.slug, name: p.name, price: Number(p.price), currency: p.currency, categoryName: p.category.name,
-    region: p.region, inStock: p.inStock, createdAt: p.createdAt.toISOString(), isActive: p.isActive, stockQuantity: p.stockQuantity,
-    compareAtPrice: p.compareAtPrice == null ? null : Number(p.compareAtPrice), imageCount: parseProductImages(p.imagesJson).length,
-  }));
+  const items: SellerProductRow[] = rows.map((p) => ({ id: p.id, slug: p.slug, name: p.name, price: Number(p.price), currency: p.currency, categoryName: p.category.name, region: p.region, inStock: p.inStock, createdAt: p.createdAt.toISOString(), isActive: p.isActive, stockQuantity: p.stockQuantity, compareAtPrice: p.compareAtPrice == null ? null : Number(p.compareAtPrice), imageCount: parseProductImages(p.imagesJson).length }));
   return { items, total, page, pageSize, source: total === 0 ? 'empty' : 'db' };
 }
 
