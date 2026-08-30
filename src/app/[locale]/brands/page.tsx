@@ -17,16 +17,21 @@ const copy = {
 
 export const dynamic = 'force-dynamic';
 
-async function BrandsGrid({ locale, query }: { locale: Locale; query: string }) {
-  const t = copy[locale];
+async function loadBrands(query: string) {
   try {
-    const result = await getSellerRepository().findPublicMany({ q: query, page: 1, pageSize: 48 });
-    if (!result.items.length) return <div className="py-16 text-center text-sm font-semibold text-muted-foreground">{t.empty}</div>;
-    return <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6">{result.items.map((store) => <Link key={store.id} href={`/store/${store.id}` as never} className="group rounded-3xl border border-border bg-card p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"><div className="flex flex-col items-center text-center"><span className="relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border border-border bg-background shadow-sm ring-2 ring-background">{store.logoUrl ? <Image src={store.logoUrl} alt="" fill sizes="80px" className="object-cover" /> : <span className="text-2xl font-black text-primary">{store.shopName.charAt(0)}</span>}<span className="absolute -end-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full border border-background bg-emerald-500 text-white"><BadgeCheck className="h-3 w-3" /></span></span><h2 className="mt-3 w-full truncate text-sm font-black group-hover:text-primary">{store.shopName}</h2><span className="mt-1 text-[10px] font-semibold text-muted-foreground">{t.brand}</span></div></Link>)}</div>;
+    return await getSellerRepository().findPublicMany({ q: query, page: 1, pageSize: 48 });
   } catch (err) {
     console.error('[brands] DB error:', err);
-    return <div role="status" className="rounded-3xl border border-amber-500/30 bg-amber-500/5 px-6 py-20 text-center"><Tags className="mx-auto h-10 w-10 text-amber-600" aria-hidden /><h2 className="mt-4 text-lg font-black">{t.unavailable}</h2><p className="mt-2 text-sm text-muted-foreground">{t.retry}</p></div>;
+    return null;
   }
+}
+
+async function BrandsGrid({ locale, query }: { locale: Locale; query: string }) {
+  const t = copy[locale];
+  const result = await loadBrands(query);
+  if (!result) return <div role="status" className="rounded-3xl border border-amber-500/30 bg-amber-500/5 px-6 py-20 text-center"><Tags className="mx-auto h-10 w-10 text-amber-600" aria-hidden /><h2 className="mt-4 text-lg font-black">{t.unavailable}</h2><p className="mt-2 text-sm text-muted-foreground">{t.retry}</p></div>;
+  if (!result.items.length) return <div className="py-16 text-center text-sm font-semibold text-muted-foreground">{t.empty}</div>;
+  return <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6">{result.items.map((store) => <Link key={store.id} href={`/store/${store.id}` as never} className="group rounded-3xl border border-border bg-card p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"><div className="flex flex-col items-center text-center"><span className="relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border border-border bg-background shadow-sm ring-2 ring-background">{store.logoUrl ? <Image src={store.logoUrl} alt="" fill sizes="80px" className="object-cover" /> : <span className="text-2xl font-black text-primary">{store.shopName.charAt(0)}</span>}<span className="absolute -end-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full border border-background bg-emerald-500 text-white"><BadgeCheck className="h-3 w-3" /></span></span><h2 className="mt-3 w-full truncate text-sm font-black group-hover:text-primary">{store.shopName}</h2><span className="mt-1 text-[10px] font-semibold text-muted-foreground">{t.brand}</span></div></Link>)}</div>;
 }
 
 export default async function BrandsPage({ params, searchParams }: { params: Promise<{ locale: string }>; searchParams: Promise<{ q?: string }> }) {
