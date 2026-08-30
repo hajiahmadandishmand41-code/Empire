@@ -99,9 +99,6 @@ export default async function SellerProductsPage({ params, searchParams }: Props
       <Card className="space-y-4 p-4">
         <div className="flex flex-wrap items-center gap-3">
           <SearchForm placeholder="جستجو در محصولات…" />
-          {result.source === 'mock' && (
-            <span className="text-xs text-muted-foreground">(داده‌های نمایشی)</span>
-          )}
         </div>
 
         {result.total === 0 ? (

@@ -60,6 +60,42 @@ async function uploadToDatabase(file: File, folder: string) {
   };
 }
 
+/**
+ * Performs a read-only, real runtime check of the configured media backend.
+ * For Cloudinary this validates DNS/reachability and API credentials without
+ * creating or deleting an asset. For the DB fallback it validates that the
+ * MediaAsset table is reachable. It never returns credentials or response data.
+ */
+export async function checkPersistentStorage(): Promise<boolean> {
+  if (!isPersistentStorageConfigured) {
+    try {
+      await prisma.$queryRaw`SELECT 1 FROM "MediaAsset" LIMIT 1`;
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
+    const auth = Buffer.from(`${apiKey!}:${apiSecret!}`).toString('base64');
+    const response = await fetch(
+      `https://api.cloudinary.com/v1_1/${cloud}/resources/image/upload?max_results=1`,
+      {
+        method: 'GET',
+        headers: { Authorization: `Basic ${auth}` },
+        signal: controller.signal,
+        cache: 'no-store',
+      },
+    );
+    clearTimeout(timer);
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
 export async function uploadPersistent(file: File, folder: string) {
   if (!isPersistentStorageConfigured) {
     return uploadToDatabase(file, folder);

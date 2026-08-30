@@ -11,6 +11,7 @@ export type AuditAction =
   | 'user.active_change'
   | 'seller.status_change'
   | 'seller.update'
+  | 'product.create'
   | 'product.update'
   | 'product.archive'
   | 'product.delete'

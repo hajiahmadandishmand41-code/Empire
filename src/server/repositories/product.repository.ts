@@ -29,16 +29,16 @@ export interface ProductListFilter {
 
 export interface CreateProductInput {
   slug: string; name: string; shortDescription: string; price: number; compareAtPrice?: number | null;
-  categoryId: string; sellerId: string; region: string; currency?: string; inStock?: boolean; isActive?: boolean; stockQuantity?: number;
+  categoryId: string; sellerId?: string | null; region: string; currency?: string; inStock?: boolean; isActive?: boolean; stockQuantity?: number;
   description?: string | null; whatsappNumber?: string | null; videoUrl?: string | null; isTraditional?: boolean;
-  imagesJson?: string | null; featuresJson?: string | null; badge?: string | null; weightKg?: number | null;
+  images?: string[]; featuresJson?: string | null; badge?: string | null; weightKg?: number | null;
   dimensionsJson?: string | null; tagsJson?: string | null; attributesJson?: string | null; primaryImageIndex?: number;
 }
 export interface UpdateProductInput {
   name?: string; shortDescription?: string; price?: number; compareAtPrice?: number | null; categoryId?: string;
   region?: string; currency?: string; inStock?: boolean; isActive?: boolean; stockQuantity?: number;
   description?: string | null; whatsappNumber?: string | null; videoUrl?: string | null; isTraditional?: boolean;
-  imagesJson?: string | null; featuresJson?: string | null; badge?: string | null; weightKg?: number | null;
+  images?: string[]; featuresJson?: string | null; badge?: string | null; weightKg?: number | null;
   dimensionsJson?: string | null; tagsJson?: string | null; attributesJson?: string | null; primaryImageIndex?: number;
 }
 
@@ -52,6 +52,7 @@ export interface IProductRepository {
   findProductNames(query: string, limit: number): Promise<Array<{ name: string }>>;
   findBySlug(slug: string): Promise<ProductDetailRow | null>;
   findById(id: string): Promise<ProductDetailRow | null>;
+  slugExists(slug: string): Promise<boolean>;
   findByCategoryExcluding(categoryId: string, excludeId: string, limit: number): Promise<ProductRow[]>;
   findByIds(ids: string[]): Promise<ProductDetailRow[]>;
   findRelated(productId: string, limit: number): Promise<ProductRow[]>;
@@ -96,6 +97,7 @@ export class PrismaProductRepository implements IProductRepository {
   }
   async findBySlug(slug: string): Promise<ProductDetailRow | null> { return (await this.prisma.product.findFirst({ where: { slug, isActive: true }, include: PRODUCT_DETAIL_INCLUDE })) as unknown as ProductDetailRow | null; }
   async findById(id: string): Promise<ProductDetailRow | null> { return (await this.prisma.product.findUnique({ where: { id }, include: PRODUCT_DETAIL_INCLUDE })) as unknown as ProductDetailRow | null; }
+  async slugExists(slug: string): Promise<boolean> { const row = await this.prisma.product.findUnique({ where: { slug }, select: { id: true } }); return Boolean(row); }
   async findByCategoryExcluding(categoryId: string, excludeId: string, limit: number): Promise<ProductRow[]> { return (await this.prisma.product.findMany({ where: { categoryId, id: { not: excludeId }, isActive: true }, include: PRODUCT_LIST_INCLUDE, orderBy: [{ salesCount: 'desc' }, { createdAt: 'desc' }, { id: 'asc' }], take: limit })) as unknown as ProductRow[]; }
   async findByIds(ids: string[]): Promise<ProductDetailRow[]> { if (ids.length === 0) return []; return (await this.prisma.product.findMany({ where: { id: { in: ids }, isActive: true }, include: PRODUCT_DETAIL_INCLUDE })) as unknown as ProductDetailRow[]; }
   async findRelated(productId: string, limit: number): Promise<ProductRow[]> { const product = await this.prisma.product.findUnique({ where: { id: productId }, select: { categoryId: true } }); if (!product) return []; return this.findByCategoryExcluding(product.categoryId, productId, limit); }
@@ -103,10 +105,10 @@ export class PrismaProductRepository implements IProductRepository {
   async create(input: CreateProductInput): Promise<ProductDetailRow> {
     const row = await this.prisma.product.create({ data: {
       slug: input.slug, name: input.name, shortDescription: input.shortDescription, price: input.price,
-      compareAtPrice: input.compareAtPrice ?? null, categoryId: input.categoryId, sellerId: input.sellerId, region: input.region,
+      compareAtPrice: input.compareAtPrice ?? null, categoryId: input.categoryId, sellerId: input.sellerId ?? null, region: input.region,
       currency: input.currency ?? 'AFN', inStock: input.inStock ?? true, isActive: input.isActive ?? true, stockQuantity: input.stockQuantity ?? 0,
       description: input.description ?? null, whatsappNumber: input.whatsappNumber ?? null, videoUrl: input.videoUrl ?? null,
-      isTraditional: input.isTraditional ?? false, imagesJson: jsonValue(input.imagesJson), featuresJson: jsonValue(input.featuresJson),
+      isTraditional: input.isTraditional ?? false, imagesJson: jsonValue(input.images == null ? null : JSON.stringify(input.images)), featuresJson: jsonValue(input.featuresJson),
       badge: input.badge ?? (input.compareAtPrice != null ? 'sale' : null), weightKg: input.weightKg ?? null, dimensionsJson: jsonValue(input.dimensionsJson),
       tagsJson: jsonValue(input.tagsJson), attributesJson: jsonValue(input.attributesJson), primaryImageIndex: input.primaryImageIndex ?? 0,
     }, include: PRODUCT_DETAIL_INCLUDE });
@@ -115,7 +117,9 @@ export class PrismaProductRepository implements IProductRepository {
 
   async update(id: string, input: UpdateProductInput): Promise<ProductDetailRow> {
     const data: Record<string, unknown> = { ...input };
-    for (const field of ['imagesJson','featuresJson','dimensionsJson','tagsJson','attributesJson'] as const) if (field in input) data[field] = jsonValue(input[field]);
+    if ('images' in input) data.imagesJson = jsonValue(input.images == null ? null : JSON.stringify(input.images));
+    delete data.images;
+    for (const field of ['featuresJson','dimensionsJson','tagsJson','attributesJson'] as const) if (field in input) data[field] = jsonValue(input[field]);
     if (input.compareAtPrice !== undefined) data.badge = input.compareAtPrice != null ? 'sale' : null;
     if (typeof input.stockQuantity === 'number' && input.inStock === undefined) data.inStock = input.stockQuantity > 0;
     const row = await this.prisma.product.update({ where: { id }, data: data as never, include: PRODUCT_DETAIL_INCLUDE });
