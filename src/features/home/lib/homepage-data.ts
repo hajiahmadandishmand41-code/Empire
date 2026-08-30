@@ -14,6 +14,7 @@ export type HomepageSectionState = { status: 'ok'; products: ProductSummary[] } 
 const EMPTY_HOME_DATA: HomepageData = { newest: [], bestSelling: [], mostViewed: [], popular: [], featured: [] };
 
 export const getHomepageDataState = cache(async (): Promise<HomepageState> => {
+  // Fail closed when the deployment has no database connection: no fake data and no crash.
   if (!isDatabaseConfigured()) return { status: 'unavailable', data: EMPTY_HOME_DATA };
   try { return { status: 'ok', data: await getProductService().getHomepageSections(12) }; }
   catch { return { status: 'unavailable', data: EMPTY_HOME_DATA }; }
@@ -21,6 +22,7 @@ export const getHomepageDataState = cache(async (): Promise<HomepageState> => {
 
 /** @deprecated Prefer getHomepageDataState so DB failure cannot be mistaken for empty data. */
 export const getHomepageData = cache(async (): Promise<HomepageData> => {
+  if (!isDatabaseConfigured()) return EMPTY_HOME_DATA;
   const state = await getHomepageDataState();
   return state.data;
 });
