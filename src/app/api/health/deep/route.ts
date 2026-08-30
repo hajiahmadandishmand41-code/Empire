@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   const databaseConfigured = isDatabaseConfigured();
-  let database: 'ok' | 'unavailable' = databaseConfigured ? 'unavailable' : 'unavailable';
+  let database: 'ok' | 'unavailable' = 'unavailable';
   if (databaseConfigured) {
     try {
       await prisma.$queryRaw`SELECT 1`;
