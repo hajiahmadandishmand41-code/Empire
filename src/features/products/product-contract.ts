@@ -10,11 +10,11 @@ const currencySchema = z.string().trim().regex(/^[A-Z]{3}$/, 'Currency must be a
 
 export const productImagesSchema = z.array(mediaUrlSchema).max(PRODUCT_MAX_IMAGES);
 
-export const productCreateSchema = z.object({
-  slug: z.string().trim().min(1).max(120).optional().nullable(),
+const productWriteShape = {
+  slug: z.string().trim().min(1).max(120).nullable().optional(),
   name: z.string().trim().min(2).max(120),
   shortDescription: z.string().trim().min(2).max(300),
-  description: z.string().trim().max(10000).optional().nullable(),
+  description: z.string().trim().max(10000).nullable().optional(),
   price: z.number().finite().positive(),
   currency: currencySchema.default('AFN'),
   categoryId: z.string().trim().min(1, 'انتخاب دسته‌بندی الزامی است'),
@@ -33,7 +33,11 @@ export const productCreateSchema = z.object({
   dimensionsJson: z.string().max(200).nullable().optional(),
   tagsJson: z.string().max(500).nullable().optional(),
   attributesJson: z.string().max(2000).nullable().optional(),
-}).superRefine((value, ctx) => {
+} satisfies z.ZodRawShape;
+
+const productWriteSchema = z.object(productWriteShape);
+
+export const productCreateSchema = productWriteSchema.superRefine((value, ctx) => {
   if (value.images.length === 0 && value.primaryImageIndex !== 0) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['primaryImageIndex'], message: 'Primary image index must be 0 when there are no images' });
   }
@@ -42,9 +46,7 @@ export const productCreateSchema = z.object({
   }
 });
 
-export const productUpdateSchema = productCreateSchema.partial().extend({
-  slug: z.string().trim().min(1).max(120).optional(),
-}).strict().superRefine((value, ctx) => {
+export const productUpdateSchema = productWriteSchema.partial().strict().superRefine((value: z.infer<typeof productWriteSchema>, ctx: z.RefinementCtx) => {
   if (value.images === undefined || value.primaryImageIndex === undefined) return;
   if (value.images.length === 0 && value.primaryImageIndex !== 0) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['primaryImageIndex'], message: 'Primary image index must be 0 when there are no images' });
