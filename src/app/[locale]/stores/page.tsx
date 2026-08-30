@@ -13,13 +13,13 @@ type Props = { params: Promise<{ locale: string }>; searchParams: Promise<{ q?: 
 
 const copy = {
   fa: {
-    title: 'فروشگاه‌ها', subtitle: 'فروشگاه‌های تأییدشده را پیدا کنید و محصولات هر فروشنده را مستقیم ببینید.', placeholder: 'نام فروشگاه یا عبارت را جستجو کنید…', cityPlaceholder: 'شهر / موقعیت', search: 'اعمال فیلتر', results: 'فروشگاه', verified: 'فروشنده تأییدشده', products: 'محصول', location: 'موقعیت ثبت‌شده', open: 'مشاهده فروشگاه', empty: 'فروشگاهی پیدا نشد', emptyText: 'فیلترها را کمی بازتر کنید یا عبارت دیگری جستجو کنید.', clear: 'پاک کردن فیلترها', market: 'بازار فروشندگان', sort: 'مرتب‌سازی', popular: 'محبوب‌ترین', newest: 'جدیدترین', name: 'الفبایی', filters: 'فیلتر فروشگاه‌ها', active: 'فیلتر فعال', all: 'همه',
+    title: 'فروشگاه‌ها', subtitle: 'فروشگاه‌های تأییدشده را پیدا کنید و محصولات هر فروشنده را مستقیم ببینید.', placeholder: 'نام فروشگاه یا عبارت را جستجو کنید…', cityPlaceholder: 'شهر / موقعیت', search: 'اعمال فیلتر', results: 'فروشگاه', verified: 'فروشنده تأییدشده', products: 'محصول', location: 'موقعیت ثبت‌شده', open: 'مشاهده فروشگاه', empty: 'فروشگاهی پیدا نشد', emptyText: 'فیلترها را کمی بازتر کنید یا عبارت دیگری جستجو کنید.', unavailable: 'فروشگاه‌ها موقتاً در دسترس نیستند.', unavailableText: 'اتصال به پایگاه داده برقرار نشد؛ لطفاً بعداً دوباره تلاش کنید.', clear: 'پاک کردن فیلترها', market: 'بازار فروشندگان', sort: 'مرتب‌سازی', popular: 'محبوب‌ترین', newest: 'جدیدترین', name: 'الفبایی', filters: 'فیلتر فروشگاه‌ها', active: 'فیلتر فعال', all: 'همه',
   },
   ps: {
-    title: 'پلورنځي', subtitle: 'تایید شوي پلورنځي ومومئ او د هر پلورونکي محصولات مستقیم وګورئ.', placeholder: 'د پلورنځي نوم یا کلیمه ولټوئ…', cityPlaceholder: 'ښار / موقعیت', search: 'فیلتر پلي کړئ', results: 'پلورنځي', verified: 'تایید شوی پلورونکی', products: 'محصولات', location: 'ثبت شوی ځای', open: 'پلورنځی وګورئ', empty: 'هېڅ پلورنځی ونه موندل شو', emptyText: 'فیلټرونه لږ پراخ کړئ یا بله کلیمه وکاروئ.', clear: 'فیلټرونه پاک کړئ', market: 'د پلورونکو بازار', sort: 'ترتیب', popular: 'مشهور', newest: 'نوي', name: 'الفبایي', filters: 'د پلورنځیو فیلټر', active: 'فعال فیلټر', all: 'ټول',
+    title: 'پلورنځي', subtitle: 'تایید شوي پلورنځي ومومئ او د هر پلورونکي محصولات مستقیم وګورئ.', placeholder: 'د پلورنځي نوم یا کلیمه ولټوئ…', cityPlaceholder: 'ښار / موقعیت', search: 'فیلتر پلي کړئ', results: 'پلورنځي', verified: 'تایید شوی پلورونکی', products: 'محصولات', location: 'ثبت شوی ځای', open: 'پلورنځی وګورئ', empty: 'هېڅ پلورنځی ونه موندل شو', emptyText: 'فیلټرونه لږ پراخ کړئ یا بله کلیمه وکاروئ.', unavailable: 'پلورنځي اوس مهال د لاسرسي وړ نه دي.', unavailableText: 'له ډیټابیس سره اړیکه ونه شوه؛ مهرباني وکړئ وروسته بیا هڅه وکړئ.', clear: 'فیلټرونه پاک کړئ', market: 'د پلورونکو بازار', sort: 'ترتیب', popular: 'مشهور', newest: 'نوي', name: 'الفبایي', filters: 'د پلورنځیو فیلټر', active: 'فعال فیلټر', all: 'ټول',
   },
   en: {
-    title: 'Stores', subtitle: 'Discover verified stores and browse each seller’s products directly.', placeholder: 'Search a store or keyword…', cityPlaceholder: 'City / location', search: 'Apply filters', results: 'stores', verified: 'Verified seller', products: 'products', location: 'Registered location', open: 'View store', empty: 'No stores found', emptyText: 'Broaden the filters or try another search term.', clear: 'Clear filters', market: 'Seller marketplace', sort: 'Sort', popular: 'Most popular', newest: 'Newest', name: 'Name', filters: 'Store filters', active: 'Active filter', all: 'All',
+    title: 'Stores', subtitle: 'Discover verified stores and browse each seller’s products directly.', placeholder: 'Search a store or keyword…', cityPlaceholder: 'City / location', search: 'Apply filters', results: 'stores', verified: 'Verified seller', products: 'products', location: 'Registered location', open: 'View store', empty: 'No stores found', emptyText: 'Broaden the filters or try another search term.', unavailable: 'Stores are temporarily unavailable.', unavailableText: 'The database could not be reached. Please try again later.', clear: 'Clear filters', market: 'Seller marketplace', sort: 'Sort', popular: 'Most popular', newest: 'Newest', name: 'Name', filters: 'Store filters', active: 'Active filter', all: 'All',
   },
 } as const;
 
@@ -36,8 +36,12 @@ export default async function StoresPage({ params, searchParams }: Props) {
   const lang = locale === 'en' || locale === 'ps' ? locale : 'fa';
   const t = copy[lang];
   const normalizedSort = sort === 'newest' || sort === 'name' ? sort : 'popular';
-  const result = await getSellerRepository().findPublicMany({ q: q.trim(), city: city.trim(), sort: normalizedSort, page: 1, pageSize: 48 });
-  const stores = result.items;
+  let result: Awaited<ReturnType<ReturnType<typeof getSellerRepository>['findPublicMany']>> | null = null;
+  try {
+    result = await getSellerRepository().findPublicMany({ q: q.trim(), city: city.trim(), sort: normalizedSort, page: 1, pageSize: 48 });
+  } catch (err) {
+    console.error('[stores] DB error:', err);
+  }
   const numberLocale = locale === 'en' ? 'en-US' : locale === 'ps' ? 'ps-AF' : 'fa-IR';
   const localePath = (path: string) => `/${locale}${path}`;
   const hasFilters = Boolean(q.trim() || city.trim() || normalizedSort !== 'popular');
@@ -56,7 +60,7 @@ export default async function StoresPage({ params, searchParams }: Props) {
                   <h1 className="text-2xl font-black tracking-tight sm:text-4xl">{t.title}</h1>
                   <p className="mt-2 text-sm leading-7 text-muted-foreground">{t.subtitle}</p>
                 </div>
-                <div className="rounded-2xl border border-border bg-background px-4 py-3 text-xs text-muted-foreground"><span className="font-bold text-foreground">{result.total.toLocaleString(numberLocale)}</span> {t.results}</div>
+                {result ? <div className="rounded-2xl border border-border bg-background px-4 py-3 text-xs text-muted-foreground"><span className="font-bold text-foreground">{result.total.toLocaleString(numberLocale)}</span> {t.results}</div> : null}
               </div>
             </div>
 
@@ -71,11 +75,13 @@ export default async function StoresPage({ params, searchParams }: Props) {
             </form>
           </header>
 
-          {stores.length === 0 ? (
+          {!result ? (
+            <div role="status" className="rounded-3xl border border-amber-500/30 bg-amber-500/5 px-6 py-20 text-center"><Store className="mx-auto h-10 w-10 text-amber-600" aria-hidden /><h2 className="mt-4 text-lg font-black">{t.unavailable}</h2><p className="mt-2 text-sm text-muted-foreground">{t.unavailableText}</p></div>
+          ) : result.items.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-border bg-card px-6 py-20 text-center"><Store className="mx-auto h-10 w-10 text-muted-foreground/40" aria-hidden /><h2 className="mt-4 text-lg font-black">{t.empty}</h2><p className="mt-2 text-sm text-muted-foreground">{t.emptyText}</p><Link href="/stores" className="mt-5 inline-flex items-center rounded-xl border border-border px-4 py-2 text-xs font-bold hover:bg-muted">{t.all}</Link></div>
           ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {stores.map((store) => {
+              {result.items.map((store) => {
                 const storeHref = `/store/${store.id}`;
                 return <article key={store.id} className="group min-w-0 overflow-hidden rounded-3xl border border-border bg-card shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lg">
                   <Link href={storeHref} className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-inset">
