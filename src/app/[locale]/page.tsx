@@ -26,8 +26,25 @@ type ProductSectionProps = { section: 'featured' | 'bestSelling' | 'newest'; loc
 
 function SectionSkeleton() { return <div className="mx-auto my-4 h-44 max-w-screen-xl animate-pulse rounded-2xl bg-muted/40 sm:my-6" aria-hidden />; }
 function HeroSkeleton() { return <section className="mx-auto max-w-screen-xl px-3 pt-3 sm:px-6 sm:pt-5" aria-hidden><div className="relative h-[250px] overflow-hidden rounded-[24px] border border-border bg-muted/40 sm:h-[330px] lg:h-[350px]"><div className="absolute inset-x-5 bottom-5 max-w-xl space-y-3 sm:inset-x-8 sm:bottom-8"><div className="h-7 w-24 animate-pulse rounded-full bg-background/60" /><div className="h-10 w-4/5 animate-pulse rounded-xl bg-background/50" /><div className="h-10 w-48 animate-pulse rounded-xl bg-background/50" /></div></div></section>; }
+function DataUnavailable({ title }: { title: string }) { return <section role="status" className="border-y border-amber-500/20 bg-amber-500/5 py-3"><div className="mx-auto max-w-screen-xl px-3 text-center text-xs font-semibold text-amber-800 dark:text-amber-200">{title}</div></section>; }
 
-async function HomeHeroSection({ locale }: { locale: Locale }) { const banners = await listActiveBanners('HOME_HERO', 6).catch(() => []); return <HomepageHeroCarousel banners={banners} locale={locale} />; }
+async function loadHomeHero() {
+  try {
+    return await listActiveBanners('HOME_HERO', 6);
+  } catch (err) {
+    console.error('[home/hero] DB error:', err);
+    return null;
+  }
+}
+
+async function HomeHeroSection({ locale }: { locale: Locale }) {
+  const banners = await loadHomeHero();
+  if (!banners) {
+    const title = locale === 'en' ? 'Hero content is temporarily unavailable.' : locale === 'ps' ? 'د مخ اتلانیزه منځپانګه اوس مهال د لاسرسي وړ نه ده.' : 'محتوای بنر اصلی موقتاً در دسترس نیست.';
+    return <DataUnavailable title={title} />;
+  }
+  return <HomepageHeroCarousel banners={banners} locale={locale} />;
+}
 
 function HomeProductSection({ section, locale, title, subtitle, href, badge, accentColor, catalog }: ProductSectionProps) {
   const products = catalog[section];
@@ -45,9 +62,22 @@ async function LowerRecommendationSections({ locale, userId, catalog }: { locale
   return <><PersonalizedProductsSection products={uniquePool.map((product) => toSliderProduct(product))} locale={locale} /><RecentlyViewedSection products={uniquePool.map((product) => toSliderProduct(product))} locale={locale} /><HomeCatalogGrid products={uniquePool} locale={locale} /></>;
 }
 
+async function loadPopularStores() {
+  try {
+    return await getSellerRepository().findPublicMany({ q: '', page: 1, pageSize: 10, sort: 'popular' });
+  } catch (err) {
+    console.error('[home/stores] DB error:', err);
+    return null;
+  }
+}
+
 async function HomePopularStores({ locale }: { locale: Locale }) {
   if (!isDatabaseConfigured()) return null;
-  const result = await getSellerRepository().findPublicMany({ q: '', page: 1, pageSize: 10, sort: 'popular' }).catch(() => ({ items: [] }));
+  const result = await loadPopularStores();
+  if (!result) {
+    const title = locale === 'en' ? 'Popular stores are temporarily unavailable.' : locale === 'ps' ? 'مشهور پلورنځي اوس مهال د لاسرسي وړ نه دي.' : 'فروشگاه‌های محبوب موقتاً در دسترس نیستند.';
+    return <DataUnavailable title={title} />;
+  }
   if (!result.items.length) return null;
   const copy = locale === 'en'
     ? { title: 'Popular e-shops', subtitle: 'Discover stores customers choose most', all: 'View all stores' }
@@ -67,7 +97,7 @@ async function HomePopularStores({ locale }: { locale: Locale }) {
         {result.items.slice(0, 10).map((store) => <a key={store.id} href={locale === 'en' ? `/en/store/${store.id}` : locale === 'ps' ? `/ps/store/${store.id}` : `/fa/store/${store.id}`} aria-label={store.shopName} className="group relative flex w-[180px] shrink-0 snap-start items-center gap-2 rounded-2xl border border-border bg-background p-2.5 transition hover:border-primary/30 hover:shadow-sm sm:w-[220px] sm:p-3">
           <span className="pointer-events-none absolute end-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-background/90 text-rose-500 shadow-sm ring-1 ring-border/70" aria-hidden="true"><Heart className="h-3.5 w-3.5 fill-current" /></span>
           <span className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-muted sm:h-14 sm:w-14">
-            {store.logoUrl ? <Image src={store.logoUrl} alt="" fill sizes="56px" className="object-cover" /> : <span className="text-sm font-black text-primary">{store.shopName.charAt(0)}</span>}
+            {store.logoUrl ? <Image src={store.logoUrl} alt="" fill sizes="56px" /> : <span className="text-sm font-black text-primary">{store.shopName.charAt(0)}</span>}
             <span className="absolute -end-0.5 -top-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full border border-background bg-emerald-500 text-white"><ShieldCheck className="h-2 w-2" aria-hidden="true" /></span>
           </span>
           <span className="min-w-0 pe-7"><strong className="block truncate text-[11px] font-black sm:text-xs">{store.shopName}</strong><span className="mt-0.5 block truncate text-[9px] text-muted-foreground sm:text-[10px]">{store.productCount} {locale === 'en' ? 'products' : locale === 'ps' ? 'محصولات' : 'محصول'}</span></span>
@@ -77,9 +107,22 @@ async function HomePopularStores({ locale }: { locale: Locale }) {
   </section>;
 }
 
+async function loadPopularCategories() {
+  try {
+    return await getCategoryRepository().findAll(true, true);
+  } catch (err) {
+    console.error('[home/popular-categories] DB error:', err);
+    return null;
+  }
+}
+
 async function PopularCategoryRanking({ locale }: { locale: Locale }) {
   if (!isDatabaseConfigured()) return null;
-  const categories = await getCategoryRepository().findAll(true, true).catch(() => []);
+  const categories = await loadPopularCategories();
+  if (!categories) {
+    const title = locale === 'en' ? 'Popular categories are temporarily unavailable.' : locale === 'ps' ? 'مشهورې کټګورۍ اوس مهال د لاسرسي وړ نه دي.' : 'دسته‌های محبوب موقتاً در دسترس نیستند.';
+    return <DataUnavailable title={title} />;
+  }
   const top = categories.filter((category) => !category.parentId).sort((a, b) => Number(b.productCount ?? 0) - Number(a.productCount ?? 0)).slice(0, 2);
   if (!top.length) return null;
   const title = locale === 'en' ? 'Popular categories' : locale === 'ps' ? 'مشهورې کټګورۍ' : 'دسته‌های محبوب';
