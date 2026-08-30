@@ -10,18 +10,23 @@ import { getSellerRepository } from '@/server/infrastructure/registry';
 
 type Locale = 'fa' | 'ps' | 'en';
 const copy = {
-  fa: { title: 'برندها', subtitle: 'هر فروشگاه با هویت برند خودش در ایشاپ دیده می‌شود.', placeholder: 'نام برند یا فروشگاه را جستجو کنید…', empty: 'برندی پیدا نشد.', brand: 'برند' },
-  ps: { title: 'برانډونه', subtitle: 'هر پلورنځی په ایشاپ کې خپل برانډي هویت لري.', placeholder: 'د برانډ یا پلورنځي نوم ولټوئ…', empty: 'هیڅ برانډ ونه موندل شو.', brand: 'برانډ' },
-  en: { title: 'Brands', subtitle: 'Every store is presented with its own brand identity on Eshop.', placeholder: 'Search a brand or store…', empty: 'No brands found.', brand: 'Brand' },
+  fa: { title: 'برندها', subtitle: 'هر فروشگاه با هویت برند خودش در ایشاپ دیده می‌شود.', placeholder: 'نام برند یا فروشگاه را جستجو کنید…', empty: 'برندی پیدا نشد.', brand: 'برند', unavailable: 'برندها موقتاً در دسترس نیستند.', retry: 'اتصال به پایگاه داده برقرار نشد؛ لطفاً بعداً دوباره تلاش کنید.' },
+  ps: { title: 'برانډونه', subtitle: 'هر پلورنځی په ایشاپ کې خپل برانډي هویت لري.', placeholder: 'د برانډ یا پلورنځي نوم ولټوئ…', empty: 'هیڅ برانډ ونه موندل شو.', brand: 'برانډ', unavailable: 'برانډونه اوس مهال د لاسرسي وړ نه دي.', retry: 'له ډیټابیس سره اړیکه ونه شوه؛ مهرباني وکړئ وروسته بیا هڅه وکړئ.' },
+  en: { title: 'Brands', subtitle: 'Every store is presented with its own brand identity on Eshop.', placeholder: 'Search a brand or store…', empty: 'No brands found.', brand: 'Brand', unavailable: 'Brands are temporarily unavailable.', retry: 'The database could not be reached. Please try again later.' },
 } as const;
 
 export const dynamic = 'force-dynamic';
 
 async function BrandsGrid({ locale, query }: { locale: Locale; query: string }) {
-  const result = await getSellerRepository().findPublicMany({ q: query, page: 1, pageSize: 48 });
   const t = copy[locale];
-  if (!result.items.length) return <div className="py-16 text-center text-sm font-semibold text-muted-foreground">{t.empty}</div>;
-  return <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6">{result.items.map((store) => <Link key={store.id} href={`/store/${store.id}` as never} className="group rounded-3xl border border-border bg-card p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"><div className="flex flex-col items-center text-center"><span className="relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border border-border bg-background shadow-sm ring-2 ring-background">{store.logoUrl ? <Image src={store.logoUrl} alt="" fill sizes="80px" className="object-cover" /> : <span className="text-2xl font-black text-primary">{store.shopName.charAt(0)}</span>}<span className="absolute -end-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full border border-background bg-emerald-500 text-white"><BadgeCheck className="h-3 w-3" /></span></span><h2 className="mt-3 w-full truncate text-sm font-black group-hover:text-primary">{store.shopName}</h2><span className="mt-1 text-[10px] font-semibold text-muted-foreground">{t.brand}</span></div></Link>)}</div>;
+  try {
+    const result = await getSellerRepository().findPublicMany({ q: query, page: 1, pageSize: 48 });
+    if (!result.items.length) return <div className="py-16 text-center text-sm font-semibold text-muted-foreground">{t.empty}</div>;
+    return <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6">{result.items.map((store) => <Link key={store.id} href={`/store/${store.id}` as never} className="group rounded-3xl border border-border bg-card p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"><div className="flex flex-col items-center text-center"><span className="relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border border-border bg-background shadow-sm ring-2 ring-background">{store.logoUrl ? <Image src={store.logoUrl} alt="" fill sizes="80px" className="object-cover" /> : <span className="text-2xl font-black text-primary">{store.shopName.charAt(0)}</span>}<span className="absolute -end-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full border border-background bg-emerald-500 text-white"><BadgeCheck className="h-3 w-3" /></span></span><h2 className="mt-3 w-full truncate text-sm font-black group-hover:text-primary">{store.shopName}</h2><span className="mt-1 text-[10px] font-semibold text-muted-foreground">{t.brand}</span></div></Link>)}</div>;
+  } catch (err) {
+    console.error('[brands] DB error:', err);
+    return <div role="status" className="rounded-3xl border border-amber-500/30 bg-amber-500/5 px-6 py-20 text-center"><Tags className="mx-auto h-10 w-10 text-amber-600" aria-hidden /><h2 className="mt-4 text-lg font-black">{t.unavailable}</h2><p className="mt-2 text-sm text-muted-foreground">{t.retry}</p></div>;
+  }
 }
 
 export default async function BrandsPage({ params, searchParams }: { params: Promise<{ locale: string }>; searchParams: Promise<{ q?: string }> }) {
