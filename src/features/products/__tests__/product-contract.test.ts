@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { productCreateSchema, productUpdateSchema, parseProductImages } from '../product-contract';
+import { productCreateSchema, productUpdateSchema, parseProductImages, normalizePersianDigits, productValidationMessage } from '../product-contract';
 import { slugifyProductName, deterministicSlugFallback } from '../product-slug';
 
 describe('product contract', () => {
@@ -12,6 +12,30 @@ describe('product contract', () => {
       name: 'گوشی سامسونگ', shortDescription: 'توضیح محصول', price: 100, currency: 'AFN', categoryId: 'cat-1', region: 'Kabul', imagesJson: ['/api/media/abc12345'],
     });
     expect(legacy.success).toBe(false);
+  });
+
+  it('accepts Persian/Arabic digit strings for numeric fields', () => {
+    const parsed = productCreateSchema.safeParse({
+      name: 'گوشی سامسونگ', shortDescription: 'توضیح فارسی محصول', price: '۱٬۲۵۰', stockQuantity: '۱۰', compareAtPrice: '۱٬۵۰۰', currency: 'afn', categoryId: 'cat-1', region: 'افغانستان', images: [],
+    });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.price).toBe(1250);
+      expect(parsed.data.stockQuantity).toBe(10);
+      expect(parsed.data.compareAtPrice).toBe(1500);
+      expect(parsed.data.currency).toBe('AFN');
+    }
+  });
+
+  it('normalizes localized digits directly', () => {
+    expect(normalizePersianDigits('۱۲۳٬۴۵۶٫۷۸')).toBe('123,456.78');
+    expect(normalizePersianDigits('١٢٣٬٤٥٦٫٧٨')).toBe('123,456.78');
+  });
+
+  it('rejects an old price that is not greater than the current price', () => {
+    const result = productCreateSchema.safeParse({ name: 'محصول نمونه', shortDescription: 'توضیح نمونه', price: '۱۰۰۰', compareAtPrice: '۹۰۰', currency: 'AFN', categoryId: 'cat-1', region: 'افغانستان' });
+    expect(result.success).toBe(false);
+    if (!result.success) expect(productValidationMessage(result.error.issues)).toContain('قیمت قبلی');
   });
 
   it('accepts a partial update containing only primary image index', () => {

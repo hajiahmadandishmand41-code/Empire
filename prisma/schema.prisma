@@ -165,7 +165,7 @@ model Product {
   inStock           Boolean  @default(true)
   isActive          Boolean  @default(true)
   stockQuantity     Int      @default(0)
-  compareAtPrice    Decimal?  @db.Decimal(18, 2)
+  compareAtPrice    Decimal? @db.Decimal(18, 2)
   featuresJson      Json?
   imagesJson        Json?
   salesCount        Int      @default(0)
@@ -195,11 +195,13 @@ model Product {
 
   @@index([categoryId])
   @@index([sellerId])
+  @@index([sellerId, isActive, salesCount, createdAt])
   @@index([salesCount])
   @@index([viewCount])
   @@index([price])
   @@index([inStock])
   @@index([isActive])
+  @@index([isActive, createdAt])
 }
 
 model Address {

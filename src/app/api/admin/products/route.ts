@@ -2,7 +2,7 @@ import type { NextRequest } from 'next/server';
 import { isDatabaseConfigured, prisma } from '@/lib/db';
 import { jsonError, jsonOk, jsonPreflight } from '@/lib/api/response';
 import { requireAdminApi } from '@/lib/auth/require-admin-api';
-import { productCreateSchema } from '@/features/products/product-contract';
+import { productCreateSchema, productValidationMessage } from '@/features/products/product-contract';
 import { getProductService } from '@/server/infrastructure/registry';
 import { ProductServiceError } from '@/server/services/product.service';
 import { mapErrorToResponse } from '@/server/infrastructure/errors';
@@ -16,14 +16,14 @@ export async function OPTIONS() { return jsonPreflight(); }
 export async function POST(req: NextRequest) {
   const guard = await requireAdminApi('products.manage');
   if (!guard.ok) return guard.response;
-  if (!isDatabaseConfigured()) return jsonError('db_unavailable', 'Database is not configured', { status: 503 });
+  if (!isDatabaseConfigured()) return jsonError('db_unavailable', 'اتصال پایگاه داده در دسترس نیست.', { status: 503 });
 
   let body: unknown;
   try { body = await req.json(); }
-  catch { return jsonError('invalid_json', 'Invalid JSON', { status: 400 }); }
+  catch { return jsonError('invalid_json', 'دادهٔ ارسال‌شده معتبر نیست.', { status: 400 }); }
 
   const parsed = productCreateSchema.safeParse(body);
-  if (!parsed.success) return jsonError('invalid_body', 'Invalid product payload', { status: 422, details: { issues: parsed.error.issues } });
+  if (!parsed.success) return jsonError('invalid_body', productValidationMessage(parsed.error.issues), { status: 422, details: { issues: parsed.error.issues } });
 
   try {
     const created = await getProductService().createProduct({ ...parsed.data, sellerId: null });
