@@ -1,18 +1,3 @@
-/**
- * Seller product image endpoint.
- *
- * POST { dataUrl }          → validate and persist an image, then append its
- *                             URL to Product.imagesJson atomically.
- * DELETE { url }            → remove an image URL from Product.imagesJson and
- *                             best-effort delete the corresponding stored file.
- *
- * Accepts image/{png,jpeg,jpg,webp,gif} up to 3 MB. Sellers may only touch
- * products they own; admins bypass ownership.
- *
- * Media persistence is deliberately defensive: storage writes can succeed
- * before the database transaction commits, so failed metadata writes clean up
- * the newly-created object when possible. Serializable conflicts are retried.
- */
 import type { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
@@ -21,251 +6,107 @@ import { jsonError, jsonOk, jsonPreflight } from '@/lib/api/response';
 import { requireSellerApi } from '@/lib/auth/require-seller-api';
 import { logger } from '@/lib/logger';
 import { uploadPersistent, deletePersistent } from '@/lib/storage';
+import { parseProductImages, PRODUCT_MAX_IMAGE_BYTES, PRODUCT_MAX_IMAGES, PRODUCT_IMAGE_MIME_TYPES } from '@/features/products/product-contract';
 
 export const dynamic = 'force-dynamic';
-
-const MAX_BYTES = 3 * 1024 * 1024;
-const MAX_IMAGES = 10;
 const MAX_TRANSACTION_RETRIES = 3;
-const EXT: Record<string, string> = {
-  'image/png': 'png',
-  'image/jpeg': 'jpg',
-  'image/jpg': 'jpg',
-  'image/webp': 'webp',
-  'image/gif': 'gif',
-};
-
+const EXT: Record<string, string> = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/webp': 'webp', 'image/gif': 'gif' };
 const SAFE_ID = /^[A-Za-z0-9_-]{1,64}$/;
+const postSchema = z.object({ dataUrl: z.string().min(30), alt: z.string().max(200).optional() });
+const deleteSchema = z.object({ url: z.string().min(1).max(1000) });
 
-const postSchema = z.object({
-  dataUrl: z.string().min(30),
-  alt: z.string().max(200).optional(),
-});
-const deleteSchema = z.object({ url: z.string().min(1) });
-
-export async function OPTIONS() {
-  return jsonPreflight();
-}
+export async function OPTIONS() { return jsonPreflight(); }
 
 async function loadOwned(id: string, role: string, userId: string) {
-  const p = await prisma.product.findUnique({
-    where: { id },
-    select: { id: true, sellerId: true, imagesJson: true, primaryImageIndex: true, name: true },
-  });
+  const p = await prisma.product.findUnique({ where: { id }, select: { id: true, sellerId: true, imagesJson: true, primaryImageIndex: true, name: true } });
   if (!p) return { ok: false as const, status: 404 };
   if (role !== 'admin' && p.sellerId !== userId) return { ok: false as const, status: 403 };
   return { ok: true as const, product: p };
 }
 
-function readImages(raw: unknown): Array<{ src: string; alt?: string }> {
-  if (!raw) return [];
-  try {
-    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
-    if (!Array.isArray(parsed)) return [];
-    return parsed
-      .map((v: unknown) => {
-        if (typeof v === 'string') return { src: v };
-        if (v && typeof v === 'object' && 'src' in v) {
-          const src = String((v as { src: unknown }).src ?? '');
-          const alt = (v as { alt?: unknown }).alt;
-          return src ? { src, alt: typeof alt === 'string' ? alt : undefined } : null;
-        }
-        return null;
-      })
-      .filter(Boolean) as Array<{ src: string; alt?: string }>;
-  } catch {
-    return [];
-  }
-}
-
 function hasValidImageSignature(buf: Buffer, mime: string): boolean {
-  if (mime === 'image/png') {
-    return buf.length >= 8 && buf.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
-  }
-  if (mime === 'image/jpeg' || mime === 'image/jpg') {
-    return buf.length >= 3 && buf.subarray(0, 3).equals(Buffer.from([255, 216, 255]));
-  }
-  if (mime === 'image/gif') {
-    return buf.length >= 6 && (buf.subarray(0, 6).toString() === 'GIF87a' || buf.subarray(0, 6).toString() === 'GIF89a');
-  }
-  if (mime === 'image/webp') {
-    return buf.length >= 12 && buf.subarray(0, 4).toString() === 'RIFF' && buf.subarray(8, 12).toString() === 'WEBP';
-  }
+  if (mime === 'image/png') return buf.length >= 8 && buf.subarray(0, 8).equals(Buffer.from([137,80,78,71,13,10,26,10]));
+  if (mime === 'image/jpeg' || mime === 'image/jpg') return buf.length >= 3 && buf.subarray(0, 3).equals(Buffer.from([255,216,255]));
+  if (mime === 'image/gif') return buf.length >= 6 && (buf.subarray(0,6).toString() === 'GIF87a' || buf.subarray(0,6).toString() === 'GIF89a');
+  if (mime === 'image/webp') return buf.length >= 12 && buf.subarray(0,4).toString() === 'RIFF' && buf.subarray(8,12).toString() === 'WEBP';
   return false;
 }
+function isSerializableConflict(err: unknown): boolean { return err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2034'; }
+async function cleanup(url: string, productId: string, userId: string) { try { await deletePersistent(url); } catch (err) { logger.warn('seller.products.images.cleanup_failed', { productId, userId }, err); } }
 
-function isSerializableConflict(err: unknown): boolean {
-  return err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2034';
-}
-
-async function deleteStoredObjectBestEffort(url: string, context: Record<string, string>) {
-  try {
-    await deletePersistent(url);
-  } catch (err) {
-    logger.warn('seller.products.images.cleanup_failed', context, err);
-  }
-}
-
-async function handlePost(req: NextRequest, id: string) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const guard = await requireSellerApi();
   if (!guard.ok) return guard.response;
-  if (!SAFE_ID.test(id))
-    return jsonError('invalid_id', 'Invalid product id', { status: 400 });
-  if (!isDatabaseConfigured())
-    return jsonError('db_unavailable', 'Database is not configured', { status: 503 });
-
+  if (!SAFE_ID.test(id)) return jsonError('invalid_id', 'Invalid product id', { status: 400 });
+  if (!isDatabaseConfigured()) return jsonError('db_unavailable', 'Database is not configured', { status: 503 });
   let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return jsonError('invalid_json', 'Invalid JSON', { status: 400 });
-  }
+  try { body = await req.json(); } catch { return jsonError('invalid_json', 'Invalid JSON', { status: 400 }); }
   const parsed = postSchema.safeParse(body);
-  if (!parsed.success)
-    return jsonError('invalid_body', 'Invalid image payload', {
-      status: 422,
-      details: { issues: parsed.error.issues },
-    });
-
+  if (!parsed.success) return jsonError('invalid_body', 'Invalid image payload', { status: 422, details: { issues: parsed.error.issues } });
   const match = /^data:(image\/[a-zA-Z0-9+.-]+);base64,(.+)$/.exec(parsed.data.dataUrl);
-  if (!match || !match[1] || !match[2])
-    return jsonError('invalid_image', 'dataUrl must be a base64 image', { status: 400 });
+  if (!match) return jsonError('invalid_image', 'dataUrl must be a base64 image', { status: 400 });
   const mime = match[1].toLowerCase();
-  const ext = EXT[mime];
-  if (!ext) return jsonError('unsupported_type', `Unsupported image type: ${mime}`, { status: 415 });
-
+  if (!(PRODUCT_IMAGE_MIME_TYPES as readonly string[]).includes(mime) || !EXT[mime]) return jsonError('unsupported_type', `Unsupported image type: ${mime}`, { status: 415 });
   const buf = Buffer.from(match[2], 'base64');
-
-  if (buf.byteLength > MAX_BYTES)
-    return jsonError('too_large', 'Image exceeds 3MB', { status: 413 });
-  if (!hasValidImageSignature(buf, mime))
-    return jsonError('invalid_image', 'Image contents do not match its declared type', { status: 400 });
-
+  if (buf.byteLength <= 0 || buf.byteLength > PRODUCT_MAX_IMAGE_BYTES) return jsonError('too_large', `Image exceeds ${Math.round(PRODUCT_MAX_IMAGE_BYTES / 1024 / 1024)}MB`, { status: 413 });
+  if (!hasValidImageSignature(buf, mime)) return jsonError('invalid_image', 'Image contents do not match its declared type', { status: 400 });
   const owned = await loadOwned(id, guard.user.role, guard.user.id);
-  if (!owned.ok) {
-    return owned.status === 404
-      ? jsonError('not_found', 'Product not found', { status: 404 })
-      : jsonError('forbidden', 'You do not own this product', { status: 403 });
-  }
+  if (!owned.ok) return owned.status === 404 ? jsonError('not_found', 'Product not found', { status: 404 }) : jsonError('forbidden', 'You do not own this product', { status: 403 });
 
   let publicUrl: string;
-  try {
-    const uploaded = await uploadPersistent(new File([buf], `product.${ext}`, { type: mime }), `products/${id}`);
-    publicUrl = uploaded.secure_url!;
-  } catch (err) {
-    logger.error('seller.products.images.write_failed', { productId: id, userId: guard.user.id }, err);
-    return jsonError('storage_failed', 'Failed to persist image', { status: 503 });
-  }
+  try { const uploaded = await uploadPersistent(new File([buf], `product.${EXT[mime]}`, { type: mime }), `products/${id}`); publicUrl = uploaded.secure_url ?? ''; if (!publicUrl) throw new Error('storage_no_url'); }
+  catch (err) { logger.error('seller.products.images.write_failed', { productId: id, userId: guard.user.id }, err); return jsonError('storage_failed', 'Failed to persist image', { status: 503 }); }
 
-  let committedImages: Array<{ src: string; alt?: string }> | null = null;
+  let committedImages: string[] | null = null;
   let terminalError: unknown = null;
-
   for (let attempt = 1; attempt <= MAX_TRANSACTION_RETRIES; attempt += 1) {
     try {
-      committedImages = await prisma.$transaction(
-        async (tx) => {
-          const current = await tx.product.findUnique({
-            where: { id },
-            select: { imagesJson: true, name: true },
-          });
-          if (!current) throw new Error('PRODUCT_NOT_FOUND');
-          const next = readImages(current.imagesJson);
-          if (next.length >= MAX_IMAGES) throw new Error('IMAGE_LIMIT');
-          next.push({ src: publicUrl, alt: parsed.data.alt ?? current.name });
-          await tx.product.update({
-            where: { id },
-            data: { imagesJson: next },
-          });
-          return next;
-        },
-        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
-      );
-      terminalError = null;
-      break;
+      committedImages = await prisma.$transaction(async (tx) => {
+        const current = await tx.product.findUnique({ where: { id }, select: { imagesJson: true } });
+        if (!current) throw new Error('PRODUCT_NOT_FOUND');
+        const next = parseProductImages(current.imagesJson);
+        if (next.length >= PRODUCT_MAX_IMAGES) throw new Error('IMAGE_LIMIT');
+        next.push(publicUrl);
+        await tx.product.update({ where: { id }, data: { imagesJson: next, primaryImageIndex: next.length === 1 ? 0 : undefined } });
+        return next;
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+      terminalError = null; break;
     } catch (err) {
       terminalError = err;
       if (!isSerializableConflict(err) || attempt === MAX_TRANSACTION_RETRIES) break;
     }
   }
-
   if (!committedImages) {
-    await deleteStoredObjectBestEffort(publicUrl, {
-      productId: id,
-      userId: guard.user.id,
-    });
-
-    if (terminalError instanceof Error && terminalError.message === 'IMAGE_LIMIT') {
-      return jsonError('image_limit', `A product can have at most ${MAX_IMAGES} images`, { status: 422 });
-    }
-    if (terminalError instanceof Error && terminalError.message === 'PRODUCT_NOT_FOUND') {
-      return jsonError('not_found', 'Product not found', { status: 404 });
-    }
-    logger.error('seller.products.images.metadata_failed', {
-      productId: id,
-      userId: guard.user.id,
-      retryCount: String(MAX_TRANSACTION_RETRIES),
-    }, terminalError);
+    await cleanup(publicUrl, id, guard.user.id);
+    if (terminalError instanceof Error && terminalError.message === 'IMAGE_LIMIT') return jsonError('image_limit', `A product can have at most ${PRODUCT_MAX_IMAGES} images`, { status: 422 });
+    if (terminalError instanceof Error && terminalError.message === 'PRODUCT_NOT_FOUND') return jsonError('not_found', 'Product not found', { status: 404 });
+    logger.error('seller.products.images.metadata_failed', { productId: id, userId: guard.user.id, retryCount: String(MAX_TRANSACTION_RETRIES) }, terminalError);
     return jsonError('storage_failed', 'Failed to persist image metadata', { status: 500 });
   }
-
   return jsonOk({ url: publicUrl, images: committedImages }, { status: 201 });
-}
-
-export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  return handlePost(req, id);
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const guard = await requireSellerApi();
   if (!guard.ok) return guard.response;
-  if (!SAFE_ID.test(id))
-    return jsonError('invalid_id', 'Invalid product id', { status: 400 });
-  if (!isDatabaseConfigured())
-    return jsonError('db_unavailable', 'Database is not configured', { status: 503 });
-
+  if (!SAFE_ID.test(id)) return jsonError('invalid_id', 'Invalid product id', { status: 400 });
+  if (!isDatabaseConfigured()) return jsonError('db_unavailable', 'Database is not configured', { status: 503 });
   let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return jsonError('invalid_json', 'Invalid JSON', { status: 400 });
-  }
+  try { body = await req.json(); } catch { return jsonError('invalid_json', 'Invalid JSON', { status: 400 }); }
   const parsed = deleteSchema.safeParse(body);
-  if (!parsed.success)
-    return jsonError('invalid_body', 'Invalid delete payload', { status: 422 });
-
+  if (!parsed.success) return jsonError('invalid_body', 'Invalid delete payload', { status: 422, details: { issues: parsed.error.issues } });
   const owned = await loadOwned(id, guard.user.role, guard.user.id);
-  if (!owned.ok) {
-    return owned.status === 404
-      ? jsonError('not_found', 'Product not found', { status: 404 })
-      : jsonError('forbidden', 'You do not own this product', { status: 403 });
-  }
-
-  const existingImages = readImages(owned.product.imagesJson);
-  const imageIndex = existingImages.findIndex((image) => image.src === parsed.data.url);
-  if (imageIndex < 0) {
-    return jsonError('image_not_found', 'Image does not belong to this product', { status: 404 });
-  }
-
-  const images = existingImages.filter((image) => image.src !== parsed.data.url);
+  if (!owned.ok) return owned.status === 404 ? jsonError('not_found', 'Product not found', { status: 404 }) : jsonError('forbidden', 'You do not own this product', { status: 403 });
+  const existingImages = parseProductImages(owned.product.imagesJson);
+  const imageIndex = existingImages.indexOf(parsed.data.url);
+  if (imageIndex < 0) return jsonError('image_not_found', 'Image does not belong to this product', { status: 404 });
+  const images = existingImages.filter((url) => url !== parsed.data.url);
   const currentPrimary = owned.product.primaryImageIndex;
-  let nextPrimary = 0;
-  if (images.length > 0) {
-    if (imageIndex === currentPrimary) nextPrimary = 0;
-    else if (imageIndex < currentPrimary) nextPrimary = currentPrimary - 1;
-    else nextPrimary = Math.min(currentPrimary, images.length - 1);
-  }
-
-  await prisma.product.update({
-    where: { id },
-    data: { imagesJson: images, primaryImageIndex: nextPrimary },
-  });
-
-  await deleteStoredObjectBestEffort(parsed.data.url, {
-    productId: id,
-    userId: guard.user.id,
-  });
-
+  const nextPrimary = images.length === 0 ? 0 : imageIndex === currentPrimary ? 0 : imageIndex < currentPrimary ? currentPrimary - 1 : Math.min(currentPrimary, images.length - 1);
+  try { await prisma.product.update({ where: { id }, data: { imagesJson: images, primaryImageIndex: nextPrimary } }); }
+  catch (err) { logger.error('seller.products.images.metadata_delete_failed', { productId: id, userId: guard.user.id }, err); return jsonError('update_failed', 'Failed to remove image metadata', { status: 500 }); }
+  await cleanup(parsed.data.url, id, guard.user.id);
   return jsonOk({ images, primaryImageIndex: nextPrimary });
 }
