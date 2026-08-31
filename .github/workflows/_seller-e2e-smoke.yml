@@ -2,7 +2,8 @@ name: Seller E2E smoke
 
 on:
   push:
-    branches: [admin-commerce-4stage-20260829]
+    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -60,37 +61,8 @@ jobs:
           const passwordHash = await bcrypt.hash(process.env.SELLER_E2E_PASSWORD, 12);
           await prisma.user.upsert({
             where: { email },
-            update: {
-              passwordHash,
-              role: 'seller',
-              sellerStatus: 'approved',
-              isActive: true,
-              fullName: 'فروشنده تستی Empire',
-              sellerShopName: 'فروشگاه تستی Empire',
-              sellerBio: 'فروشنده برای تست End-to-End',
-              commissionRate: 10,
-              sellerContactEmail: email,
-              sellerContactPhone: '+93700000000',
-              sellerCity: 'Kabul',
-              sellerCountry: 'AF',
-              sellerAddress: 'QA Test Address',
-            },
-            create: {
-              email,
-              passwordHash,
-              role: 'seller',
-              sellerStatus: 'approved',
-              isActive: true,
-              fullName: 'فروشنده تستی Empire',
-              sellerShopName: 'فروشگاه تستی Empire',
-              sellerBio: 'فروشنده برای تست End-to-End',
-              commissionRate: 10,
-              sellerContactEmail: email,
-              sellerContactPhone: '+93700000000',
-              sellerCity: 'Kabul',
-              sellerCountry: 'AF',
-              sellerAddress: 'QA Test Address',
-            },
+            update: { passwordHash, role: 'seller', sellerStatus: 'approved', isActive: true, fullName: 'فروشنده تستی Empire', sellerShopName: 'فروشگاه تستی Empire', sellerBio: 'فروشنده برای تست End-to-End', commissionRate: 10, sellerContactEmail: email, sellerContactPhone: '+93700000000', sellerCity: 'Kabul', sellerCountry: 'AF', sellerAddress: 'QA Test Address' },
+            create: { email, passwordHash, role: 'seller', sellerStatus: 'approved', isActive: true, fullName: 'فروشنده تستی Empire', sellerShopName: 'فروشگاه تستی Empire', sellerBio: 'فروشنده برای تست End-to-End', commissionRate: 10, sellerContactEmail: email, sellerContactPhone: '+93700000000', sellerCity: 'Kabul', sellerCountry: 'AF', sellerAddress: 'QA Test Address' },
           });
           await prisma.$disconnect();
           NODE
@@ -107,10 +79,7 @@ jobs:
           const deadline = Date.now() + 120000;
           const url = 'http://127.0.0.1:3000/api/healthz';
           while (Date.now() < deadline) {
-            try {
-              const r = await fetch(url);
-              if (r.ok) process.exit(0);
-            } catch {}
+            try { const r = await fetch(url); if (r.ok) process.exit(0); } catch {}
             await new Promise(r => setTimeout(r, 1000));
           }
           console.error(fs.readFileSync(process.env.RUNNER_TEMP + '/empire-seller.log', 'utf8'));
@@ -123,31 +92,15 @@ jobs:
         run: |
           node --input-type=module <<'NODE'
           const base = 'http://127.0.0.1:3000';
-          const login = await fetch(`${base}/api/auth/login`, {
-            method: 'POST',
-            headers: {'content-type': 'application/json', accept: 'application/json'},
-            body: JSON.stringify({identifier: process.env.SELLER_E2E_EMAIL, password: process.env.SELLER_E2E_PASSWORD}),
-          });
+          const login = await fetch(`${base}/api/auth/login`, { method: 'POST', headers: {'content-type': 'application/json', accept: 'application/json'}, body: JSON.stringify({identifier: process.env.SELLER_E2E_EMAIL, password: process.env.SELLER_E2E_PASSWORD}) });
           if (!login.ok) throw new Error(`Seller login failed: ${login.status} ${await login.text()}`);
           const rawCookie = login.headers.get('set-cookie');
           if (!rawCookie) throw new Error('Seller login succeeded without session cookie');
           const cookie = rawCookie.split(';', 1)[0];
-          const routes = [
-            '/fa/seller', '/fa/seller/products', '/fa/seller/products/new', '/fa/seller/inventory',
-            '/fa/seller/orders', '/fa/seller/customers', '/fa/seller/discounts', '/fa/seller/reviews',
-            '/fa/seller/notifications', '/fa/seller/wallet', '/fa/seller/reports',
-            '/fa/seller/storefront', '/fa/seller/settings'
-          ];
+          const routes = ['/fa/seller','/fa/seller/products','/fa/seller/products/new','/fa/seller/inventory','/fa/seller/orders','/fa/seller/customers','/fa/seller/discounts','/fa/seller/reviews','/fa/seller/notifications','/fa/seller/wallet','/fa/seller/reports','/fa/seller/brand','/fa/seller/storefront','/fa/seller/settings'];
           let failures = 0;
-          for (const path of routes) {
-            const r = await fetch(`${base}${path}`, {redirect: 'manual', headers: {cookie}});
-            const body = await r.text();
-            const bad = r.status >= 500 || body.includes('Application error') || body.includes('Internal Server Error') || body.includes('NEXT_HTTP_ERROR_FALLBACK');
-            console.log(`${bad ? 'FAIL' : 'PASS'} ${r.status} ${path}`);
-            if (bad) failures++;
-          }
-          const products = await fetch(`${base}/api/seller/products`, {headers: {cookie}});
-          if (!products.ok) { console.error('Seller products API failed', products.status, await products.text()); failures++; }
+          for (const path of routes) { const r = await fetch(`${base}${path}`, {redirect:'manual',headers:{cookie}}); const body = await r.text(); const bad = r.status >= 500 || body.includes('Application error') || body.includes('Internal Server Error') || body.includes('NEXT_HTTP_ERROR_FALLBACK'); console.log(`${bad?'FAIL':'PASS'} ${r.status} ${path}`); if (bad) failures++; }
+          const products = await fetch(`${base}/api/seller/products`, {headers:{cookie}}); if (!products.ok) { console.error('Seller products API failed', products.status, await products.text()); failures++; }
           if (failures) process.exit(1);
           NODE
       - name: Authenticated seller browser UI smoke
