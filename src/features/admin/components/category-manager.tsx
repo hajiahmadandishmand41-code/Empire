@@ -21,8 +21,7 @@ function ImagePicker({ value, busy, onUploaded }: ImagePickerProps) {
 
   async function upload(file: File | undefined) {
     if (!file) return;
-    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-    if (!allowed.includes(file.type)) return toast.error('فرمت تصویر باید JPG، PNG، WEBP یا GIF باشد.');
+    if (!file.type.startsWith('image/')) return toast.error('فقط فایل تصویری مجاز است؛ ویدیو و فایل غیرتصویری قابل آپلود نیست.');
     if (file.size <= 0 || file.size > 10 * 1024 * 1024) return toast.error('حداکثر حجم تصویر ۱۰ مگابایت است.');
     setUploading(true);
     try {
@@ -45,7 +44,7 @@ function ImagePicker({ value, busy, onUploaded }: ImagePickerProps) {
       {preview ? <img src={preview} alt="پیش‌نمایش تصویر دسته" className="h-full w-full object-cover" /> : <div className="flex flex-col items-center gap-2 text-muted-foreground"><ImageIcon className="h-6 w-6" /><span className="text-xs font-semibold">تصویر دسته را انتخاب کنید</span></div>}
       <span className="absolute inset-x-2 bottom-2 flex items-center justify-center gap-1 rounded-xl bg-black/55 px-2 py-1.5 text-[11px] font-bold text-white opacity-0 backdrop-blur transition group-hover:opacity-100">{uploading ? 'در حال آپلود…' : 'انتخاب / تغییر تصویر'}<Upload className="h-3.5 w-3.5" /></span>
     </button>
-    <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={(e) => { void upload(e.target.files?.[0]); e.currentTarget.value = ''; }} />
+    <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { void upload(e.target.files?.[0]); e.currentTarget.value = ''; }} />
   </div>;
 }
 

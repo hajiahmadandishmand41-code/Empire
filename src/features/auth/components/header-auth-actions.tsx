@@ -11,7 +11,7 @@ export function HeaderAuthActions() {
   const t = useTranslations('siteHeader');
 
   if (isLoading) {
-    return <div className="h-9 w-24 animate-pulse rounded-lg bg-muted" aria-hidden="true" />;
+    return <div className="h-9 w-24" aria-hidden="true" />;
   }
 
   if (!isAuthenticated) {
