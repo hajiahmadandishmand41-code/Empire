@@ -32,30 +32,33 @@ function hasIsoBmffImageBrand(buffer: Buffer, kind: 'avif' | 'heif'): boolean {
   for (let offset = 16; offset + 4 <= buffer.length && offset < 256; offset += 4) brands.push(buffer.subarray(offset, offset + 4).toString('ascii'));
   const avifBrands = new Set(['avif', 'avis', 'mif1', 'miaf', 'MA1A', 'MA1B']);
   const heifBrands = new Set(['heic', 'heix', 'hevc', 'hevx', 'heim', 'heis', 'hevm', 'hevs', 'mif1', 'msf1', 'miaf']);
-  const accepted = kind === 'avif' ? avifBrands : heifBrands;
-  return brands.some((brand) => accepted.has(brand));
+  return brands.some((brand) => (kind === 'avif' ? avifBrands : heifBrands).has(brand));
+}
+
+export function detectImageMime(buffer: Buffer): string | null {
+  const text = buffer.toString('utf8', 0, Math.min(buffer.length, 64 * 1024)).replace(/^\uFEFF/, '').trimStart();
+  if (/^<svg[\s>]/i.test(text) && !/<script\b/i.test(text) && !/javascript:/i.test(text) && !/\son[a-z]+\s*=/i.test(text)) return 'image/svg+xml';
+  if (startsWith(buffer, [137, 80, 78, 71, 13, 10, 26, 10])) return 'image/png';
+  if (startsWith(buffer, [255, 216, 255])) return 'image/jpeg';
+  if (buffer.length >= 6 && ['GIF87a', 'GIF89a'].includes(buffer.subarray(0, 6).toString('ascii'))) return 'image/gif';
+  if (buffer.length >= 12 && buffer.subarray(0, 4).toString('ascii') === 'RIFF' && buffer.subarray(8, 12).toString('ascii') === 'WEBP') return 'image/webp';
+  if (hasIsoBmffImageBrand(buffer, 'avif')) return 'image/avif';
+  if (hasIsoBmffImageBrand(buffer, 'heif')) return 'image/heif';
+  if (startsWith(buffer, [0x42, 0x4d])) return 'image/bmp';
+  if (startsWith(buffer, [0x49, 0x49, 0x2a, 0x00]) || startsWith(buffer, [0x4d, 0x4d, 0x00, 0x2a])) return 'image/tiff';
+  if (startsWith(buffer, [0x00, 0x00, 0x01, 0x00]) || startsWith(buffer, [0x00, 0x00, 0x02, 0x00])) return 'image/x-icon';
+  if (startsWith(buffer, [0xff, 0x0a]) || (buffer.length >= 12 && buffer.subarray(4, 8).toString('ascii') === 'JXL ')) return 'image/jxl';
+  return null;
 }
 
 export function hasValidImageSignature(buffer: Buffer, mime = ''): boolean {
-  const text = buffer.toString('utf8', 0, Math.min(buffer.length, 64 * 1024)).replace(/^\uFEFF/, '').trimStart();
-  if (mime === 'image/svg+xml' || ((mime === '' || mime === 'application/octet-stream') && /^<svg[\s>]/i.test(text))) {
-    return /^<svg[\s>]/i.test(text) && !/<script\b/i.test(text) && !/javascript:/i.test(text) && !/\son[a-z]+\s*=/i.test(text);
-  }
-  if ((mime === '' || mime === 'application/octet-stream' || mime === 'image/png' || mime === 'image/apng') && startsWith(buffer, [137, 80, 78, 71, 13, 10, 26, 10])) return true;
-  if ((mime === '' || mime === 'application/octet-stream' || mime === 'image/jpeg') && startsWith(buffer, [255, 216, 255])) return true;
-  if ((mime === '' || mime === 'application/octet-stream' || mime === 'image/gif') && buffer.length >= 6 && ['GIF87a', 'GIF89a'].includes(buffer.subarray(0, 6).toString('ascii'))) return true;
-  if ((mime === '' || mime === 'application/octet-stream' || mime === 'image/webp') && buffer.length >= 12 && buffer.subarray(0, 4).toString('ascii') === 'RIFF' && buffer.subarray(8, 12).toString('ascii') === 'WEBP') return true;
-  if ((mime === '' || mime === 'application/octet-stream' || mime === 'image/avif') && hasIsoBmffImageBrand(buffer, 'avif')) return true;
-  if ((mime === '' || mime === 'application/octet-stream' || mime === 'image/heic' || mime === 'image/heif') && hasIsoBmffImageBrand(buffer, 'heif')) return true;
-  if ((mime === '' || mime === 'application/octet-stream' || mime === 'image/bmp') && startsWith(buffer, [0x42, 0x4d])) return true;
-  if ((mime === '' || mime === 'application/octet-stream' || mime === 'image/tiff') && (startsWith(buffer, [0x49, 0x49, 0x2a, 0x00]) || startsWith(buffer, [0x4d, 0x4d, 0x00, 0x2a]))) return true;
-  if ((mime === '' || mime === 'application/octet-stream' || mime === 'image/x-icon' || mime === 'image/vnd.microsoft.icon') && (startsWith(buffer, [0x00, 0x00, 0x01, 0x00]) || startsWith(buffer, [0x00, 0x00, 0x02, 0x00]))) return true;
-  if ((mime === '' || mime === 'application/octet-stream' || mime === 'image/jxl') && (startsWith(buffer, [0xff, 0x0a]) || (buffer.length >= 12 && buffer.subarray(4, 8).toString('ascii') === 'JXL '))) return true;
-  return false;
+  const detected = detectImageMime(buffer);
+  if (!detected) return false;
+  return mime === '' || mime === 'application/octet-stream' || mime === detected || (mime === 'image/apng' && detected === 'image/png') || (mime === 'image/vnd.microsoft.icon' && detected === 'image/x-icon') || (mime === 'image/heic' && detected === 'image/heif');
 }
 
 export function imageUploadError(file: File): string | null {
-  if (!isSupportedImageType(file.type)) return 'فقط فایل تصویری معتبر مجاز است؛ ویدیو و فایل‌های غیرتصویری غیرفعال است.';
+  if (!isSupportedImageType(file.type)) return 'فقط فایل تصویری معتبر مجاز است؛ نام و پسوند فایل مستقل از نوع واقعی تصویر است.';
   if (file.size <= 0) return 'فایل تصویر خالی است.';
   if (file.size > MAX_IMAGE_UPLOAD_BYTES) return 'حجم تصویر نباید بیشتر از ۱۰ مگابایت باشد.';
   return null;
