@@ -48,14 +48,14 @@ describe('image upload contract', () => {
   it.each(Object.entries(signatures))('accepts a valid %s signature', (mime, bytes) => {
     expect(isSupportedImageType(mime)).toBe(true);
     expect(hasValidImageSignature(bytes, mime)).toBe(true);
-    const file = new File([bytes], `محصول-تصویر.${mime === 'image/svg+xml' ? 'svg' : 'bin'}`, { type: mime });
+    const file = new File([new Uint8Array(bytes)], `محصول-تصویر.${mime === 'image/svg+xml' ? 'svg' : 'bin'}`, { type: mime });
     expect(imageUploadError(file)).toBeNull();
   });
 
   it('accepts a valid image when the browser sends application/octet-stream', () => {
     expect(isSupportedImageType('application/octet-stream')).toBe(true);
     expect(hasValidImageSignature(png, 'application/octet-stream')).toBe(true);
-    const file = new File([png], 'تصویر.داده', { type: 'application/octet-stream' });
+    const file = new File([new Uint8Array(png)], 'تصویر.داده', { type: 'application/octet-stream' });
     expect(imageUploadError(file)).toBeNull();
   });
 
