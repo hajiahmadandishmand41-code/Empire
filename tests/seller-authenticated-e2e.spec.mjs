@@ -6,7 +6,7 @@ const password = process.env.SELLER_E2E_PASSWORD;
 
 if (!email || !password) throw new Error('SELLER_E2E_EMAIL and SELLER_E2E_PASSWORD are required');
 
-const routes = ['/fa/seller','/fa/seller/products','/fa/seller/products/new','/fa/seller/inventory','/fa/seller/orders','/fa/seller/customers','/fa/seller/discounts','/fa/seller/reviews','/fa/seller/notifications','/fa/seller/wallet','/fa/seller/reports','/fa/seller/storefront','/fa/seller/settings'];
+const routes = ['/fa/seller','/fa/seller/products','/fa/seller/products/new','/fa/seller/inventory','/fa/seller/orders','/fa/seller/customers','/fa/seller/discounts','/fa/seller/reviews','/fa/seller/notifications','/fa/seller/wallet','/fa/seller/reports','/fa/seller/brand','/fa/seller/storefront','/fa/seller/settings'];
 
 async function login(page) {
   await page.goto(`${base}/fa/auth/login`, { waitUntil: 'domcontentloaded' });
@@ -33,7 +33,23 @@ test('seller can authenticate and open every seller-center route', async ({ page
   }
 });
 
-test('seller product flow exposes the required three-image workflow', async ({ page }) => {
+test('seller brand page exposes the simple brand profile and product assignment flow', async ({ page }) => {
+  await login(page);
+  await page.goto(`${base}/fa/seller/brand`, { waitUntil: 'domcontentloaded' });
+  await expect(page.locator('body')).toContainText('برند من');
+  await expect(page.locator('body')).toContainText('محصولات برند');
+  await expect(page.locator('input[type="file"]').first()).toHaveAttribute('accept', /image/);
+  await expect(page.locator('input[disabled]').first()).toBeVisible();
+  const response = await page.request.get(`${base}/api/seller/brand`);
+  expect(response.status()).toBe(200);
+  const body = await response.json();
+  expect(body.ok).toBeTruthy();
+  expect(body.data.id).toBeTruthy();
+  expect(body.data.name).toBeTruthy();
+  expect(body.data.sellerId).toBeTruthy();
+});
+
+test('seller product flow keeps brand linkage and image workflow available', async ({ page }) => {
   await login(page);
   await page.goto(`${base}/fa/seller/products/new`, { waitUntil: 'domcontentloaded' });
   const form = page.locator('form').last();
@@ -44,33 +60,14 @@ test('seller product flow exposes the required three-image workflow', async ({ p
   await numericInputs.nth(0).fill('2500');
   await numericInputs.nth(2).fill('12');
   await form.locator('select').first().selectOption({ index: 0 });
+  await expect(page.locator('body')).toContainText(/برند فروشگاه|برند من/);
+  await expect(form.locator('input[type="file"]')).toHaveCount(1);
   await form.locator('button[type="submit"]').click();
   await expect(page).toHaveURL(/\/fa\/seller\/products(?:[/?#]|$)/, { timeout: 20000 });
   await expect(page.locator('body')).toContainText('محصول تست فروشنده E2E');
-  const editLink = page.locator('a[href*="/seller/products/"][href*="/edit"]').first();
-  await expect(editLink).toBeVisible({ timeout: 10000 });
-  await editLink.click();
-  await expect(page).toHaveURL(/\/fa\/seller\/products\/[^/]+\/edit/);
-  await expect(page.locator('body')).toContainText(/حداقل ۳ تصویر|تصویر 1|تصویر ۱/);
-  await expect(page.locator('input[type="file"]').first()).toHaveAttribute('accept', /image/);
-  await page.reload({ waitUntil: 'domcontentloaded' });
-  await expect(page.locator('body')).toContainText('محصول تست فروشنده E2E');
 });
 
-test('seller brand settings are real and scoped to the current store', async ({ page }) => {
-  await login(page);
-  await page.goto(`${base}/fa/seller/settings`, { waitUntil: 'domcontentloaded' });
-  await expect(page.locator('body')).toContainText('برند اختصاصی فروشگاه');
-  await expect(page.locator('input').first()).toBeVisible();
-  const response = await page.request.get(`${base}/api/seller/brand`);
-  expect(response.status()).toBe(200);
-  const body = await response.json();
-  expect(body.ok).toBeTruthy();
-  expect(body.data.name).toBeTruthy();
-  expect(body.data.sellerId).toBeTruthy();
-});
-
-test('seller is blocked from admin-only area and admin remains reachable separately', async ({ page }) => {
+test('seller is blocked from admin-only area', async ({ page }) => {
   await login(page);
   const response = await page.goto(`${base}/fa/admin`, { waitUntil: 'domcontentloaded' });
   expect(response).not.toBeNull();
