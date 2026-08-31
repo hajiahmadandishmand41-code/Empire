@@ -4,8 +4,7 @@ import { isAllowedAdminMediaUrl } from '@/features/admin/lib/media-url';
 export const PRODUCT_MAX_IMAGES = 12;
 export const PRODUCT_MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 export const PRODUCT_IMAGE_MIME_TYPES = [
-  'image/*',
-  'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif', 'image/bmp', 'image/tiff',
+  'image/*', 'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif', 'image/bmp', 'image/tiff',
   'image/x-icon', 'image/vnd.microsoft.icon', 'image/heic', 'image/heif', 'image/jxl', 'image/apng', 'image/svg+xml',
 ] as const;
 
@@ -22,7 +21,7 @@ export const productImagesSchema = z.array(mediaUrlSchema).max(PRODUCT_MAX_IMAGE
 const productWriteShape = {
   slug: z.string().trim().max(120).nullable().optional(), name: z.string().trim().min(2, 'نام محصول حداقل ۲ حرف باشد').max(120), shortDescription: z.string().trim().min(2, 'توضیح کوتاه حداقل ۲ حرف باشد').max(300),
   description: z.string().trim().max(10000).nullable().optional(), price: positiveNumeric, currency: currencySchema.default('AFN'), categoryId: z.string().trim().min(1, 'انتخاب دسته‌بندی الزامی است'),
-  brandId: z.string().trim().min(1, 'برند محصول الزامی است'),
+  brandId: z.string().trim().min(1).nullable().optional(),
   region: z.string().trim().min(1, 'کشور یا منطقه الزامی است').max(120).default('AF'), badge: z.string().trim().max(40).nullable().optional(), inStock: z.boolean().default(true), stockQuantity: nonNegativeInteger.default(0), images: productImagesSchema.default([]), primaryImageIndex: nonNegativeInteger.default(0),
   compareAtPrice: positiveNumeric.nullable().optional(), isActive: z.boolean().default(true), whatsappNumber: z.string().trim().max(40).nullable().optional(), isTraditional: z.boolean().default(false), weightKg: nonNegativeNumeric.nullable().optional(), dimensionsJson: z.string().max(200).nullable().optional(), tagsJson: z.string().max(500).nullable().optional(), attributesJson: z.string().max(2000).nullable().optional(),
 } satisfies z.ZodRawShape;
