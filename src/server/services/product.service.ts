@@ -33,7 +33,7 @@ export class ProductService {
     throw new ProductServiceError('slug_unavailable', 'ساخت شناسه یکتای محصول ممکن نشد. لطفاً دوباره تلاش کنید.', 409);
   }
 
-  async createProduct(input:{slug?:string|null;name:string;shortDescription:string;price:number;compareAtPrice?:number|null;categoryId:string;sellerId?:string|null;region:string;currency?:string;inStock?:boolean;isActive?:boolean;stockQuantity?:number;description?:string|null;whatsappNumber?:string|null;videoUrl?:string|null;isTraditional?:boolean;images?:string[];weightKg?:number|null;dimensionsJson?:string|null;tagsJson?:string|null;attributesJson?:string|null;primaryImageIndex?:number;badge?:string|null;}){
+  async createProduct(input:{slug?:string|null;name:string;shortDescription:string;price:number;compareAtPrice?:number|null;categoryId:string;sellerId?:string|null;region:string;currency?:string;inStock?:boolean;isActive?:boolean;stockQuantity?:number;description?:string|null;whatsappNumber?:string|null;isTraditional?:boolean;images?:string[];weightKg?:number|null;dimensionsJson?:string|null;tagsJson?:string|null;attributesJson?:string|null;primaryImageIndex?:number;badge?:string|null;}){
     const category=await this.categories.findById(input.categoryId);
     if(!category)throw new ProductServiceError('category_not_found','دسته‌بندی انتخاب‌شده وجود ندارد. لطفاً یک دسته‌بندی معتبر انتخاب کنید.',422);
     const images=input.images??[];
@@ -42,7 +42,7 @@ export class ProductService {
     try{return await this.products.create({...input,slug,images,primaryImageIndex:images.length>0?(input.primaryImageIndex??0):0});}
     catch(err:unknown){const e=err as{code?:string};if(e.code==='P2002')throw new ProductServiceError('slug_exists','ساخت شناسه یکتای محصول ممکن نشد. لطفاً دوباره تلاش کنید.',409);throw err;}
   }
-  async updateProduct(id:string,input:{name?:string;shortDescription?:string;price?:number;compareAtPrice?:number|null;categoryId?:string;region?:string;currency?:string;inStock?:boolean;isActive?:boolean;stockQuantity?:number;description?:string|null;whatsappNumber?:string|null;videoUrl?:string|null;isTraditional?:boolean;images?:string[];tagsJson?:string|null;attributesJson?:string|null;weightKg?:number|null;dimensionsJson?:string|null;primaryImageIndex?:number;}){
+  async updateProduct(id:string,input:{name?:string;shortDescription?:string;price?:number;compareAtPrice?:number|null;categoryId?:string;region?:string;currency?:string;inStock?:boolean;isActive?:boolean;stockQuantity?:number;description?:string|null;whatsappNumber?:string|null;isTraditional?:boolean;images?:string[];tagsJson?:string|null;attributesJson?:string|null;weightKg?:number|null;dimensionsJson?:string|null;primaryImageIndex?:number;}){
     if(input.categoryId){const category=await this.categories.findById(input.categoryId);if(!category)throw new ProductServiceError('category_not_found','دسته‌بندی انتخاب‌شده وجود ندارد.',422)}
     const current=await this.products.findById(id);
     if(!current)throw new ProductServiceError('not_found','محصول پیدا نشد.',404);
