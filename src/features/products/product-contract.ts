@@ -3,7 +3,11 @@ import { isAllowedAdminMediaUrl } from '@/features/admin/lib/media-url';
 
 export const PRODUCT_MAX_IMAGES = 12;
 export const PRODUCT_MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+// `image/*` is intentional for browser pickers: the server validates the
+// actual bytes, so files whose names/extensions or browser MIME metadata are
+// unusual can still be selected and safely accepted when they are images.
 export const PRODUCT_IMAGE_MIME_TYPES = [
+  'image/*',
   'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif', 'image/bmp', 'image/tiff',
   'image/x-icon', 'image/vnd.microsoft.icon', 'image/heic', 'image/heif', 'image/jxl', 'image/apng', 'image/svg+xml',
 ] as const;
