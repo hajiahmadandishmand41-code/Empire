@@ -4,13 +4,11 @@ import { isAllowedAdminMediaUrl } from '@/features/admin/lib/media-url';
 export const PRODUCT_MAX_IMAGES = 12;
 export const PRODUCT_MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 export const PRODUCT_IMAGE_MIME_TYPES = [
-  'image/*', 'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif', 'image/bmp', 'image/tiff',
+  '', 'application/octet-stream', 'image/*', 'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif', 'image/bmp', 'image/tiff',
   'image/x-icon', 'image/vnd.microsoft.icon', 'image/heic', 'image/heif', 'image/jxl', 'image/apng', 'image/svg+xml',
 ] as const;
 
-export function normalizePersianDigits(value: string): string {
-  return value.replace(/[۰-۹]/g, (digit) => String(digit.charCodeAt(0) - '۰'.charCodeAt(0))).replace(/[٠-٩]/g, (digit) => String(digit.charCodeAt(0) - '٠'.charCodeAt(0))).replace(/٬/g, ',').replace(/٫/g, '.');
-}
+export function normalizePersianDigits(value: string): string { return value.replace(/[۰-۹]/g, (digit) => String(digit.charCodeAt(0) - '۰'.charCodeAt(0))).replace(/[٠-٩]/g, (digit) => String(digit.charCodeAt(0) - '٠'.charCodeAt(0))).replace(/٬/g, ',').replace(/٫/g, '.'); }
 function preprocessNumber(value: unknown): unknown { if (typeof value !== 'string') return value; const normalized = normalizePersianDigits(value).replace(/,/g, '').trim(); return normalized === '' ? undefined : Number(normalized); }
 const positiveNumeric = z.preprocess(preprocessNumber, z.number().finite().positive('مقدار باید بیشتر از صفر باشد'));
 const nonNegativeNumeric = z.preprocess(preprocessNumber, z.number().finite().min(0, 'مقدار نمی‌تواند منفی باشد'));
@@ -18,13 +16,7 @@ const nonNegativeInteger = z.preprocess(preprocessNumber, z.number().int('مقد
 const mediaUrlSchema = z.string().trim().min(1).max(1000).refine(isAllowedAdminMediaUrl, 'آدرس تصویر نامعتبر است');
 const currencySchema = z.string().trim().toUpperCase().regex(/^[A-Z]{3}$/, 'واحد پول نامعتبر است');
 export const productImagesSchema = z.array(mediaUrlSchema).max(PRODUCT_MAX_IMAGES);
-const productWriteShape = {
-  slug: z.string().trim().max(120).nullable().optional(), name: z.string().trim().min(2, 'نام محصول حداقل ۲ حرف باشد').max(120), shortDescription: z.string().trim().min(2, 'توضیح کوتاه حداقل ۲ حرف باشد').max(300),
-  description: z.string().trim().max(10000).nullable().optional(), price: positiveNumeric, currency: currencySchema.default('AFN'), categoryId: z.string().trim().min(1, 'انتخاب دسته‌بندی الزامی است'),
-  brandId: z.string().trim().min(1).nullable().optional(),
-  region: z.string().trim().min(1, 'کشور یا منطقه الزامی است').max(120).default('AF'), badge: z.string().trim().max(40).nullable().optional(), inStock: z.boolean().default(true), stockQuantity: nonNegativeInteger.default(0), images: productImagesSchema.default([]), primaryImageIndex: nonNegativeInteger.default(0),
-  compareAtPrice: positiveNumeric.nullable().optional(), isActive: z.boolean().default(true), whatsappNumber: z.string().trim().max(40).nullable().optional(), isTraditional: z.boolean().default(false), weightKg: nonNegativeNumeric.nullable().optional(), dimensionsJson: z.string().max(200).nullable().optional(), tagsJson: z.string().max(500).nullable().optional(), attributesJson: z.string().max(2000).nullable().optional(),
-} satisfies z.ZodRawShape;
+const productWriteShape = { slug: z.string().trim().max(120).nullable().optional(), name: z.string().trim().min(2, 'نام محصول حداقل ۲ حرف باشد').max(120), shortDescription: z.string().trim().min(2, 'توضیح کوتاه حداقل ۲ حرف باشد').max(300), description: z.string().trim().max(10000).nullable().optional(), price: positiveNumeric, currency: currencySchema.default('AFN'), categoryId: z.string().trim().min(1, 'انتخاب دسته‌بندی الزامی است'), brandId: z.string().trim().min(1).nullable().optional(), region: z.string().trim().min(1, 'کشور یا منطقه الزامی است').max(120).default('AF'), badge: z.string().trim().max(40).nullable().optional(), inStock: z.boolean().default(true), stockQuantity: nonNegativeInteger.default(0), images: productImagesSchema.default([]), primaryImageIndex: nonNegativeInteger.default(0), compareAtPrice: positiveNumeric.nullable().optional(), isActive: z.boolean().default(true), whatsappNumber: z.string().trim().max(40).nullable().optional(), isTraditional: z.boolean().default(false), weightKg: nonNegativeNumeric.nullable().optional(), dimensionsJson: z.string().max(200).nullable().optional(), tagsJson: z.string().max(500).nullable().optional(), attributesJson: z.string().max(2000).nullable().optional() } satisfies z.ZodRawShape;
 const productWriteSchema = z.object(productWriteShape);
 export const productCreateSchema = productWriteSchema.superRefine((value, ctx) => { if (value.images.length === 0 && value.primaryImageIndex !== 0) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['primaryImageIndex'], message: 'وقتی تصویر ندارید، شاخص تصویر اصلی باید صفر باشد' }); if (value.images.length > 0 && value.primaryImageIndex >= value.images.length) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['primaryImageIndex'], message: 'تصویر اصلی انتخاب‌شده معتبر نیست' }); if (value.compareAtPrice !== null && value.compareAtPrice !== undefined && value.compareAtPrice <= value.price) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['compareAtPrice'], message: 'قیمت قبلی باید از قیمت فعلی بیشتر باشد' }); });
 export const productUpdateSchema = productWriteSchema.partial().strict().superRefine((value, ctx) => { if (value.images === undefined || value.primaryImageIndex === undefined) return; if (value.images.length === 0 && value.primaryImageIndex !== 0) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['primaryImageIndex'], message: 'وقتی تصویر ندارید، شاخص تصویر اصلی باید صفر باشد' }); if (value.images.length > 0 && value.primaryImageIndex >= value.images.length) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['primaryImageIndex'], message: 'تصویر اصلی انتخاب‌شده معتبر نیست' }); });
