@@ -57,6 +57,8 @@ jobs:
         run: npm run architecture:check
       - name: Six-stage remediation contract
         run: npm run remediation:check
+      - name: P0 commerce contract
+        run: npm run p0:check
       - name: Generate Prisma Client
         run: npx prisma generate
       - name: Lint
