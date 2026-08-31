@@ -7,7 +7,7 @@ export function extensionOf(name: string): string { const index = name.lastIndex
 export function isSupportedImageType(mime: string): boolean { return mime === '' || mime === 'application/octet-stream' || (mime.startsWith('image/') && mime in IMAGE_MIME_TO_EXTENSION); }
 function startsWith(buffer: Buffer, bytes: number[]): boolean { return buffer.length >= bytes.length && Buffer.from(bytes).equals(buffer.subarray(0, bytes.length)); }
 function isoBmffBrands(buffer: Buffer): string[] { if (buffer.length < 16 || buffer.subarray(4, 8).toString('ascii') !== 'ftyp') return []; const brands = [buffer.subarray(8, 12).toString('ascii')]; for (let offset = 16; offset + 4 <= buffer.length && offset < 256; offset += 4) brands.push(buffer.subarray(offset, offset + 4).toString('ascii')); return brands; }
-function hasIsoBmffImageBrand(buffer: Buffer, kind: 'avif' | 'heif'): boolean { const brands = isoBmffBrands(buffer); if (!brands.length) return false; const avif = new Set(['avif', 'avis']); const heif = new Set(['heic', 'heix', 'hevc', 'hevx', 'heim', 'heis', 'hevm', 'hevs']); return brands.some((brand) => (kind === 'avif' ? avif.has(brand) : heif.has(brand))); }
+function hasIsoBmffImageBrand(buffer: Buffer, kind: 'avif' | 'heif'): boolean { const brands = isoBmffBrands(buffer); if (!brands.length) return false; const avif = new Set(['avif', 'avis']); const heif = new Set(['heic', 'heix', 'hevc', 'hevx', 'heim', 'heis', 'hevm', 'hevs']); return brands.some((brand) => kind === 'avif' ? avif.has(brand) : heif.has(brand)); }
 export function detectImageMime(buffer: Buffer): string | null {
   const text = buffer.toString('utf8', 0, Math.min(buffer.length, 64 * 1024)).replace(/^\uFEFF/, '').trimStart();
   if (/^<svg[\s>]/i.test(text) && !/<script\b/i.test(text) && !/javascript:/i.test(text) && !/\son[a-z]+\s*=\s*/i.test(text)) return 'image/svg+xml';
@@ -23,5 +23,5 @@ export function detectImageMime(buffer: Buffer): string | null {
   if (startsWith(buffer, [0xff,0x0a]) || (buffer.length >= 12 && buffer.subarray(4,8).toString('ascii') === 'JXL ')) return 'image/jxl';
   return null;
 }
-export function hasValidImageSignature(buffer: Buffer, mime = ''): boolean { const detected = detectImageMime(buffer); if (!detected) return false; return mime === '' || mime === 'application/octet-stream' || mime === detected || (mime === 'image/apng' && detected === 'image/png') || (mime === 'image/vnd.microsoft.icon' && detected === 'image/x-icon') || (mime === 'image/heic' && detected === 'image/heif'); }
-export function imageUploadError(file: File): string | null { if (!isSupportedImageType(file.type)) return 'فقط فایل تصویری معتبر مجاز است؛ نام و پسوند فایل مستقل از نوع واقعی تصویر است.'; if (file.size <= 0) return 'فایل تصویر خالی است.'; if (file.size > MAX_IMAGE_UPLOAD_BYTES) return 'حجم تصویر نباید بیشتر از ۱۰ مگابایت باشد.'; return null; }
+export function hasValidImageSignature(buffer: Buffer, _mime = ''): boolean { const detected = detectImageMime(buffer); return detected !== null && detected in IMAGE_MIME_TO_EXTENSION; }
+export function imageUploadError(file: File): string | null { if (file.size <= 0) return 'فایل تصویر خالی است.'; if (file.size > MAX_IMAGE_UPLOAD_BYTES) return 'حجم تصویر نباید بیشتر از ۱۰ مگابایت باشد.'; return null; }
