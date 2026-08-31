@@ -23,6 +23,10 @@ import type {
 } from '@/types';
 
 type ProductWithCategory = PProduct & { category: PCategory };
+type ProductWithCategoryAndSeller = ProductWithCategory & {
+  seller?: { id: string; fullName: string; sellerShopName: string | null } | null;
+};
+type BrandExtra = { brandId?: string | null; brandName?: string | null; brandSlug?: string | null };
 
 function parseJson<T>(raw: unknown, fallback: T): T {
   if (raw == null) return fallback;
@@ -32,17 +36,32 @@ function parseJson<T>(raw: unknown, fallback: T): T {
   return raw as T;
 }
 
-const moneyNumber = (value: unknown): number => Number(value ?? 0);
+function parseProductImageList(raw: unknown, productName: string): ProductImage[] {
+  const value = parseJson<unknown>(raw, []);
+  if (!Array.isArray(value)) return [{ src: null, alt: productName }];
+  const images = value.map((item): ProductImage | null => {
+    if (typeof item === 'string' && item.trim()) return { src: item.trim(), alt: productName };
+    if (!item || typeof item !== 'object') return null;
+    const record = item as Record<string, unknown>;
+    const src = typeof record.src === 'string' ? record.src : typeof record.url === 'string' ? record.url : '';
+    if (!src.trim()) return null;
+    return {
+      src: src.trim(),
+      alt: typeof record.alt === 'string' && record.alt.trim() ? record.alt.trim() : productName,
+      ...(typeof record.width === 'number' ? { width: record.width } : {}),
+      ...(typeof record.height === 'number' ? { height: record.height } : {}),
+    };
+  }).filter((item): item is ProductImage => Boolean(item));
+  return images.length ? images : [{ src: null, alt: productName }];
+}
 
-type ProductWithCategoryAndSeller = ProductWithCategory & {
-  seller?: { id: string; fullName: string; sellerShopName: string | null } | null;
-};
+const moneyNumber = (value: unknown): number => Number(value ?? 0);
 
 export function mapProductSummary(
   p: ProductWithCategoryAndSeller,
-  extras: { averageRating?: number; reviewCount?: number } = {},
+  extras: { averageRating?: number; reviewCount?: number; brand?: BrandExtra } = {},
 ): ProductSummary {
-  const images = parseJson<ProductImage[]>(p.imagesJson, [{ src: null, alt: p.name }]);
+  const images = parseProductImageList(p.imagesJson, p.name);
   return {
     id: p.id,
     slug: p.slug,
@@ -61,6 +80,9 @@ export function mapProductSummary(
     salesCount: (p as unknown as { salesCount?: number }).salesCount ?? 0,
     viewCount: (p as unknown as { viewCount?: number }).viewCount ?? 0,
     sellerWhatsapp: (p as unknown as { whatsappNumber?: string | null }).whatsappNumber ?? null,
+    brandId: extras.brand?.brandId ?? null,
+    brandName: extras.brand?.brandName ?? null,
+    brandSlug: extras.brand?.brandSlug ?? null,
     comparePrice: p.compareAtPrice == null ? null : moneyNumber(p.compareAtPrice),
     isTraditional: (p as unknown as { isTraditional?: boolean }).isTraditional ?? false,
     averageRating: extras.averageRating,
@@ -72,7 +94,7 @@ export function mapProductSummary(
 
 export function mapProduct(
   p: ProductWithCategoryAndSeller,
-  extras: { averageRating?: number; reviewCount?: number } = {},
+  extras: { averageRating?: number; reviewCount?: number; brand?: BrandExtra } = {},
 ): Product {
   return {
     ...mapProductSummary(p, extras),
@@ -86,24 +108,80 @@ export function mapCategory(c: PCategory & { _count?: { products: number } }): C
 }
 
 export function mapAddress(a: PAddress): ShippingAddress {
-  return { id: a.id, label: a.label ?? undefined, fullName: a.fullName, phone: a.phone, province: a.province, district: a.district, city: a.city ?? undefined, addressLine: a.addressLine, postalCode: a.postalCode ?? undefined, notes: a.notes ?? undefined, isDefault: a.isDefault ?? false };
+  return {
+    id: a.id,
+    label: a.label ?? undefined,
+    fullName: a.fullName,
+    phone: a.phone,
+    province: a.province,
+    district: a.district,
+    city: a.city ?? undefined,
+    addressLine: a.addressLine,
+    postalCode: a.postalCode ?? undefined,
+    notes: a.notes ?? undefined,
+    isDefault: a.isDefault ?? false,
+  };
 }
 
 export function mapShippingMethod(m: PShippingMethod): ShippingMethod {
-  return { id: m.id, key: m.key, name: m.name, description: m.description ?? undefined, kind: m.kind as ShippingKind, cost: moneyNumber(m.cost), currency: m.currency, etaDays: m.etaDays ?? undefined, isActive: m.isActive, sortOrder: m.sortOrder };
+  return {
+    id: m.id,
+    key: m.key,
+    name: m.name,
+    description: m.description ?? undefined,
+    kind: m.kind as ShippingKind,
+    cost: moneyNumber(m.cost),
+    currency: m.currency,
+    etaDays: m.etaDays ?? undefined,
+    isActive: m.isActive,
+    sortOrder: m.sortOrder,
+  };
 }
 
-export function mapOrder(o: POrder & { items: POrderItem[]; address: PAddress; shippingMethod?: PShippingMethod | null }): Order {
+export function mapOrder(
+  o: POrder & { items: POrderItem[]; address: PAddress; shippingMethod?: PShippingMethod | null },
+): Order {
   return {
-    id: o.id, reference: o.reference, status: o.status, paymentMethod: o.paymentMethod, paymentStatus: o.paymentStatus,
-    createdAt: o.createdAt.toISOString(), updatedAt: o.updatedAt.toISOString(),
+    id: o.id,
+    reference: o.reference,
+    status: o.status,
+    paymentMethod: o.paymentMethod,
+    paymentStatus: o.paymentStatus,
+    createdAt: o.createdAt.toISOString(),
+    updatedAt: o.updatedAt.toISOString(),
     items: o.items.map((i) => ({ slug: i.slug, name: i.name, price: moneyNumber(i.price), quantity: i.quantity })),
-    address: { ...mapAddress(o.address), ...(o.shippingFullName ? { fullName: o.shippingFullName } : {}), ...(o.shippingPhone ? { phone: o.shippingPhone } : {}), ...(o.shippingProvince ? { province: o.shippingProvince } : {}), ...(o.shippingDistrict ? { district: o.shippingDistrict } : {}), ...(o.shippingCity !== null && o.shippingCity !== undefined ? { city: o.shippingCity ?? undefined } : {}), ...(o.shippingAddressLine ? { addressLine: o.shippingAddressLine } : {}), ...(o.shippingPostalCode !== null && o.shippingPostalCode !== undefined ? { postalCode: o.shippingPostalCode ?? undefined } : {}), ...(o.shippingNotes !== null && o.shippingNotes !== undefined ? { notes: o.shippingNotes ?? undefined } : {}) },
-    shippingCost: moneyNumber(o.shipping), shippingMethod: o.shippingMethod ? mapShippingMethod(o.shippingMethod) : null, shippingMethodId: o.shippingMethodId ?? undefined,
+    address: {
+      ...mapAddress(o.address),
+      ...(o.shippingFullName ? { fullName: o.shippingFullName } : {}),
+      ...(o.shippingPhone ? { phone: o.shippingPhone } : {}),
+      ...(o.shippingProvince ? { province: o.shippingProvince } : {}),
+      ...(o.shippingDistrict ? { district: o.shippingDistrict } : {}),
+      ...(o.shippingCity !== null && o.shippingCity !== undefined ? { city: o.shippingCity ?? undefined } : {}),
+      ...(o.shippingAddressLine ? { addressLine: o.shippingAddressLine } : {}),
+      ...(o.shippingPostalCode !== null && o.shippingPostalCode !== undefined ? { postalCode: o.shippingPostalCode ?? undefined } : {}),
+      ...(o.shippingNotes !== null && o.shippingNotes !== undefined ? { notes: o.shippingNotes ?? undefined } : {}),
+    },
+    shippingCost: moneyNumber(o.shipping),
+    shippingMethod: o.shippingMethod ? mapShippingMethod(o.shippingMethod) : null,
+    shippingMethodId: o.shippingMethodId ?? undefined,
     summary: { itemCount: o.itemCount, subtotal: moneyNumber(o.subtotal), currency: (o.currency as CurrencyCode) ?? 'USD' },
   };
 }
 
 export function mapTransaction(t: PTransaction): Transaction {
-  return { id: t.id, orderId: t.orderId, reference: t.reference, provider: t.provider, method: t.method, status: t.status, amount: moneyNumber(t.amount), currency: t.currency, providerTxnId: t.providerTxnId ?? undefined, failureReason: t.failureReason ?? undefined, paidAt: t.paidAt ? t.paidAt.toISOString() : undefined, createdAt: t.createdAt.toISOString(), updatedAt: t.updatedAt.toISOString() };
+  return {
+    id: t.id,
+    orderId: t.orderId,
+    reference: t.reference,
+    provider: t.provider,
+    method: t.method,
+    status: t.status,
+    amount: moneyNumber(t.amount),
+    currency: t.currency,
+    providerTxnId: t.providerTxnId ?? undefined,
+    failureReason: t.failureReason ?? undefined,
+    paidAt: t.paidAt ? t.paidAt.toISOString() : undefined,
+    createdAt: t.createdAt.toISOString(),
+    updatedAt: t.updatedAt.toISOString(),
+  };
 }

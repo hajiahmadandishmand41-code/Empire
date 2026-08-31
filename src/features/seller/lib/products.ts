@@ -1,26 +1,17 @@
 /** Seller product queries — server-only, database-authoritative. */
+import { Prisma } from '@prisma/client';
 import { prisma, isDatabaseConfigured } from '@/lib/db';
 import { parseProductImages } from '@/features/products/product-contract';
 
-export interface SellerProductRow {
-  id: string; slug: string; name: string; price: number; currency: string; categoryName: string;
-  region: string; inStock: boolean; createdAt: string; isActive: boolean; stockQuantity: number;
-  compareAtPrice: number | null; imageCount: number;
-}
+export interface SellerProductRow { id: string; slug: string; name: string; price: number; currency: string; categoryName: string; region: string; inStock: boolean; createdAt: string; isActive: boolean; stockQuantity: number; compareAtPrice: number | null; imageCount: number; }
 export interface SellerCategoryRow { id: string; key: string; name: string; slug: string; productCount: number; }
 export interface ListFilters { q?: string; page?: number; pageSize?: number; sellerId?: string; }
 export interface Paged<T> { items: T[]; total: number; page: number; pageSize: number; source: 'db' | 'empty' | 'unavailable'; }
 
 export async function listSellerProducts(f: ListFilters = {}): Promise<Paged<SellerProductRow>> {
-  const page = Math.max(1, f.page ?? 1);
-  const pageSize = Math.min(50, Math.max(5, f.pageSize ?? 20));
-  const q = f.q?.trim() ?? '';
+  const page = Math.max(1, f.page ?? 1); const pageSize = Math.min(50, Math.max(5, f.pageSize ?? 20)); const q = f.q?.trim() ?? '';
   if (!isDatabaseConfigured()) return { items: [], total: 0, page, pageSize, source: 'unavailable' };
-  const textWhere = q ? { OR: [
-    { name: { contains: q, mode: 'insensitive' as const } },
-    { slug: { contains: q, mode: 'insensitive' as const } },
-    { region: { contains: q, mode: 'insensitive' as const } },
-  ] } : {};
+  const textWhere = q ? { OR: [{ name: { contains: q, mode: 'insensitive' as const } }, { slug: { contains: q, mode: 'insensitive' as const } }, { region: { contains: q, mode: 'insensitive' as const } }] } : {};
   const where = f.sellerId ? { AND: [{ sellerId: f.sellerId }, textWhere] } : textWhere;
   const [rows, total] = await Promise.all([
     prisma.product.findMany({ where, select: { id: true, slug: true, name: true, price: true, currency: true, region: true, inStock: true, isActive: true, stockQuantity: true, compareAtPrice: true, imagesJson: true, createdAt: true, category: { select: { name: true } } }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: pageSize, skip: (page - 1) * pageSize }),
@@ -36,11 +27,13 @@ export async function listSellerCategories(): Promise<{ items: SellerCategoryRow
   return { items: rows.map((c) => ({ id: c.id, key: c.key, name: c.name, slug: c.slug, productCount: c._count?.products ?? 0 })), source: rows.length === 0 ? 'empty' : 'db' };
 }
 
-export interface SellerProductDetail { id: string; slug: string; name: string; shortDescription: string; description: string | null; price: number; currency: string; categoryId: string; region: string; inStock: boolean; isActive: boolean; stockQuantity: number; compareAtPrice: number | null; images: string[]; sellerId: string | null; whatsappNumber: string | null; isTraditional: boolean; }
+export interface SellerProductDetail { id: string; slug: string; name: string; shortDescription: string; description: string | null; price: number; currency: string; categoryId: string; region: string; inStock: boolean; isActive: boolean; stockQuantity: number; compareAtPrice: number | null; images: string[]; primaryImageIndex: number; sellerId: string | null; whatsappNumber: string | null; isTraditional: boolean; brandId: string | null; brandName: string | null; }
 
 export async function getSellerProduct(id: string, sellerId?: string): Promise<SellerProductDetail | null> {
   if (!isDatabaseConfigured()) return null;
   const p = await prisma.product.findUnique({ where: { id } });
   if (!p || (sellerId && p.sellerId !== sellerId)) return null;
-  return { id: p.id, slug: p.slug, name: p.name, shortDescription: p.shortDescription, description: p.description, price: Number(p.price), currency: p.currency, categoryId: p.categoryId, region: p.region, inStock: p.inStock, isActive: p.isActive, stockQuantity: p.stockQuantity, compareAtPrice: p.compareAtPrice == null ? null : Number(p.compareAtPrice), images: parseProductImages(p.imagesJson), sellerId: p.sellerId, whatsappNumber: p.whatsappNumber ?? null, isTraditional: p.isTraditional };
+  const brandRows = await prisma.$queryRaw<Array<{ id: string; name: string }>>(Prisma.sql`SELECT b."id", b."name" FROM "Product" p LEFT JOIN "SellerBrand" b ON b."id"=p."brandId" WHERE p."id"=${id} LIMIT 1`);
+  const brand = brandRows[0] ?? null;
+  return { id: p.id, slug: p.slug, name: p.name, shortDescription: p.shortDescription, description: p.description, price: Number(p.price), currency: p.currency, categoryId: p.categoryId, region: p.region, inStock: p.inStock, isActive: p.isActive, stockQuantity: p.stockQuantity, compareAtPrice: p.compareAtPrice == null ? null : Number(p.compareAtPrice), images: parseProductImages(p.imagesJson), primaryImageIndex: p.primaryImageIndex, sellerId: p.sellerId, whatsappNumber: p.whatsappNumber ?? null, isTraditional: p.isTraditional, brandId: brand?.id ?? null, brandName: brand?.name ?? null };
 }
