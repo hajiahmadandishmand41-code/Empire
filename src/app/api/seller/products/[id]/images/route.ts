@@ -37,7 +37,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   try { body = await req.json(); } catch { return jsonError('invalid_json', 'اطلاعات ارسال‌شده نامعتبر است.', { status: 400 }); }
   const parsed = postSchema.safeParse(body);
   if (!parsed.success) return jsonError('invalid_body', 'اطلاعات تصویر نامعتبر است.', { status: 422, details: { issues: parsed.error.issues } });
-  const match = /^data:([^;,]*)(?:;[^,]*)?;base64,(.+)$/s.exec(parsed.data.dataUrl);
+  const match = /^data:([^;,]*)(?:;[^,]*)?;base64,([\s\S]+)$/.exec(parsed.data.dataUrl);
   if (!match) return jsonError('invalid_image', 'تصویر پایه۶۴ نامعتبر است.', { status: 400 });
   const suppliedMime = match[1].toLowerCase();
   const buf = Buffer.from(match[2], 'base64');
