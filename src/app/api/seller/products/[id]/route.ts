@@ -1,4 +1,5 @@
 import type { NextRequest } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { isDatabaseConfigured, prisma } from '@/lib/db';
 import { jsonError, jsonOk, jsonPreflight } from '@/lib/api/response';
 import { requireSellerApi } from '@/lib/auth/require-seller-api';
@@ -20,6 +21,12 @@ function serializeProduct<T extends object>(row: T) {
   return out;
 }
 
+async function validateSellerBrand(sellerId: string, brandId: string | null | undefined) {
+  if (!brandId) return null;
+  const rows = await prisma.$queryRaw<Array<{ id: string; name: string; slug: string }>>(Prisma.sql`SELECT "id","name","slug" FROM "SellerBrand" WHERE "id"=${brandId} AND "sellerId"=${sellerId} AND "isActive"=true LIMIT 1`);
+  return rows[0] ?? null;
+}
+
 export async function OPTIONS() { return jsonPreflight(); }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -37,10 +44,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const ownership = await svc.checkOwnership(id, guard.user.id, guard.user.role === 'admin');
     if (ownership === 'not_found') return jsonError('not_found', 'Product not found', { status: 404 });
     if (ownership === 'forbidden') return jsonError('forbidden', 'You do not own this product', { status: 403 });
-    const { slug: _ignoredSlug, ...changes } = parsed.data;
+    const { slug: _ignoredSlug, brandId, ...changes } = parsed.data;
+    if (guard.user.role === 'seller' && brandId !== undefined && !(await validateSellerBrand(guard.user.id, brandId))) return jsonError('invalid_brand', 'برند انتخاب‌شده متعلق به این فروشگاه نیست یا فعال نیست.', { status: 422 });
     const updated = await svc.updateProduct(id, changes);
-    logger.info('seller.product.updated', { productId: id, sellerId: guard.user.id, fields: Object.keys(changes), imageCount: changes.images?.length ?? undefined });
-    return jsonOk(serializeProduct(updated));
+    if (brandId !== undefined && brandId !== null) await prisma.$executeRaw(Prisma.sql`UPDATE "Product" SET "brandId"=${brandId} WHERE "id"=${id} AND "sellerId"=${guard.user.id}`);
+    return jsonOk({ ...serializeProduct(updated), brandId: brandId ?? undefined });
   } catch (err) {
     if (err instanceof ProductServiceError) return jsonError(err.code, err.message, { status: err.httpStatus });
     logger.error('seller.product.update_failed', { productId: id, sellerId: guard.user.id }, err);
