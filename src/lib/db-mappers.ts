@@ -62,7 +62,6 @@ export function mapProductSummary(
     viewCount: (p as unknown as { viewCount?: number }).viewCount ?? 0,
     sellerWhatsapp: (p as unknown as { whatsappNumber?: string | null }).whatsappNumber ?? null,
     comparePrice: p.compareAtPrice == null ? null : moneyNumber(p.compareAtPrice),
-    videoUrl: (p as unknown as { videoUrl?: string | null }).videoUrl ?? null,
     isTraditional: (p as unknown as { isTraditional?: boolean }).isTraditional ?? false,
     averageRating: extras.averageRating,
     reviewCount: extras.reviewCount,
