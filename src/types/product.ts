@@ -36,8 +36,6 @@ export interface Product {
   viewCount?: number;
   sellerWhatsapp?: string | null;
   comparePrice?: number | null;
-  /** Legacy read-only product field; media upload is image-only. */
-  videoUrl?: string | null;
   isTraditional?: boolean;
   createdAt?: string;
   updatedAt?: string;

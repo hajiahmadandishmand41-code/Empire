@@ -10,7 +10,6 @@ import { RelatedProducts } from './related-products';
 import { WishlistButton } from '@/features/wishlist';
 import { ReviewList, ReviewForm } from '@/features/reviews';
 import { ProductShare } from './product-share';
-import { ProductVideoPlayer } from './product-video-player';
 import type { Product, ProductSummary } from '@/types';
 
 interface ProductDetailProps { product: Product; related: ProductSummary[]; locale: string; currency?: string; }
@@ -50,7 +49,6 @@ export async function ProductDetail({ product, related, locale, currency = 'AFN'
             {(description ?? []).length > 0 && <div className="space-y-2 text-sm leading-7 text-muted-foreground">{(description ?? []).map((paragraph, i) => <p key={i}>{paragraph}</p>)}</div>}
             {(features ?? []).length > 0 && <div className="rounded-2xl border border-border bg-muted/30 p-4"><h2 className="mb-3 text-xs font-bold tracking-wide text-foreground">{tProduct('features.title')}</h2><ul className="grid gap-2 sm:grid-cols-2">{(features ?? []).map((feature, i) => <li key={i} className="flex items-start gap-2 text-xs leading-5 text-foreground/80"><Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" aria-hidden /><span>{feature}</span></li>)}</ul></div>}
             <div className="grid grid-cols-3 gap-2">{[{ Icon: ShieldCheck, label: tProduct('trustBadges.authentic') }, { Icon: Truck, label: tProduct('trustBadges.shipping') }, { Icon: RotateCcw, label: tProduct('trustBadges.returns') }].map(({ Icon, label }) => <div key={label} className="card-luxury flex flex-col items-center gap-1.5 rounded-2xl border border-border bg-card px-2 py-3 text-center"><Icon className="h-5 w-5 text-primary" aria-hidden /><span className="text-[10px] font-bold leading-tight text-foreground">{label}</span></div>)}</div>
-            {product.videoUrl && <ProductVideoPlayer videoUrl={product.videoUrl} productName={name} />}
             {sellerWhatsapp && <a href={`https://wa.me/${sellerWhatsapp.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`${tProduct('actions.whatsappMessage')} "${name}"`)}`} target="_blank" rel="noopener noreferrer" className="flex w-full items-center justify-center gap-2.5 rounded-2xl bg-[#25D366] px-5 py-3.5 font-bold text-white shadow-sm transition-[transform,box-shadow] duration-180 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0"><MessageCircle className="h-5 w-5" aria-hidden /><span className="text-sm font-extrabold">{tProduct('contactWhatsapp')}</span></a>}
             <div className="flex items-start gap-2.5 rounded-2xl border border-border bg-card p-2 shadow-premium"><div className="min-w-0 flex-1"><ProductActions productName={name} product={{ slug: product.slug, name: product.name, price: product.price, region: product.region, categoryKey: product.categoryKey, images: product.images }} /></div><WishlistButton slug={product.slug} size="lg" className="mt-0.5" /></div>
             <ProductShare productName={name} productSlug={product.slug} locale={locale} />

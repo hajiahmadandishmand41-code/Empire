@@ -36,11 +36,11 @@ export async function listSellerCategories(): Promise<{ items: SellerCategoryRow
   return { items: rows.map((c) => ({ id: c.id, key: c.key, name: c.name, slug: c.slug, productCount: c._count?.products ?? 0 })), source: rows.length === 0 ? 'empty' : 'db' };
 }
 
-export interface SellerProductDetail { id: string; slug: string; name: string; shortDescription: string; description: string | null; price: number; currency: string; categoryId: string; region: string; inStock: boolean; isActive: boolean; stockQuantity: number; compareAtPrice: number | null; images: string[]; sellerId: string | null; whatsappNumber: string | null; videoUrl: string | null; isTraditional: boolean; }
+export interface SellerProductDetail { id: string; slug: string; name: string; shortDescription: string; description: string | null; price: number; currency: string; categoryId: string; region: string; inStock: boolean; isActive: boolean; stockQuantity: number; compareAtPrice: number | null; images: string[]; sellerId: string | null; whatsappNumber: string | null; isTraditional: boolean; }
 
 export async function getSellerProduct(id: string, sellerId?: string): Promise<SellerProductDetail | null> {
   if (!isDatabaseConfigured()) return null;
   const p = await prisma.product.findUnique({ where: { id } });
   if (!p || (sellerId && p.sellerId !== sellerId)) return null;
-  return { id: p.id, slug: p.slug, name: p.name, shortDescription: p.shortDescription, description: p.description, price: Number(p.price), currency: p.currency, categoryId: p.categoryId, region: p.region, inStock: p.inStock, isActive: p.isActive, stockQuantity: p.stockQuantity, compareAtPrice: p.compareAtPrice == null ? null : Number(p.compareAtPrice), images: parseProductImages(p.imagesJson), sellerId: p.sellerId, whatsappNumber: p.whatsappNumber ?? null, videoUrl: p.videoUrl ?? null, isTraditional: p.isTraditional };
+  return { id: p.id, slug: p.slug, name: p.name, shortDescription: p.shortDescription, description: p.description, price: Number(p.price), currency: p.currency, categoryId: p.categoryId, region: p.region, inStock: p.inStock, isActive: p.isActive, stockQuantity: p.stockQuantity, compareAtPrice: p.compareAtPrice == null ? null : Number(p.compareAtPrice), images: parseProductImages(p.imagesJson), sellerId: p.sellerId, whatsappNumber: p.whatsappNumber ?? null, isTraditional: p.isTraditional };
 }

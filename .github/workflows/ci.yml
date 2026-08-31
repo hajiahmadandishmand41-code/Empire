@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, admin-commerce-4stage-20260829, feature/eshop-marketplace-upgrade, chore/stage-1-architecture-audit-20260826]
+    branches: [main, admin-commerce-4stage-20260829, feature/eshop-marketplace-upgrade, chore/stage-1-architecture-audit-20260826, p0/eshop-production-readiness-20260831]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -57,6 +57,8 @@ jobs:
         run: npm run architecture:check
       - name: Six-stage remediation contract
         run: npm run remediation:check
+      - name: P0 commerce contract
+        run: npm run p0:check
       - name: Generate Prisma Client
         run: npx prisma generate
       - name: Lint
