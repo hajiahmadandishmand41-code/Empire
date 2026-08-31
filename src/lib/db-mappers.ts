@@ -32,6 +32,25 @@ function parseJson<T>(raw: unknown, fallback: T): T {
   return raw as T;
 }
 
+function parseProductImageList(raw: unknown, productName: string): ProductImage[] {
+  const value = parseJson<unknown>(raw, []);
+  if (!Array.isArray(value)) return [{ src: null, alt: productName }];
+  const images = value.map((item): ProductImage | null => {
+    if (typeof item === 'string' && item.trim()) return { src: item.trim(), alt: productName };
+    if (!item || typeof item !== 'object') return null;
+    const record = item as Record<string, unknown>;
+    const src = typeof record.src === 'string' ? record.src : typeof record.url === 'string' ? record.url : '';
+    if (!src.trim()) return null;
+    return {
+      src: src.trim(),
+      alt: typeof record.alt === 'string' && record.alt.trim() ? record.alt.trim() : productName,
+      ...(typeof record.width === 'number' ? { width: record.width } : {}),
+      ...(typeof record.height === 'number' ? { height: record.height } : {}),
+    };
+  }).filter((item): item is ProductImage => Boolean(item));
+  return images.length ? images : [{ src: null, alt: productName }];
+}
+
 const moneyNumber = (value: unknown): number => Number(value ?? 0);
 
 type ProductWithCategoryAndSeller = ProductWithCategory & {
@@ -42,7 +61,7 @@ export function mapProductSummary(
   p: ProductWithCategoryAndSeller,
   extras: { averageRating?: number; reviewCount?: number } = {},
 ): ProductSummary {
-  const images = parseJson<ProductImage[]>(p.imagesJson, [{ src: null, alt: p.name }]);
+  const images = parseProductImageList(p.imagesJson, p.name);
   return {
     id: p.id,
     slug: p.slug,
