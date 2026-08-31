@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, admin-commerce-4stage-20260829, feature/eshop-marketplace-upgrade, chore/stage-1-architecture-audit-20260826]
+    branches: [main, admin-commerce-4stage-20260829, feature/eshop-marketplace-upgrade, chore/stage-1-architecture-audit-20260826, p0/eshop-production-readiness-20260831]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -17,6 +17,7 @@ concurrency:
 env:
   DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
   NEXT_TELEMETRY_DISABLED: '1'
+  PRISMA_HIDE_UPDATE_MESSAGE: '1'
   PRISMA_HIDE_UPDATE_MESSAGE: '1'
   AUTH_SECRET: ci-only-not-for-production
   NEXTAUTH_SECRET: ci-only-not-for-production
