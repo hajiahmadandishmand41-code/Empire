@@ -12,7 +12,7 @@ const jxl = Buffer.from([0xff, 0x0a, 0, 0]);
 const svg = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"></svg>');
 function ftyp(major: string, compatible: string): Buffer {
   const header = Buffer.alloc(16 + compatible.length);
-  header.writeUInt32BE(0x1c, 0);
+  header.writeUInt32BE(header.length, 0);
   header.write('ftyp', 4, 'ascii');
   header.write(major.padEnd(4, ' ').slice(0, 4), 8, 'ascii');
   header.writeUInt32BE(0, 12);
