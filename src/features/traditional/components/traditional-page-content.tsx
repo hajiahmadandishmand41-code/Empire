@@ -10,7 +10,7 @@ import type { ProductSummary } from '@/types';
 
 const CATEGORY_KEYS = ['all', 'carpet', 'saffron', 'driedFruits', 'handicrafts', 'localClothing', 'honey', 'nuts', 'gemstones', 'traditional'] as const;
 const CATEGORY_EMOJI: Record<(typeof CATEGORY_KEYS)[number], string> = { all: '🇦🇫', carpet: '🎨', saffron: '🌸', driedFruits: '🍇', handicrafts: '🏺', localClothing: '👘', honey: '🍯', nuts: '🥜', gemstones: '💎', traditional: '✨' };
-interface Product { id: string; name: string; slug: string; price: number; comparePrice?: number | null; images?: Array<{ url?: string; src?: string }>; rating?: number; category?: { name: string }; categoryKey?: ProductSummary['categoryKey']; videoUrl?: string | null; }
+interface Product { id: string; name: string; slug: string; price: number; comparePrice?: number | null; images?: Array<{ url?: string; src?: string }>; rating?: number; category?: { name: string }; categoryKey?: ProductSummary['categoryKey']; }
 const PAGE_SIZE = 12;
 type SortKey = 'recommended' | 'newest' | 'bestSelling' | 'priceAsc' | 'priceDesc';
 
@@ -44,7 +44,6 @@ function toSummary(product: Product): ProductSummary {
     images: (product.images ?? []).map((image) => ({ src: image.url ?? image.src ?? null, alt: product.name })),
     averageRating: product.rating,
     reviewCount: undefined,
-    videoUrl: product.videoUrl,
     isTraditional: true,
     inStock: true,
   };
