@@ -1,0 +1,37 @@
+name: Promote PR 107 to ready
+
+on:
+  push:
+    branches:
+      - fix/seller-storefront-brand-20260901
+    paths:
+      - .github/workflows/ready-pr-107.yml
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  ready:
+    if: github.event.head_commit.author.name != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mark PR 107 ready for review
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          owner='hajiahmadandishmand41-code'
+          repo='Empire'
+          pr='107'
+          node_id="$(gh api graphql \
+            -f query='query($owner:String!,$repo:String!,$number:Int!){repository(owner:$owner,name:$repo){pullRequest(number:$number){id,isDraft}}}' \
+            -f owner="$owner" -f repo="$repo" -F number="$pr" \
+            --jq '.data.repository.pullRequest | select(.isDraft == true) | .id')"
+          if [ -n "$node_id" ]; then
+            gh api graphql \
+              -f query='mutation($id:ID!){markPullRequestReadyForReview(input:{pullRequestId:$id}){pullRequest{isDraft}}}' \
+              -f id="$node_id"
+          else
+            echo 'PR 107 is already ready for review.'
+          fi
