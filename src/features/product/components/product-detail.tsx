@@ -13,8 +13,19 @@ import { ProductShare } from './product-share';
 import type { Product, ProductSummary } from '@/types';
 interface ProductDetailProps { product: Product; related: ProductSummary[]; locale: string; currency?: string; }
 export async function ProductDetail({ product, related, locale, currency = 'AFN' }: ProductDetailProps) {
-  const tNav=await getTranslations('nav'),tProduct=await getTranslations('product'),tCard=await getTranslations('shop.card'),tCat=await getTranslations('home.categories.items'); const {name,price,badge,region,categoryKey,description,features,sellerWhatsapp}=product;
-  const badgeLabel=badge==='new'?tCard('badgeNew'):badge==='best'?tCard('badgeBest'):badge==='last'?tCard('badgeLast'):badge==='sale'?tCard('badgeSale'):null; const categoryLabel=tCat(`${categoryKey}.title`); const discountPct=product.comparePrice&&product.comparePrice>price?Math.round(((product.comparePrice-price)/product.comparePrice)*100):0; const originalPrice=product.comparePrice&&product.comparePrice>price?product.comparePrice:null; const avgRating=product.averageRating??0,reviewCount=product.reviewCount??0,fullStars=Math.round(avgRating);
+  const tNav = await getTranslations('nav');
+  const tProduct = await getTranslations('product');
+  const tCard = await getTranslations('shop.card');
+  const tCat = await getTranslations('home.categories.items');
+  const { name, price, badge, region, categoryKey, description, features, sellerWhatsapp } = product;
+  const badgeLabel = badge === 'new' ? tCard('badgeNew') : badge === 'best' ? tCard('badgeBest') : badge === 'last' ? tCard('badgeLast') : badge === 'sale' ? tCard('badgeSale') : null;
+  const categoryPath = `${categoryKey}.title`;
+  const categoryLabel = tCat.has(categoryPath) ? tCat(categoryPath) : categoryKey;
+  const discountPct = product.comparePrice && product.comparePrice > price ? Math.round(((product.comparePrice - price) / product.comparePrice) * 100) : 0;
+  const originalPrice = product.comparePrice && product.comparePrice > price ? product.comparePrice : null;
+  const avgRating = product.averageRating ?? 0;
+  const reviewCount = product.reviewCount ?? 0;
+  const fullStars = Math.round(avgRating);
   return <><Container size="xl" className="py-4 sm:py-6 lg:py-8"><nav aria-label={tProduct('breadcrumb.label')} className="mb-4 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground sm:mb-5"><Link href={`/${locale}` as never} className="transition-colors hover:text-primary">{tNav('home')}</Link><ChevronRight className="h-3.5 w-3.5 rtl:rotate-180"/><Link href={`/${locale}/shop` as never} className="transition-colors hover:text-primary">{tNav('shop')}</Link><ChevronRight className="h-3.5 w-3.5 rtl:rotate-180"/><span className="line-clamp-1 font-semibold text-foreground">{name}</span></nav>
   <div className="grid gap-6 lg:grid-cols-[1.05fr_.95fr] lg:gap-10"><div className="min-w-0"><ProductGallery productName={name} images={product.images}/></div><div className="min-w-0 lg:sticky lg:top-24 lg:self-start"><Stack gap="4">
     <div className="flex flex-wrap items-center gap-2"><span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/50 px-2.5 py-1 text-xs font-semibold"><Tag className="h-3 w-3 text-primary"/>{categoryLabel}</span>{product.brandName&&product.brandSlug?<Link href={`/brands/${product.brandSlug}` as never} className="inline-flex items-center gap-1 rounded-full border border-primary/15 bg-primary/5 px-2.5 py-1 text-xs font-extrabold text-primary hover:bg-primary/10"><Tag className="h-3 w-3"/>{product.brandName}</Link>:null}{badgeLabel&&<span className={cn('inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold text-white',badge==='sale'?'bg-price-sale':badge==='new'?'bg-violet-600':'bg-price-warning')}>{badgeLabel}</span>}{discountPct>0&&<span className="inline-flex items-center rounded-full bg-red-500 px-2.5 py-1 text-xs font-bold text-white">{discountPct}{tProduct('discountSuffix')}</span>}</div>
