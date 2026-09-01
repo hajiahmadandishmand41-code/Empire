@@ -35,14 +35,31 @@ for (const file of [
 const sellerProductsApi = read('src/app/api/seller/products/route.ts');
 assert(/sellerId:\s*guard\.user\.id/.test(sellerProductsApi), 'seller product creation must derive sellerId from the authenticated session');
 assert(!/body[^\n]*sellerId/.test(sellerProductsApi), 'sellerId must not be accepted from request body');
+assert(/createProduct\(\{\s*\.\.\.productInput, brandId, sellerId: guard\.user\.id\s*\}\)/.test(sellerProductsApi), 'seller product creation must pass brand linkage into the transactional service');
+assert(/guard\.user\.role === 'admin'.*seller_context_required/.test(sellerProductsApi), 'seller product creation must not create products owned by the admin account');
+
+const sellerProductItemApi = read('src/app/api/seller/products/[id]/route.ts');
+assert(/updateProduct\(id,\{\.\.\.changes,brandId\}\)/.test(sellerProductItemApi), 'seller product updates must persist brand linkage through the service transaction');
+assert(!/UPDATE \\"Product\\" SET \\"brandId\\"=.*guard\.user\.id/.test(sellerProductItemApi), 'seller product update must not use a second non-transactional brand write');
+assert(/deletePersistent/.test(sellerProductItemApi), 'seller product hard delete must attempt media cleanup');
+
+const productRepo = read('src/server/repositories/product.repository.ts');
+assert(/this\.prisma\.\$transaction\(async \(tx\) =>/.test(productRepo), 'product create/update must use DB transactions');
+assert(/if \(brandId !== undefined\)/.test(productRepo), 'product repository must persist explicit brand changes atomically');
 
 const brandApi = read('src/app/api/seller/brand/route.ts');
-assert(/g\.user\.id/.test(brandApi), 'seller brand API must scope reads/writes to session user');
-assert(/ON CONFLICT \("sellerId"\)/.test(brandApi), 'seller brand upsert must use sellerId conflict protection');
+assert(/if \(existing\[0\]\) return existing\[0\]/.test(brandApi), 'seller brand reads must preserve an existing inactive brand');
+assert(!/existing\[0]\.isActive === false.*isActive.*true/.test(brandApi), 'seller brand reads must not silently reactivate deactivated brands');
+assert(/UPDATE \"SellerBrand\" SET \"isActive\"=true/.test(brandApi), 'brand reactivation must be an explicit POST action');
 
 const migration = read('prisma/migrations/20260829193000_seller_store_brand/migration.sql');
 assert(/CREATE UNIQUE INDEX IF NOT EXISTS "SellerBrand_sellerId_key"/.test(migration), 'DB must enforce one SellerBrand per seller');
 assert(/CONSTRAINT "SellerBrand_sellerId_fkey"/.test(migration), 'SellerBrand must be FK-linked to User');
+
+const brandProductMigration = read('prisma/migrations/20260831170000_seller_product_brand/migration.sql');
+assert(/ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "brandId" TEXT/.test(brandProductMigration), 'Product must persist optional brandId');
+assert(/Product_brandId_fkey/.test(brandProductMigration), 'Product.brandId must be FK-linked to SellerBrand');
+assert(/ON DELETE SET NULL/.test(brandProductMigration), 'deleting a brand must not orphan product foreign keys');
 
 const brandPage = read('src/app/[locale]/brands/[slug]/page.tsx');
 assert(/SellerBrand/.test(brandPage) && /sellerId/.test(brandPage), 'independent brand page must resolve a real SellerBrand and seller');
