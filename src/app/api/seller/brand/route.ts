@@ -45,20 +45,11 @@ const slugify = (value: string) => {
   return slug || `brand-${Date.now()}`;
 };
 
-async function ensureSellerBrand(sellerId: string) {
+async function getOrCreateSellerBrand(sellerId: string) {
   const existing = await prisma.$queryRaw<Array<Record<string, unknown>>>(Prisma.sql`
     SELECT * FROM "SellerBrand" WHERE "sellerId" = ${sellerId} LIMIT 1
   `);
-  if (existing[0]) {
-    if (existing[0].isActive === false) {
-      const restored = await prisma.$queryRaw<Array<Record<string, unknown>>>(Prisma.sql`
-        UPDATE "SellerBrand" SET "isActive" = true, "updatedAt" = CURRENT_TIMESTAMP
-        WHERE "sellerId" = ${sellerId} RETURNING *
-      `);
-      return restored[0] ?? existing[0];
-    }
-    return existing[0];
-  }
+  if (existing[0]) return existing[0];
 
   const seller = await prisma.user.findUnique({
     where: { id: sellerId },
@@ -81,10 +72,14 @@ async function ensureSellerBrand(sellerId: string) {
       ${id},${sellerId},${name},${slug},${seller.sellerBio},${seller.sellerLogoUrl},${seller.sellerBannerUrl},${seller.sellerWebsite},${seller.sellerCountry},
       ${seller.sellerContactEmail},${seller.sellerContactPhone},${seller.sellerInstagram},${seller.sellerFacebook},${seller.sellerTelegram},${seller.sellerLinkedin},true,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP
     )
-    ON CONFLICT ("sellerId") DO UPDATE SET "isActive"=true,"updatedAt"=CURRENT_TIMESTAMP
+    ON CONFLICT ("sellerId") DO NOTHING
     RETURNING *
   `);
-  return rows[0] ?? null;
+  if (rows[0]) return rows[0];
+  const raced = await prisma.$queryRaw<Array<Record<string, unknown>>>(Prisma.sql`
+    SELECT * FROM "SellerBrand" WHERE "sellerId" = ${sellerId} LIMIT 1
+  `);
+  return raced[0] ?? null;
 }
 
 export async function OPTIONS() { return jsonPreflight(); }
@@ -95,7 +90,7 @@ export async function GET() {
   if (guard.user.role === 'admin') return jsonError('forbidden', 'Seller access required', { status: 403 });
   if (!isDatabaseConfigured()) return jsonError('db_unavailable', 'Database is not configured', { status: 503 });
   try {
-    const brand = await ensureSellerBrand(guard.user.id);
+    const brand = await getOrCreateSellerBrand(guard.user.id);
     if (!brand) return jsonError('not_found', 'Seller not found', { status: 404 });
     return jsonOk(brand);
   } catch (error) {
@@ -110,9 +105,17 @@ export async function POST() {
   if (guard.user.role === 'admin') return jsonError('forbidden', 'Seller access required', { status: 403 });
   if (!isDatabaseConfigured()) return jsonError('db_unavailable', 'Database is not configured', { status: 503 });
   try {
-    const brand = await ensureSellerBrand(guard.user.id);
-    if (!brand) return jsonError('not_found', 'Seller not found', { status: 404 });
-    return jsonOk(brand, { status: 201 });
+    const current = await getOrCreateSellerBrand(guard.user.id);
+    if (!current) return jsonError('not_found', 'Seller not found', { status: 404 });
+    if (current.isActive === false) {
+      const restored = await prisma.$queryRaw<Array<Record<string, unknown>>>(Prisma.sql`
+        UPDATE "SellerBrand" SET "isActive"=true,"updatedAt"=CURRENT_TIMESTAMP
+        WHERE "sellerId"=${guard.user.id}
+        RETURNING *
+      `);
+      return jsonOk(restored[0] ?? current, { status: 201 });
+    }
+    return jsonOk(current, { status: 200 });
   } catch (error) {
     console.error('[seller/brand.POST]', error);
     return jsonError('create_failed', 'Brand could not be created', { status: 500 });
@@ -131,7 +134,7 @@ export async function PATCH(req: NextRequest) {
   if (!parsed.success) return jsonError('invalid_body', 'Invalid brand payload', { status: 422, details: { issues: parsed.error.issues } });
 
   try {
-    const current = await ensureSellerBrand(guard.user.id);
+    const current = await getOrCreateSellerBrand(guard.user.id);
     if (!current) return jsonError('not_found', 'Seller not found', { status: 404 });
     const d = parsed.data;
     const parts: Prisma.Sql[] = [Prisma.sql`"updatedAt" = CURRENT_TIMESTAMP`];
