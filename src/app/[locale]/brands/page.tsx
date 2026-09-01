@@ -22,7 +22,7 @@ async function loadBrands(query: string): Promise<BrandListItem[] | null> {
   if (!isDatabaseConfigured()) return null;
   try {
     const q = query.trim(); const search = q ? Prisma.sql`AND (b."name" ILIKE ${`%${q}%`} OR u."sellerShopName" ILIKE ${`%${q}%`} OR u."fullName" ILIKE ${`%${q}%`})` : Prisma.empty;
-    return await prisma.$queryRaw<BrandListItem[]>(Prisma.sql`SELECT b."id",b."slug",b."name",b."logoUrl",b."bannerUrl",u."sellerShopName" AS "shopName",u."fullName" AS "sellerName",(SELECT COUNT(*)::int FROM "Product" p WHERE p."sellerId"=b."sellerId" AND p."isActive"=true) AS "productCount" FROM "SellerBrand" b JOIN "User" u ON u."id"=b."sellerId" WHERE b."isActive"=true AND u."role"='seller' AND u."sellerStatus"='approved' AND u."isActive"=true ${search} ORDER BY b."name" ASC,b."createdAt" DESC LIMIT 48`);
+    return await prisma.$queryRaw<BrandListItem[]>(Prisma.sql`SELECT b."id",b."slug",b."name",b."logoUrl",b."bannerUrl",u."sellerShopName" AS "shopName",u."fullName" AS "sellerName",(SELECT COUNT(*)::int FROM "Product" p WHERE p."brandId"=b."id" AND p."isActive"=true) AS "productCount" FROM "SellerBrand" b JOIN "User" u ON u."id"=b."sellerId" WHERE b."isActive"=true AND u."role"='seller' AND u."sellerStatus"='approved' AND u."isActive"=true ${search} ORDER BY b."name" ASC,b."createdAt" DESC LIMIT 48`);
   } catch (error) { console.error('[brands] DB error:', error); return null; }
 }
 
