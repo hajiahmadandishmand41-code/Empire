@@ -3,6 +3,8 @@ name: Seller E2E smoke
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -105,6 +107,8 @@ jobs:
           NODE
       - name: Authenticated seller browser UI smoke
         run: npx playwright test tests/seller-authenticated-e2e.spec.mjs --reporter=line
+      - name: Deep seller-center E2E
+        run: npx playwright test tests/seller-center-deep-e2e.spec.mjs --reporter=line
       - name: Upload app log on failure
         if: failure()
         uses: actions/upload-artifact@v4
