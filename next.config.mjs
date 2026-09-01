@@ -7,14 +7,11 @@ const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   compress: true,
-  // Emit a self-contained production server for container/standalone deploys.
-  // Vercel builds its own serverless output and must NOT use `standalone`.
   ...(process.env.VERCEL ? {} : { output: 'standalone' }),
   outputFileTracingRoot: process.cwd(),
   productionBrowserSourceMaps: false,
   serverExternalPackages: ['@prisma/client', 'prisma', 'nodemailer', 'twilio'],
   experimental: {
-    // Stage 5: expanded package import optimization list
     optimizePackageImports: [
       'lucide-react',
       'clsx',
@@ -29,7 +26,6 @@ const nextConfig = {
       '@radix-ui/react-tooltip',
       'recharts',
     ],
-    // Stage 5: PPR-safe server actions
     serverActions: {
       allowedOrigins: [
         'localhost:3000',
@@ -40,11 +36,6 @@ const nextConfig = {
       ],
     },
   },
-  // nodemailer and twilio are optional production dependencies that are NOT
-  // installed in the default dev setup. Mark them as webpack externals so
-  // the build does not fail when they are absent. The dynamic-import guards
-  // in src/lib/email.ts (isSmtpConfigured) and src/lib/sms.ts
-  // (isTwilioConfigured) already prevent calling them at runtime.
   webpack(config, { isServer }) {
     if (isServer) {
       const prev = Array.isArray(config.externals) ? config.externals : [];
@@ -52,31 +43,26 @@ const nextConfig = {
     }
     return config;
   },
-  // Stage 5 — image optimisation (enhanced).
-  // Image remote patterns are restricted to known, trusted domains.
-  // Wildcards (`hostname: '**'`) are intentionally avoided to prevent
-  // open-redirect and SSRF-style image proxy abuse.
-  // Add your CDN / object-storage hostname here when you configure
-  // production image hosting (e.g. 'your-bucket.s3.amazonaws.com').
   images: {
+    // Vercel is currently failing requests to its generated `/_next/image`
+    // handler for this app. Media is already served through trusted CDN/API
+    // URLs, so bypass the failing optimizer rather than returning 500s.
+    unoptimized: true,
     remotePatterns: [
-      // Common image CDN / hosting providers used by Afghan e-commerce sellers
       { protocol: 'https', hostname: 'images.unsplash.com' },
       { protocol: 'https', hostname: 'cdn.empireshop.af' },
       { protocol: 'https', hostname: 'assets.empireshop.af' },
       { protocol: 'https', hostname: 'storage.empireshop.af' },
-      // Object storage backends
       { protocol: 'https', hostname: 'res.cloudinary.com' },
-      // Google / Firebase Storage
       { protocol: 'https', hostname: 'storage.googleapis.com' },
       { protocol: 'https', hostname: 'firebasestorage.googleapis.com' },
-      // Image optimisation proxies
       { protocol: 'https', hostname: 'imagedelivery.net' },
-      // Local development placeholder images
-      ...(process.env.NODE_ENV !== 'production' ? [
-        { protocol: 'https', hostname: 'placehold.co' },
-        { protocol: 'https', hostname: 'picsum.photos' },
-      ] : []),
+      ...(process.env.NODE_ENV !== 'production'
+        ? [
+            { protocol: 'https', hostname: 'placehold.co' },
+            { protocol: 'https', hostname: 'picsum.photos' },
+          ]
+        : []),
     ],
     formats: ['image/avif', 'image/webp'],
     deviceSizes: [360, 640, 750, 828, 1080, 1200, 1920],
@@ -103,7 +89,9 @@ const nextConfig = {
       {
         source: '/:path*',
         headers: [
-          ...(isProd ? [{ key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' }] : []),
+          ...(isProd
+            ? [{ key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' }]
+            : []),
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'X-Frame-Options', value: 'DENY' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
