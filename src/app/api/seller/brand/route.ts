@@ -60,19 +60,7 @@ const patchSchema = createSchema.partial().refine((value) => Object.keys(value).
 });
 
 type BrandInput = z.infer<typeof createSchema>;
-type BrandPatch = z.infer<typeof patchSchema>;
-
-const slugify = (value: string) => {
-  const slug = value
-    .normalize('NFKD')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 70);
-  return slug || 'brand';
-};
-
-type BrandColumn = Exclude<keyof BrandInput, 'isActive'> | 'isActive';
+type BrandColumn = keyof BrandInput;
 
 const BRAND_COLUMNS: Record<BrandColumn, string> = {
   name: 'name',
@@ -94,13 +82,10 @@ const BRAND_COLUMNS: Record<BrandColumn, string> = {
 
 const brandFieldSql = (column: BrandColumn, value: unknown): Prisma.Sql => {
   const sqlColumn = BRAND_COLUMNS[column];
-  const safeValue = value === undefined
-    ? null
-    : value;
-  if (column === 'attributesJson' && typeof safeValue === 'string' && safeValue.trim() !== '') {
-    return Prisma.sql`${Prisma.raw(`\"${sqlColumn}\"`)} = ${safeValue}::jsonb`;
+  if (column === 'attributesJson' && typeof value === 'string' && value.trim() !== '') {
+    return Prisma.sql`${Prisma.raw(`\"${sqlColumn}\"`)} = ${value}::jsonb`;
   }
-  return Prisma.sql`${Prisma.raw(`\"${sqlColumn}\"`)} = ${safeValue}`;
+  return Prisma.sql`${Prisma.raw(`\"${sqlColumn}\"`)} = ${value}`;
 };
 
 async function auth() {
@@ -182,10 +167,7 @@ export async function POST(req: NextRequest) {
     slug: parsed.data.slug ?? `${slugify(parsed.data.name)}-${guard.user.id.slice(0, 8)}`,
   };
   const fields = (Object.keys(data) as BrandColumn[]).filter((key) => data[key] !== undefined);
-  const columns = ['sellerId', ...fields].map((column) => {
-    if (column === 'sellerId') return Prisma.raw('\"sellerId\"');
-    return Prisma.raw(`\"${BRAND_COLUMNS[column]}\"`);
-  });
+  const columns = [Prisma.raw('\"sellerId\"'), ...fields.map((field) => Prisma.raw(`\"${BRAND_COLUMNS[field]}\"`))];
   const values = [
     Prisma.sql`${guard.user.id}`,
     ...fields.map((field) => {
@@ -293,4 +275,14 @@ export async function DELETE() {
     console.error('[seller/brand.DELETE]', error);
     return jsonError('delete_failed', 'Brand could not be deactivated', { status: 500 });
   }
+}
+
+function slugify(value: string) {
+  const slug = value
+    .normalize('NFKD')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 70);
+  return slug || 'brand';
 }
