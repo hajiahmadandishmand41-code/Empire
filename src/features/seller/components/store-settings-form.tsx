@@ -1,514 +1,143 @@
 'use client';
 
 import * as React from 'react';
+import Image from 'next/image';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import Image from 'next/image';
-import {
-  Wallet,
-  Store,
-  Phone,
-  MapPin,
-  FileText,
-  Image as ImageIcon,
-  Landmark,
-  CreditCard,
-  Instagram,
-  Globe,
-  Send,
-  Facebook,
-  Linkedin,
-  Upload,
-} from 'lucide-react';
+import { optimizeImage, uploadImageWithProgress, formatBytes } from '@/lib/media/client-image-upload';
+import { Landmark, Link2, Loader2, MapPin, Save, ShieldCheck, Store, Upload, Wallet } from 'lucide-react';
 
 interface StoreSettings {
-  sellerShopName?: string | null;
-  sellerBio?: string | null;
-  sellerLogoUrl?: string | null;
-  sellerBannerUrl?: string | null;
-  sellerWhatsapp?: string | null;
-  sellerContactEmail?: string | null;
-  sellerContactPhone?: string | null;
-  sellerAddress?: string | null;
-  sellerCity?: string | null;
-  sellerCountry?: string | null;
-  // Payment account info
-  sellerBankAccountNumber?: string | null;
-  sellerBankAccountName?: string | null;
-  sellerBankName?: string | null;
-  sellerAtomaPay?: string | null;
-  // Social media
-  sellerInstagram?: string | null;
-  sellerTelegram?: string | null;
-  sellerFacebook?: string | null;
-  sellerLinkedin?: string | null;
-  sellerWebsite?: string | null;
+  sellerShopName: string;
+  sellerBio: string;
+  sellerLogoUrl: string;
+  sellerBannerUrl: string;
+  sellerWhatsapp: string;
+  sellerContactEmail: string;
+  sellerContactPhone: string;
+  sellerAddress: string;
+  sellerCity: string;
+  sellerCountry: string;
+  sellerBankAccountNumber: string;
+  sellerBankAccountName: string;
+  sellerBankName: string;
+  sellerAtomaPay: string;
+  sellerInstagram: string;
+  sellerTelegram: string;
+  sellerFacebook: string;
+  sellerLinkedin: string;
+  sellerWebsite: string;
 }
 
-function SectionTitle({
-  icon: Icon,
-  children,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  children: React.ReactNode;
+type MediaField = 'sellerLogoUrl' | 'sellerBannerUrl';
+
+const EMPTY: StoreSettings = {
+  sellerShopName: '', sellerBio: '', sellerLogoUrl: '', sellerBannerUrl: '', sellerWhatsapp: '',
+  sellerContactEmail: '', sellerContactPhone: '', sellerAddress: '', sellerCity: '', sellerCountry: '',
+  sellerBankAccountNumber: '', sellerBankAccountName: '', sellerBankName: '', sellerAtomaPay: '',
+  sellerInstagram: '', sellerTelegram: '', sellerFacebook: '', sellerLinkedin: '', sellerWebsite: '',
+};
+
+function Field({ label, value, onChange, type = 'text', dir, placeholder, multiline = false }: {
+  label: string; value: string; onChange: (v: string) => void; type?: string; dir?: 'ltr' | 'rtl'; placeholder?: string; multiline?: boolean;
 }) {
-  return (
-    <div className="flex items-center gap-2 border-b border-border pb-2 mb-4">
-      <Icon className="h-4 w-4 text-rose-500" aria-hidden />
-      <h2 className="text-sm font-bold text-foreground">{children}</h2>
-    </div>
-  );
+  const cls = 'w-full rounded-2xl border border-border bg-background px-3.5 py-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15';
+  return <label className="block space-y-2"><span className="text-xs font-bold text-foreground">{label}</span>{multiline ? <textarea value={value} onChange={(e) => onChange(e.target.value)} rows={4} placeholder={placeholder} dir={dir} className={cls} /> : <input value={value} onChange={(e) => onChange(e.target.value)} type={type} placeholder={placeholder} dir={dir} className={cls} />}</label>;
 }
 
-function FieldGroup({ children }: { children: React.ReactNode }) {
-  return <div className="grid gap-4 sm:grid-cols-2">{children}</div>;
+function Section({ icon: Icon, title, description, children }: { icon: React.ComponentType<{ className?: string }>; title: string; description: string; children: React.ReactNode }) {
+  return <section className="rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-6"><header className="mb-5 flex items-start gap-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary"><Icon className="h-5 w-5" /></div><div><h2 className="text-base font-black">{title}</h2><p className="mt-1 text-xs leading-6 text-muted-foreground">{description}</p></div></header>{children}</section>;
 }
 
-function Field({
-  name,
-  label,
-  type = 'text',
-  textarea = false,
-  dir,
-  placeholder,
-  value,
-  onChange,
-  hint,
-  full,
-}: {
-  name: string;
-  label: string;
-  type?: string;
-  textarea?: boolean;
-  dir?: string;
-  placeholder?: string;
-  value: string;
-  onChange: (v: string) => void;
-  hint?: string;
-  full?: boolean;
-}) {
-  const cls =
-    'w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none transition focus:border-rose-400 focus:ring-2 focus:ring-rose-400/20';
-
-  return (
-    <label className={full ? 'block sm:col-span-2' : 'block'}>
-      <span className="mb-1 block text-xs font-semibold text-muted-foreground">{label}</span>
-      {textarea ? (
-        <textarea
-          name={name}
-          dir={dir}
-          placeholder={placeholder}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          rows={3}
-          className={cls}
-        />
-      ) : (
-        <input
-          type={type}
-          name={name}
-          dir={dir}
-          placeholder={placeholder}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className={cls}
-        />
-      )}
-      {hint && <p className="mt-1 text-[11px] text-muted-foreground">{hint}</p>}
-    </label>
-  );
-}
-
-function ImageUploader({
-  label,
-  hint,
-  value,
-  onChange,
-  aspect,
-}: {
-  label: string;
-  hint: string;
-  value: string;
-  onChange: (url: string) => void;
-  aspect?: 'square' | 'banner';
-}) {
+function MediaCard({ label, value, field, hint, onUploaded, persist, busy }: { label: string; value: string; field: MediaField; hint: string; onUploaded: (value: string) => void; persist: (field: MediaField, value: string) => Promise<void>; busy: boolean }) {
+  const ref = React.useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = React.useState(false);
-  const inputRef = React.useRef<HTMLInputElement>(null);
+  const [progress, setProgress] = React.useState(0);
+  const [drag, setDrag] = React.useState(false);
 
-  async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('حجم فایل نباید بیشتر از ۵ مگابایت باشد');
-      return;
-    }
-    setUploading(true);
+  async function upload(file?: File) {
+    if (!file || uploading || busy) return;
+    if (!file.type.startsWith('image/')) return toast.error('فقط فایل تصویری مجاز است.');
+    if (file.size > 10 * 1024 * 1024) return toast.error('حجم تصویر نباید بیشتر از ۱۰ مگابایت باشد.');
+    setUploading(true); setProgress(0);
     try {
-      const fd = new FormData();
-      fd.append('file', file);
-      fd.append('type', 'image');
-      const res = await fetch('/api/seller/upload', { method: 'POST', body: fd, credentials: 'include' });
-      const json = await res.json();
-      if (!res.ok || !json.url) {
-        toast.error(json.error ?? 'خطا در آپلود');
-        return;
-      }
-      onChange(json.url);
-      toast.success('تصویر آپلود شد');
-    } catch {
-      toast.error('خطا در اتصال به سرور');
+      const optimized = await optimizeImage(file, field === 'sellerLogoUrl' ? 'logo' : 'banner');
+      const result = await uploadImageWithProgress('/api/seller/upload', optimized.file, setProgress);
+      onUploaded(result.url);
+      await persist(field, result.url);
+      toast.success(`${label} آپلود و ذخیره شد (${formatBytes(result.size)}).`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'آپلود یا ذخیره تصویر ناموفق بود.');
     } finally {
-      setUploading(false);
-      if (inputRef.current) inputRef.current.value = '';
+      setUploading(false); setProgress(0); if (ref.current) ref.current.value = '';
     }
   }
 
-  return (
-    <div className="space-y-2">
-      <span className="block text-xs font-semibold text-muted-foreground">{label}</span>
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
-        {value ? (
-          <div
-            className={`relative overflow-hidden rounded-lg border border-border bg-muted/30 ${
-              aspect === 'banner' ? 'h-20 w-40' : 'h-16 w-16'
-            }`}
-          >
-            <Image
-              src={value}
-              alt={label}
-              fill
-              className="object-cover"
-              unoptimized
-            />
-          </div>
-        ) : (
-          <div
-            className={`flex items-center justify-center rounded-lg border-2 border-dashed border-border bg-muted/20 text-muted-foreground ${
-              aspect === 'banner' ? 'h-20 w-40' : 'h-16 w-16'
-            }`}
-          >
-            <ImageIcon className="h-6 w-6" />
-          </div>
-        )}
-        <div className="space-y-1.5">
-          <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={onFile} />
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => inputRef.current?.click()}
-            disabled={uploading}
-            className="h-8 rounded-lg px-3 text-xs"
-          >
-            <Upload className="h-3.5 w-3.5" />
-            {uploading ? 'در حال آپلود…' : value ? 'تغییر تصویر' : 'آپلود تصویر'}
-          </Button>
-          {value && (
-            <div className="w-full max-w-[200px]">
-              <input
-                type="url"
-                value={value}
-                onChange={(e) => onChange(e.target.value)}
-                placeholder="یا لینک URL"
-                dir="ltr"
-                className="h-7 w-full rounded-lg border border-border bg-background px-2 text-[11px] text-muted-foreground outline-none focus:border-rose-400"
-              />
-            </div>
-          )}
-          <p className="text-[11px] text-muted-foreground">{hint}</p>
-        </div>
-      </div>
-    </div>
-  );
+  return <div className={`rounded-2xl border p-4 transition ${drag ? 'border-primary bg-primary/5' : 'border-border bg-background'}`} onDragOver={(e) => { e.preventDefault(); setDrag(true); }} onDragLeave={() => setDrag(false)} onDrop={(e) => { e.preventDefault(); setDrag(false); void upload(e.dataTransfer.files?.[0]); }}><div className="flex flex-col gap-4 sm:flex-row sm:items-center"><div className={`${field === 'sellerBannerUrl' ? 'h-28 w-full sm:w-56' : 'h-24 w-24'} relative shrink-0 overflow-hidden rounded-2xl border border-border bg-muted/30`}>{value ? <Image src={value} alt={label} fill unoptimized className="object-cover" sizes="224px" /> : <div className="flex h-full w-full items-center justify-center text-muted-foreground"><Store className="h-7 w-7" /></div>}</div><div className="min-w-0 flex-1"><p className="text-sm font-black">{label}</p><p className="mt-1 text-xs leading-5 text-muted-foreground">{hint}</p>{uploading ? <div className="mt-3"><div className="h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary transition-all" style={{ width: `${progress}%` }} /></div><p className="mt-1 text-[11px] text-muted-foreground">در حال آپلود: {progress}%</p></div> : <div className="mt-3 flex flex-wrap items-center gap-2"><input ref={ref} type="file" accept="image/*" className="hidden" onChange={(e) => void upload(e.target.files?.[0])} /><Button type="button" variant="outline" className="rounded-xl" disabled={uploading || busy} onClick={() => ref.current?.click()}><Upload className="h-4 w-4" />{value ? 'تغییر تصویر' : 'آپلود تصویر'}</Button>{value ? <span className="text-xs font-bold text-emerald-600">ذخیره‌شده</span> : null}</div>}</div></div></div>;
 }
 
 export function StoreSettingsForm() {
-  const [values, setValues] = React.useState<StoreSettings>({});
+  const [values, setValues] = React.useState<StoreSettings>(EMPTY);
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
+  const [savedAt, setSavedAt] = React.useState<Date | null>(null);
+  const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
+    let active = true;
     (async () => {
       try {
-        const res = await fetch('/api/seller/settings', { credentials: 'include' });
-        const json = await res.json();
-        if (json?.ok && json.data) setValues(json.data);
+        const res = await fetch('/api/seller/settings', { credentials: 'include', cache: 'no-store', headers: { Accept: 'application/json' } });
+        const body = await res.json().catch(() => null);
+        if (!res.ok || !body?.ok) throw new Error(body?.error?.message ?? 'خطا در دریافت تنظیمات فروشگاه');
+        if (active) setValues({ ...EMPTY, ...body.data });
       } catch (e) {
-        console.error(e);
-      } finally {
-        setLoading(false);
-      }
+        if (active) setError(e instanceof Error ? e.message : 'خطا در دریافت تنظیمات فروشگاه');
+      } finally { if (active) setLoading(false); }
     })();
+    return () => { active = false; };
   }, []);
 
-  const onChange = (name: keyof StoreSettings, v: string) =>
-    setValues((s) => ({ ...s, [name]: v }));
-
-  const v = (name: keyof StoreSettings) => values[name] ?? '';
-
-  const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
-    try {
-      const payload: Record<string, unknown> = {};
-      for (const [k, val] of Object.entries(values)) {
-        payload[k] = typeof val === 'string' && val.trim() === '' ? null : val;
-      }
-      const res = await fetch('/api/seller/settings', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(payload),
-      });
-      const json = await res.json();
-      if (!res.ok) {
-        toast.error(json?.error?.message ?? 'خطا در ذخیره');
-        return;
-      }
-      toast.success('تنظیمات فروشگاه ذخیره شد');
-    } catch {
-      toast.error('خطا در اتصال به سرور');
-    } finally {
-      setSaving(false);
-    }
+  const update = <K extends keyof StoreSettings>(key: K, value: StoreSettings[K]) => setValues((current) => ({ ...current, [key]: value }));
+  const persistMedia = async (field: MediaField, value: string) => {
+    const res = await fetch('/api/seller/settings', { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ [field]: value }) });
+    const body = await res.json().catch(() => null);
+    if (!res.ok || !body?.ok) throw new Error(body?.error?.message ?? 'تصویر در فروشگاه ذخیره نشد.');
+    setValues((current) => ({ ...current, ...body.data }));
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-16">
-        <span className="h-6 w-6 animate-spin rounded-full border-2 border-rose-500 border-t-transparent" />
-      </div>
-    );
+  async function save(event: React.FormEvent) {
+    event.preventDefault();
+    if (saving) return;
+    if (values.sellerShopName.trim().length < 2) return toast.error('نام فروشگاه حداقل ۲ حرف باشد.');
+    if (values.sellerContactEmail && !/^\S+@\S+\.\S+$/.test(values.sellerContactEmail.trim())) return toast.error('ایمیل تماس معتبر نیست.');
+    setSaving(true); setError(null);
+    try {
+      const payload = Object.fromEntries(Object.entries(values).map(([key, value]) => [key, typeof value === 'string' && !value.trim() ? null : value]));
+      const res = await fetch('/api/seller/settings', { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify(payload) });
+      const body = await res.json().catch(() => null);
+      if (!res.ok || !body?.ok) throw new Error(body?.error?.message ?? 'ذخیره تنظیمات فروشگاه ناموفق بود.');
+      setValues({ ...EMPTY, ...body.data }); setSavedAt(new Date()); toast.success('تمام تنظیمات فروشگاه با موفقیت ذخیره شد.');
+    } catch (e) { const message = e instanceof Error ? e.message : 'ذخیره ناموفق بود.'; setError(message); toast.error(message); }
+    finally { setSaving(false); }
   }
 
-  return (
-    <form onSubmit={onSubmit} className="space-y-8">
-      {/* ── Shop Identity ── */}
-      <section className="space-y-4">
-        <SectionTitle icon={Store}>هویت فروشگاه</SectionTitle>
-        <Field
-          name="sellerShopName"
-          label="نام فروشگاه"
-          placeholder="نام فروشگاه شما"
-          full
-          value={v('sellerShopName')}
-          onChange={(val) => onChange('sellerShopName', val)}
-        />
-        <Field
-          name="sellerBio"
-          label="معرفی کوتاه فروشگاه"
-          textarea
-          placeholder="چند جمله درباره فروشگاه، تخصص و مزیت‌های شما…"
-          full
-          value={v('sellerBio')}
-          onChange={(val) => onChange('sellerBio', val)}
-        />
-      </section>
+  if (loading) return <div className="rounded-3xl border border-border bg-card py-20 text-center"><Loader2 className="mx-auto h-7 w-7 animate-spin text-primary" /></div>;
+  if (error && !values.sellerShopName && !values.sellerContactEmail) return <div className="rounded-3xl border border-destructive/20 bg-destructive/5 p-6 text-center"><p className="text-sm font-bold text-destructive">{error}</p><Button type="button" variant="outline" className="mt-4 rounded-xl" onClick={() => window.location.reload()}>تلاش دوباره</Button></div>;
 
-      {/* ── Logo & Banner ── */}
-      <section className="space-y-5">
-        <SectionTitle icon={ImageIcon}>تصاویر فروشگاه</SectionTitle>
-        <ImageUploader
-          label="لوگو فروشگاه (مربع — ۱:۱)"
-          hint="حداقل ۲۰۰×۲۰۰ پیکسل — PNG/JPG — حداکثر ۵ مگابایت"
-          aspect="square"
-          value={v('sellerLogoUrl')}
-          onChange={(url) => onChange('sellerLogoUrl', url)}
-        />
-        <ImageUploader
-          label="بنر فروشگاه (عرضی — ۱۶:۹ یا ۳:۱)"
-          hint="حداقل ۱۲۰۰×۴۰۰ پیکسل — PNG/JPG — حداکثر ۵ مگابایت"
-          aspect="banner"
-          value={v('sellerBannerUrl')}
-          onChange={(url) => onChange('sellerBannerUrl', url)}
-        />
-      </section>
+  const v = (key: keyof StoreSettings) => values[key] ?? '';
+  return <form onSubmit={save} className="space-y-5" dir="rtl">
+    <Section icon={Store} title="هویت و ویترین فروشگاه" description="این اطلاعات مستقیماً روی صفحه عمومی فروشگاه نمایش داده می‌شوند.">
+      <div className="grid gap-4"><Field label="نام فروشگاه" value={v('sellerShopName')} onChange={(x) => update('sellerShopName', x)} placeholder="مثلاً فروشگاه احمد" /><Field label="معرفی فروشگاه" value={v('sellerBio')} onChange={(x) => update('sellerBio', x)} multiline placeholder="توضیح کوتاه درباره تخصص و محصولات فروشگاه…" /></div>
+      <div className="mt-5 grid gap-4 lg:grid-cols-2"><MediaCard label="لوگوی فروشگاه" value={v('sellerLogoUrl')} field="sellerLogoUrl" hint="مربع؛ PNG/JPG/WebP؛ حداکثر ۱۰MB. بعد از upload فوراً در DB ذخیره می‌شود." onUploaded={(x) => update('sellerLogoUrl', x)} persist={persistMedia} busy={saving} /><MediaCard label="بنر فروشگاه" value={v('sellerBannerUrl')} field="sellerBannerUrl" hint="بنر عریض؛ PNG/JPG/WebP؛ حداکثر ۱۰MB. بعد از upload فوراً در DB ذخیره می‌شود." onUploaded={(x) => update('sellerBannerUrl', x)} persist={persistMedia} busy={saving} /></div>
+    </Section>
 
-      {/* ── Contact ── */}
-      <section className="space-y-4">
-        <SectionTitle icon={Phone}>اطلاعات تماس</SectionTitle>
-        <FieldGroup>
-          <Field
-            name="sellerContactPhone"
-            label="شماره تماس"
-            type="tel"
-            dir="ltr"
-            placeholder="+93XXXXXXXXX"
-            value={v('sellerContactPhone')}
-            onChange={(val) => onChange('sellerContactPhone', val)}
-          />
-          <Field
-            name="sellerWhatsapp"
-            label="شماره واتساپ"
-            type="tel"
-            dir="ltr"
-            placeholder="+93XXXXXXXXX"
-            value={v('sellerWhatsapp')}
-            onChange={(val) => onChange('sellerWhatsapp', val)}
-          />
-          <Field
-            name="sellerContactEmail"
-            label="ایمیل تماس"
-            type="email"
-            dir="ltr"
-            placeholder="shop@example.com"
-            value={v('sellerContactEmail')}
-            onChange={(val) => onChange('sellerContactEmail', val)}
-          />
-        </FieldGroup>
-      </section>
+    <Section icon={MapPin} title="تماس و موقعیت" description="راه‌های تماس عمومی و آدرس فروشگاه."><div className="grid gap-4 sm:grid-cols-2"><Field label="تلفن تماس" value={v('sellerContactPhone')} onChange={(x) => update('sellerContactPhone', x)} type="tel" dir="ltr" placeholder="+937..." /><Field label="واتساپ" value={v('sellerWhatsapp')} onChange={(x) => update('sellerWhatsapp', x)} type="tel" dir="ltr" placeholder="+937..." /><Field label="ایمیل تماس" value={v('sellerContactEmail')} onChange={(x) => update('sellerContactEmail', x)} type="email" dir="ltr" placeholder="shop@example.com" /><Field label="کشور" value={v('sellerCountry')} onChange={(x) => update('sellerCountry', x)} placeholder="افغانستان" /><Field label="شهر" value={v('sellerCity')} onChange={(x) => update('sellerCity', x)} placeholder="کابل" /><Field label="آدرس کامل" value={v('sellerAddress')} onChange={(x) => update('sellerAddress', x)} multiline placeholder="آدرس فروشگاه/انبار…" /></div></Section>
 
-      {/* ── Address ── */}
-      <section className="space-y-4">
-        <SectionTitle icon={MapPin}>آدرس</SectionTitle>
-        <FieldGroup>
-          <Field
-            name="sellerCountry"
-            label="کشور"
-            placeholder="افغانستان"
-            value={v('sellerCountry')}
-            onChange={(val) => onChange('sellerCountry', val)}
-          />
-          <Field
-            name="sellerCity"
-            label="شهر"
-            placeholder="کابل"
-            value={v('sellerCity')}
-            onChange={(val) => onChange('sellerCity', val)}
-          />
-          <Field
-            name="sellerAddress"
-            label="آدرس کامل"
-            textarea
-            full
-            placeholder="نشانی کامل فروشگاه یا انبار…"
-            value={v('sellerAddress')}
-            onChange={(val) => onChange('sellerAddress', val)}
-          />
-        </FieldGroup>
-      </section>
+    <Section icon={Link2} title="شبکه‌های اجتماعی و وب" description="لینک‌های معتبر ارتباطی را وارد کنید؛ دامنه وب‌سایت باید با http/https باشد."><div className="grid gap-4 sm:grid-cols-2"><Field label="Instagram" value={v('sellerInstagram')} onChange={(x) => update('sellerInstagram', x)} dir="ltr" placeholder="https://instagram.com/..." /><Field label="Telegram" value={v('sellerTelegram')} onChange={(x) => update('sellerTelegram', x)} dir="ltr" placeholder="@channel یا https://t.me/..." /><Field label="Facebook" value={v('sellerFacebook')} onChange={(x) => update('sellerFacebook', x)} dir="ltr" placeholder="https://facebook.com/..." /><Field label="LinkedIn" value={v('sellerLinkedin')} onChange={(x) => update('sellerLinkedin', x)} dir="ltr" placeholder="https://linkedin.com/..." /><Field label="Website" value={v('sellerWebsite')} onChange={(x) => update('sellerWebsite', x)} type="url" dir="ltr" placeholder="https://example.com" /></div></Section>
 
-      {/* ── Social Media ── */}
-      <section className="space-y-4">
-        <SectionTitle icon={Globe}>شبکه‌های اجتماعی</SectionTitle>
-        <FieldGroup>
-          <Field
-            name="sellerInstagram"
-            label="اینستاگرام"
-            dir="ltr"
-            placeholder="@yourshop یا https://instagram.com/yourshop"
-            value={v('sellerInstagram')}
-            onChange={(val) => onChange('sellerInstagram', val)}
-          />
-          <Field
-            name="sellerTelegram"
-            label="تلگرام"
-            dir="ltr"
-            placeholder="@yourtelegram یا https://t.me/yourshop"
-            value={v('sellerTelegram')}
-            onChange={(val) => onChange('sellerTelegram', val)}
-          />
-          <Field
-            name="sellerFacebook"
-            label="فیسبوک"
-            dir="ltr"
-            placeholder="https://facebook.com/yourpage"
-            value={v('sellerFacebook')}
-            onChange={(val) => onChange('sellerFacebook', val)}
-          />
-          <Field
-            name="sellerLinkedin"
-            label="لینکدین"
-            dir="ltr"
-            placeholder="https://linkedin.com/in/yourprofile"
-            value={v('sellerLinkedin')}
-            onChange={(val) => onChange('sellerLinkedin', val)}
-          />
-          <Field
-            name="sellerWebsite"
-            label="وب‌سایت"
-            type="url"
-            dir="ltr"
-            placeholder="https://yourwebsite.com"
-            full
-            value={v('sellerWebsite')}
-            onChange={(val) => onChange('sellerWebsite', val)}
-          />
-        </FieldGroup>
-      </section>
+    <Section icon={Wallet} title="حساب‌های دریافت و تسویه" description="این اطلاعات فقط برای عملیات تسویه فروشنده استفاده می‌شوند."><div className="grid gap-4 sm:grid-cols-2"><Field label="نام صاحب حساب" value={v('sellerBankAccountName')} onChange={(x) => update('sellerBankAccountName', x)} /><Field label="نام بانک" value={v('sellerBankName')} onChange={(x) => update('sellerBankName', x)} /><Field label="شماره حساب" value={v('sellerBankAccountNumber')} onChange={(x) => update('sellerBankAccountNumber', x)} dir="ltr" /><Field label="ATOMA Pay" value={v('sellerAtomaPay')} onChange={(x) => update('sellerAtomaPay', x)} dir="ltr" /></div></Section>
 
-      {/* ── Payment Accounts ── */}
-      <section className="space-y-4">
-        <SectionTitle icon={CreditCard}>حساب‌های بانکی و دریافت تسویه</SectionTitle>
-
-        {/* Bank */}
-        <div className="rounded-xl bg-muted/30 border border-border/60 p-4 space-y-3">
-          <div className="flex items-center gap-2 mb-3">
-            <Landmark className="h-4 w-4 text-muted-foreground" />
-            <span className="text-xs font-bold text-foreground">حساب بانکی</span>
-          </div>
-          <FieldGroup>
-            <Field
-              name="sellerBankName"
-              label="نام بانک"
-              placeholder="بانک ملی، کابل بانک، آزیزی بانک…"
-              value={v('sellerBankName')}
-              onChange={(val) => onChange('sellerBankName', val)}
-            />
-            <Field
-              name="sellerBankAccountNumber"
-              label="شماره حساب"
-              dir="ltr"
-              placeholder="XXXXXXXXXXXXXXXXXX"
-              value={v('sellerBankAccountNumber')}
-              onChange={(val) => onChange('sellerBankAccountNumber', val)}
-            />
-            <Field
-              name="sellerBankAccountName"
-              label="نام صاحب حساب"
-              placeholder="نام کامل به فارسی یا انگلیسی"
-              full
-              value={v('sellerBankAccountName')}
-              onChange={(val) => onChange('sellerBankAccountName', val)}
-              hint="باید با نام ثبت‌شده در بانک مطابقت داشته باشد"
-            />
-          </FieldGroup>
-        </div>
-
-        {/* ATOMA Pay */}
-        <div className="rounded-xl bg-muted/30 border border-border/60 p-4 space-y-3">
-          <div className="flex items-center gap-2">
-            <Wallet className="h-4 w-4 text-muted-foreground" />
-            <span className="text-xs font-bold text-foreground">ATOMA Pay</span>
-          </div>
-          <Field
-            name="sellerAtomaPay"
-            label="شناسه یا شماره ATOMA Pay"
-            dir="ltr"
-            placeholder="+93XXXXXXXXX یا ATOMA@yourstore"
-            value={v('sellerAtomaPay')}
-            onChange={(val) => onChange('sellerAtomaPay', val)}
-            hint="شماره موبایل یا آدرس کیف پول ATOMA Pay شما"
-          />
-        </div>
-
-        <p className="text-[11px] text-muted-foreground">
-          پس از ذخیره اطلاعات، هنگام ثبت درخواست برداشت این اطلاعات به‌صورت خودکار در فرم پر می‌شوند.
-        </p>
-      </section>
-
-      <div className="flex justify-end border-t border-border pt-4">
-        <Button type="submit" disabled={saving} className="h-10 px-8 rounded-xl">
-          {saving ? (
-            <span className="flex items-center gap-2">
-              <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-              در حال ذخیره…
-            </span>
-          ) : (
-            'ذخیره تغییرات'
-          )}
-        </Button>
-      </div>
-    </form>
-  );
+    <div className="sticky bottom-3 z-20 rounded-2xl border border-border bg-background/95 p-3 shadow-lg backdrop-blur"><div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-2 text-xs text-muted-foreground"><ShieldCheck className="h-4 w-4 text-emerald-600" />{savedAt ? `آخرین ذخیره: ${savedAt.toLocaleTimeString('fa-AF')}` : 'تغییرات شما تا زمان ذخیره فقط در همین صفحه هستند.'}</div><Button type="submit" disabled={saving} className="min-w-40 rounded-xl"><Save className="h-4 w-4" />{saving ? 'در حال ذخیره…' : 'ذخیره تنظیمات فروشگاه'}</Button></div></div>
+  </form>;
 }
