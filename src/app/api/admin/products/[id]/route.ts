@@ -4,6 +4,8 @@ import { jsonError, jsonOk, jsonPreflight } from '@/lib/api/response';
 import { recordAudit } from '@/lib/audit/log';
 import { requireAdminApi } from '@/lib/auth/require-admin-api';
 import { productUpdateSchema } from '@/features/products/product-contract';
+import { parseProductImages } from '@/features/products/product-contract';
+import { deletePersistent } from '@/lib/storage';
 import { getProductService } from '@/server/infrastructure/registry';
 import { ProductServiceError } from '@/server/services/product.service';
 import { mapErrorToResponse } from '@/server/infrastructure/errors';
@@ -11,6 +13,8 @@ import { logger } from '@/lib/logger';
 export const dynamic='force-dynamic';
 
 export async function OPTIONS(){return jsonPreflight()}
+
+async function cleanupProductMedia(urls:string[],productId:string){let failed=0;for(const url of urls){try{await deletePersistent(url);}catch(err){failed+=1;logger.warn('admin.products.media_cleanup_failed',{productId,url},err);}}return failed;}
 
 export async function PATCH(req:NextRequest,{params}:{params:Promise<{id:string}>}){
   const {id}=await params;
@@ -24,7 +28,7 @@ export async function PATCH(req:NextRequest,{params}:{params:Promise<{id:string}
   try{
     const before=await prisma.product.findUnique({where:{id}});
     if(!before)return jsonError('not_found','Product not found',{status:404});
-    const {slug: _ignoredSlug,...changes}=p.data;
+    const {slug:_ignoredSlug,...changes}=p.data;
     const after=await getProductService().updateProduct(id,changes);
     await recordAudit({actor:{id:g.user.id,role:g.accessRole},action:'product.update',entityType:'product',entityId:id,before,after,req});
     return jsonOk(after);
@@ -41,7 +45,7 @@ export async function DELETE(req:NextRequest,{params}:{params:Promise<{id:string
   if(!g.ok)return g.response;
   if(!isDatabaseConfigured())return jsonError('db_unavailable','Database is not configured',{status:503});
   try{
-    const product=await prisma.product.findUnique({where:{id},select:{id:true,isActive:true,inStock:true}});
+    const product=await prisma.product.findUnique({where:{id},select:{id:true,isActive:true,inStock:true,imagesJson:true}});
     if(!product)return jsonError('not_found','Product not found',{status:404});
     const orderCount=await prisma.orderItem.count({where:{productId:id}});
     if(orderCount>0){
@@ -50,8 +54,10 @@ export async function DELETE(req:NextRequest,{params}:{params:Promise<{id:string
       return jsonOk({deleted:false,archived:true,reason:'product_has_order_history'});
     }
     await getProductService().deleteProduct(id);
+    const media=parseProductImages(product.imagesJson);
+    const mediaCleanupFailed=await cleanupProductMedia(media,id);
     await recordAudit({actor:{id:g.user.id,role:g.accessRole},action:'product.delete',entityType:'product',entityId:id,before:product,after:null,req});
-    return jsonOk({deleted:true});
+    return jsonOk({deleted:true,mediaCleanupAttempted:media.length,mediaCleanupFailed});
   }catch(err){
     logger.error('admin.products.delete_failed',{userId:g.user.id,productId:id},err);
     return mapErrorToResponse(err);
