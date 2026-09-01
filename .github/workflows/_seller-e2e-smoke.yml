@@ -3,10 +3,12 @@ name: Seller E2E smoke
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   seller-smoke:
@@ -104,7 +106,62 @@ jobs:
           if (failures) process.exit(1);
           NODE
       - name: Authenticated seller browser UI smoke
-        run: npx playwright test tests/seller-authenticated-e2e.spec.mjs --reporter=line
+        id: authenticated_ui
+        continue-on-error: true
+        run: |
+          set +e
+          npx playwright test tests/seller-authenticated-e2e.spec.mjs --reporter=line 2>&1 | tee "$RUNNER_TEMP/authenticated-ui.log"
+          status=${PIPESTATUS[0]}
+          echo "$status" > "$RUNNER_TEMP/authenticated-ui.exit"
+          exit 0
+      - name: Deep seller-center E2E
+        id: deep_e2e
+        continue-on-error: true
+        run: |
+          set +e
+          npx playwright test tests/seller-center-deep-e2e.spec.mjs --reporter=line 2>&1 | tee "$RUNNER_TEMP/deep-e2e.log"
+          status=${PIPESTATUS[0]}
+          echo "$status" > "$RUNNER_TEMP/deep-e2e.exit"
+          exit 0
+      - name: Persist E2E result
+        if: always()
+        run: |
+          set -euo pipefail
+          branch="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
+          report="qa-results/seller-e2e-${GITHUB_SHA}.md"
+          auth_status="$(cat "$RUNNER_TEMP/authenticated-ui.exit" 2>/dev/null || echo 1)"
+          deep_status="$(cat "$RUNNER_TEMP/deep-e2e.exit" 2>/dev/null || echo 1)"
+          overall=0
+          if [ "$auth_status" -ne 0 ] || [ "$deep_status" -ne 0 ]; then overall=1; fi
+          {
+            echo "# Seller E2E result"
+            echo
+            echo "- Commit: $GITHUB_SHA"
+            echo "- Authenticated UI smoke exit: $auth_status"
+            echo "- Deep seller-center E2E exit: $deep_status"
+            echo "- Overall: $([ "$overall" -eq 0 ] && echo PASS || echo FAIL)"
+            echo
+            echo '## Authenticated UI smoke'
+            cat "$RUNNER_TEMP/authenticated-ui.log" 2>/dev/null || true
+            echo
+            echo '## Deep seller-center E2E'
+            cat "$RUNNER_TEMP/deep-e2e.log" 2>/dev/null || true
+            echo
+            echo '## Server log tail'
+            tail -200 "$RUNNER_TEMP/empire-seller.log" 2>/dev/null || true
+          } > "$RUNNER_TEMP/seller-e2e-result.md"
+          mkdir -p qa-results
+          cp "$RUNNER_TEMP/seller-e2e-result.md" "$report"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add "$report"
+          if git diff --cached --quiet; then
+            echo 'E2E report already current.'
+          else
+            git commit -m "[skip ci] qa: persist seller e2e result"
+            git push origin "HEAD:$branch"
+          fi
+          if [ "$overall" -ne 0 ]; then exit 1; fi
       - name: Upload app log on failure
         if: failure()
         uses: actions/upload-artifact@v4
