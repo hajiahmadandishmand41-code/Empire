@@ -47,6 +47,7 @@ const nextConfig = {
     // Vercel is currently failing requests to its generated `/_next/image`
     // handler for this app. Media is already served through trusted CDN/API
     // URLs, so bypass the failing optimizer rather than returning 500s.
+    // Preview verification branch: 2026-09-01.
     unoptimized: true,
     remotePatterns: [
       { protocol: 'https', hostname: 'images.unsplash.com' },
