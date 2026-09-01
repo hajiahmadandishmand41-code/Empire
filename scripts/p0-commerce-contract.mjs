@@ -1,0 +1,14 @@
+#!/usr/bin/env node
+import fs from 'node:fs';import path from 'node:path';
+const read=f=>fs.readFileSync(path.join(process.cwd(),f),'utf8');const fail=[];const ok=(c,m)=>{if(!c)fail.push(m)};
+for(const f of ['src/app/api/seller/upload/route.ts','src/app/api/seller/products/[id]/images/route.ts','src/app/api/admin/media/route.ts']){const s=read(f);ok(!/video\//i.test(s),`${f}: video MIME handling must not exist`);ok(!/videoUrl/i.test(s),`${f}: videoUrl must not exist`);ok(/hasValidImageSignature|imageUploadError/.test(s),`${f}: shared image validation required`)}
+for(const f of ['src/types/product.ts','src/lib/db-mappers.ts','src/server/services/product.service.ts','src/features/seller/lib/products.ts','src/features/seller/components/product-form.tsx','src/features/seller/components/product-images-editor.tsx'])ok(!/videoUrl/i.test(read(f)),`${f}: legacy video field leaked`);
+const p=read('src/app/api/seller/products/route.ts');ok(/sellerId:\s*guard\.user\.id/.test(p),'sellerId must come from session');ok(!/body[^\n]*sellerId/.test(p),'sellerId must not come from body');ok(/brandId, sellerId: guard\.user\.id/.test(p),'brand linkage must reach service');ok(/seller_context_required/.test(p),'admin seller context forbidden');
+const pi=read('src/app/api/seller/products/[id]/route.ts');ok(/updateProduct\(id,\{\.\.\.changes,brandId\}\)/.test(pi),'seller updates must persist brandId transactionally');ok(/deletePersistent/.test(pi),'seller product delete must clean media');
+const repo=read('src/server/repositories/product.repository.ts');ok(/\$transaction\(async \(tx\)/.test(repo),'product writes must use transaction');ok(/brandId !== undefined/.test(repo),'brand changes must be explicit');
+const b=read('src/app/api/seller/brand/route.ts');ok(/if \(existing\[0\]\)\s*return existing\[0\]/.test(b),'brand GET must preserve inactive record');ok(/SellerBrand[^`\n]*isActive/.test(b),'brand activation query missing');
+const m1=read('prisma/migrations/20260829193000_seller_store_brand/migration.sql');ok(/SellerBrand_sellerId_key/.test(m1)&&/SellerBrand_sellerId_fkey/.test(m1),'SellerBrand ownership constraints missing');
+const m2=read('prisma/migrations/20260831170000_seller_product_brand/migration.sql');ok(/brandId/.test(m2)&&/Product_brandId_fkey/.test(m2)&&/ON DELETE SET NULL/.test(m2),'optional product brand FK missing');
+const bp=read('src/app/[locale]/brands/[slug]/page.tsx');ok(/SellerBrand/.test(bp)&&/sellerId/.test(bp),'independent brand page missing');
+const map=read('src/lib/db-mappers.ts');ok(/sellerName:\s*p\.seller\?\.fullName/.test(map)&&/sellerShopName:\s*p\.seller\?\.sellerShopName/.test(map),'seller/store context missing');
+if(fail.length){console.error('P0 commerce contract failed:');fail.forEach(x=>console.error('- '+x));process.exit(1)}console.log('P0 commerce contract passed.');
