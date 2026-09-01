@@ -7,7 +7,7 @@ import { productUpdateSchema, parseProductImages } from '@/features/products/pro
 import { getProductService } from '@/server/infrastructure/registry';
 import { ProductServiceError } from '@/server/services/product.service';
 import { mapErrorToResponse } from '@/server/infrastructure/errors';
-import { uploadPersistent, deletePersistent } from '@/lib/storage';
+import { deletePersistent } from '@/lib/storage';
 import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
