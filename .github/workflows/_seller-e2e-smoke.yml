@@ -64,7 +64,7 @@ jobs:
           await prisma.user.upsert({
             where: { email },
             update: { passwordHash, role: 'seller', sellerStatus: 'approved', isActive: true, fullName: 'فروشنده تستی Empire', sellerShopName: 'فروشگاه تستی Empire', sellerBio: 'فروشنده برای تست End-to-End', commissionRate: 10, sellerContactEmail: email, sellerContactPhone: '+93700000000', sellerCity: 'Kabul', sellerCountry: 'AF', sellerAddress: 'QA Test Address' },
-            create: { email, passwordHash, role: 'seller', sellerStatus: 'approved', isActive: true, fullName: 'فروشنده تستی Empire', sellerShopName: 'فروشگاه تستی Empire', sellerBio: 'فروشنده برای تست End-to-End', commissionRate: 10, sellerContactEmail: email, sellerContactPhone: '+93700000000', sellerCity: 'Kabul', sellerCountry: 'AF', sellerAddress: 'QA Test Address' },
+            create: { email, passwordHash, role: 'seller', sellerStatus: 'approved', isActive: true, fullName: 'فروشنده تستی Empire', sellerShopName: 'فروشگاه تستی Empire', sellerBio: 'فروشنده برای تست End-to-End', commissionRate: 10, sellerContactEmail: email, sellerContactPhone: '+93700000000', sellerContactPhone: '+93700000000', sellerCity: 'Kabul', sellerCountry: 'AF', sellerAddress: 'QA Test Address' },
           });
           await prisma.$disconnect();
           NODE
@@ -152,15 +152,15 @@ jobs:
             echo '## Server log tail'
             tail -200 "$RUNNER_TEMP/empire-seller.log" 2>/dev/null || true
           } > "$RUNNER_TEMP/seller-e2e-result.md"
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           mkdir -p qa-results
           cp "$RUNNER_TEMP/seller-e2e-result.md" "$report"
-          git add "$report"
-          git diff --cached --quiet || git commit -m "[skip ci] qa: persist seller e2e result"
-          if git diff --cached --quiet; then
+          if git diff --quiet -- "$report"; then
             echo 'E2E report already current.'
           else
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add "$report"
+            git commit -m "[skip ci] qa: persist seller e2e result"
             git push origin "HEAD:$branch"
           fi
           if [ "$overall" -ne 0 ]; then exit 1; fi
