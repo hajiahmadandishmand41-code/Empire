@@ -3,10 +3,9 @@ import { test, expect } from '@playwright/test';
 const base = process.env.BASE_URL ?? 'http://127.0.0.1:3000';
 const email = process.env.SELLER_E2E_EMAIL;
 const password = process.env.SELLER_E2E_PASSWORD;
-
 if (!email || !password) throw new Error('SELLER_E2E_EMAIL and SELLER_E2E_PASSWORD are required');
 
-const routes = ['/fa/seller','/fa/seller/products','/fa/seller/products/new','/fa/seller/inventory','/fa/seller/orders','/fa/seller/customers','/fa/seller/discounts','/fa/seller/reviews','/fa/seller/notifications','/fa/seller/wallet','/fa/seller/reports','/fa/seller/brand','/fa/seller/storefront','/fa/seller/settings'];
+const routes = ['/fa/seller','/fa/seller/products','/fa/seller/products/new','/fa/seller/inventory','/fa/seller/orders','/fa/seller/customers','/fa/seller/discounts','/fa/seller/reviews','/fa/seller/notifications','/fa/seller/wallet','/fa/seller/reports','/fa/seller/storefront','/fa/seller/settings'];
 
 async function login(page) {
   await page.goto(`${base}/fa/auth/login`, { waitUntil: 'domcontentloaded' });
@@ -33,23 +32,16 @@ test('seller can authenticate and open every seller-center route', async ({ page
   }
 });
 
-test('seller brand page exposes the simple brand profile and product assignment flow', async ({ page }) => {
+test('removed brand routes are no longer exposed', async ({ page }) => {
   await login(page);
-  await page.goto(`${base}/fa/seller/brand`, { waitUntil: 'domcontentloaded' });
-  await expect(page.locator('body')).toContainText('برند من');
-  await expect(page.locator('body')).toContainText('محصولات برند');
-  await expect(page.locator('input[type="file"]').first()).toHaveAttribute('accept', /image/);
-  await expect(page.locator('input[disabled]').first()).toBeVisible();
-  const response = await page.request.get(`${base}/api/seller/brand`);
-  expect(response.status()).toBe(200);
-  const body = await response.json();
-  expect(body.ok).toBeTruthy();
-  expect(body.data.id).toBeTruthy();
-  expect(body.data.name).toBeTruthy();
-  expect(body.data.sellerId).toBeTruthy();
+  for (const route of ['/fa/seller/brand','/fa/seller/my-brand']) {
+    const response = await page.goto(`${base}${route}`, { waitUntil: 'domcontentloaded' });
+    expect(response).not.toBeNull();
+    expect(response.status()).toBe(404);
+  }
 });
 
-test('seller product flow keeps brand linkage and image workflow available', async ({ page }) => {
+test('seller product flow is available', async ({ page }) => {
   await login(page);
   await page.goto(`${base}/fa/seller/products/new`, { waitUntil: 'domcontentloaded' });
   const form = page.locator('form').last();
@@ -60,7 +52,6 @@ test('seller product flow keeps brand linkage and image workflow available', asy
   await numericInputs.nth(0).fill('2500');
   await numericInputs.nth(2).fill('12');
   await form.locator('select').first().selectOption({ index: 0 });
-  await expect(page.locator('body')).toContainText(/برند فروشگاه|برند من/);
   await expect(form.locator('input[type="file"]')).toHaveCount(1);
   await form.locator('button[type="submit"]').click();
   await expect(page).toHaveURL(/\/fa\/seller\/products(?:[/?#]|$)/, { timeout: 20000 });
