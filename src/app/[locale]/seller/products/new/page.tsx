@@ -1,6 +1,45 @@
 import Link from 'next/link';
-import { requireSeller } from '@/lib/auth/roles';
-import { listSellerCategories } from '@/features/seller/lib/products';
+import { ArrowLeft } from 'lucide-react';
+import { Card } from '@/components/ui/card';
 import { ProductForm } from '@/features/seller/components/product-form';
-export const dynamic='force-dynamic';
-export default async function NewProductPage({params}:{params:Promise<{locale:string}>}){const{locale}=await params;const user=await requireSeller({locale});const cats=await listSellerCategories();return <div><div className="mx-auto mb-4 max-w-5xl"><Link href={`/${locale}/seller/products`} className="text-xs font-bold text-muted-foreground hover:text-primary">← بازگشت به محصولات</Link></div><ProductForm mode="create" categories={cats.items} backHref={`/${locale}/seller/products`} sellerName={user.fullName} storeName={user.sellerShopName||'فروشگاه من'}/></div>}
+import { listSellerCategories } from '@/features/seller/lib/products';
+
+export const dynamic = 'force-dynamic';
+
+interface Props {
+  params: Promise<{ locale: string }>;
+}
+
+export default async function NewSellerProductPage({ params }: Props) {
+  const { locale } = await params;
+  const { items: categories } = await listSellerCategories();
+  const backHref = `/${locale}/seller/products`;
+
+  return (
+    <div className="space-y-4">
+      <header className="flex flex-col gap-2">
+        <Link
+          href={backHref}
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          بازگشت به فهرست محصولات
+        </Link>
+        <div>
+          <h2 className="font-display text-2xl font-bold text-navy-800">افزودن محصول</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            اطلاعات محصول جدید را وارد کنید.
+          </p>
+        </div>
+      </header>
+
+      <Card className="p-4 sm:p-6">
+        <ProductForm
+          mode="create"
+          categories={categories.map((c) => ({ id: c.id, key: c.key, name: c.name }))}
+          backHref={backHref}
+        />
+      </Card>
+    </div>
+  );
+}

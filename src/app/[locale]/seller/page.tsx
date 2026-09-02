@@ -1,149 +1,112 @@
 import Link from 'next/link';
-import {
-  ArrowLeft,
-  ArrowUpRight,
-  BarChart3,
-  Boxes,
-  Package,
-  Plus,
-  ShoppingBag,
-  Store,
-  WalletCards,
-} from 'lucide-react';
-import { requireSeller } from '@/lib/auth/roles';
+import { Package, ShoppingBag, CheckCircle2, XCircle, DollarSign, Clock, BarChart3, TrendingUp, AlertTriangle, ArrowRight } from 'lucide-react';
+import { StatCard } from '@/features/admin/components/stat-card';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { getSellerStats } from '@/features/seller/lib/queries';
 import { getSellerReport } from '@/features/seller/lib/reports';
-import { getWalletSummary } from '@/features/seller/lib/wallet-queries';
+import { getCurrentUser } from '@/lib/auth/current-user';
 import { formatMoney } from '@/features/admin/lib/format';
+import { prisma, isDatabaseConfigured } from '@/lib/db';
+import { SellerSalesChart } from '@/features/seller/components/seller-sales-chart';
 
 export const dynamic = 'force-dynamic';
+interface Props { params: Promise<{ locale: string }>; }
 
-type Props = { params: Promise<{ locale: string }> };
+async function getRecentOrders(sellerId: string) {
+  if (!isDatabaseConfigured()) return [];
+  try {
+    const items = await prisma.orderItem.findMany({
+      where: { product: { sellerId } },
+      select: { id: true, quantity: true, price: true, name: true, order: { select: { id: true, reference: true, status: true, createdAt: true, currency: true } } },
+      orderBy: { order: { createdAt: 'desc' } },
+      take: 5,
+      distinct: ['orderId'],
+    });
+    const seen = new Set<string>();
+    return items.filter((i) => { if (seen.has(i.order.id)) return false; seen.add(i.order.id); return true; });
+  } catch { return []; }
+}
+
+async function getLowStockProducts(sellerId: string) {
+  if (!isDatabaseConfigured()) return [];
+  try {
+    return await prisma.product.findMany({ where: { sellerId, isActive: true, stockQuantity: { lte: 5 } }, select: { id: true, name: true, slug: true, stockQuantity: true }, orderBy: { stockQuantity: 'asc' }, take: 5 });
+  } catch { return []; }
+}
+
+async function getMonthlySalesData(sellerId: string) {
+  if (!isDatabaseConfigured()) return [];
+  try {
+    const items = await prisma.orderItem.findMany({ where: { product: { sellerId }, order: { status: { not: 'cancelled' } } }, select: { price: true, quantity: true, order: { select: { createdAt: true } } } });
+    const now = new Date();
+    const months: Record<string, { label: string; revenue: number; orders: number }> = {};
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const label = d.toLocaleDateString('fa-IR', { month: 'short', year: '2-digit' });
+      months[key] = { label, revenue: 0, orders: 0 };
+    }
+    for (const item of items) {
+      const d = item.order.createdAt;
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      if (months[key]) {
+        months[key].revenue += item.price.toNumber() * item.quantity;
+        months[key].orders += 1;
+      }
+    }
+    return Object.values(months);
+  } catch { return []; }
+}
+
+const ORDER_STATUS: Record<string, { label: string; cls: string }> = {
+  pending: { label: 'در انتظار', cls: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300' },
+  confirmed: { label: 'تأیید شده', cls: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' },
+  processing: { label: 'آماده‌سازی', cls: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300' },
+  shipped: { label: 'ارسال شده', cls: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300' },
+  delivered: { label: 'تحویل شده', cls: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300' },
+  cancelled: { label: 'لغو شده', cls: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' },
+};
 
 export default async function SellerDashboardPage({ params }: Props) {
   const { locale } = await params;
-  const user = await requireSeller({ locale });
-  const sellerId = user.id;
-  const [stats, report, wallet] = await Promise.all([
+  const user = await getCurrentUser();
+  const sellerId = user && user.role === 'seller' ? user.id : undefined;
+  const [stats, report, recentOrders, lowStock, monthlyData] = await Promise.all([
     getSellerStats(sellerId),
-    getSellerReport(sellerId),
-    getWalletSummary(sellerId),
+    sellerId ? getSellerReport(sellerId) : Promise.resolve(null),
+    sellerId ? getRecentOrders(sellerId) : Promise.resolve([]),
+    sellerId ? getLowStockProducts(sellerId) : Promise.resolve([]),
+    sellerId ? getMonthlySalesData(sellerId) : Promise.resolve([]),
   ]);
-
-  const base = `/${locale}/seller`;
-  const shop = user.sellerShopName || 'فروشگاه من';
-
-  const metrics = [
-    { label: 'فروش کل', value: formatMoney(stats.revenue, stats.currency), href: `${base}/analytics`, icon: BarChart3 },
-    { label: 'سفارش‌ها', value: stats.orders.toLocaleString('fa-IR'), href: `${base}/orders`, icon: ShoppingBag },
-    { label: 'محصولات', value: stats.products.toLocaleString('fa-IR'), href: `${base}/products`, icon: Package },
-    { label: 'کیف پول', value: formatMoney(wallet.balance, wallet.currency), href: `${base}/wallet`, icon: WalletCards },
-  ];
-
-  const quick = [
-    { label: 'ثبت محصول', href: `${base}/products/new`, icon: Plus, primary: true },
-    { label: 'مدیریت فروشگاه', href: `${base}/store`, icon: Store },
-    { label: 'موجودی', href: `${base}/inventory`, icon: Boxes },
-  ];
+  const isMock = stats.source === 'mock';
 
   return (
-    <div className="mx-auto max-w-[1500px] space-y-6" dir="rtl">
-      <section className="overflow-hidden rounded-[28px] border border-emerald-100 bg-white shadow-sm">
-        <div className="grid gap-7 p-6 lg:grid-cols-[1.3fr_.7fr] lg:p-8">
-          <div>
-            <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.18em] text-emerald-600">
-              <span className="h-2 w-2 rounded-full bg-emerald-500" />
-              Seller workspace
-            </div>
-            <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">سلام {user.fullName} 👋</h1>
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-500">
-              {shop} از همین صفحه مدیریت می‌شود؛ محصولات، سفارش‌ها، موجودی، فروشگاه و جریان مالی شما به اطلاعات واقعی Empire متصل است.
-            </p>
-            <div className="mt-6 flex flex-wrap gap-2">
-              {quick.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.label}
-                    href={item.href}
-                    className={item.primary
-                      ? 'inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-xs font-black text-white shadow-sm hover:bg-emerald-700'
-                      : 'inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-slate-700 hover:bg-slate-50'}
-                  >
-                    <Icon className="h-4 w-4" />
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-          <div className="rounded-3xl bg-slate-950 p-6 text-white">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-xs font-bold text-slate-300">فروشگاه فعال</div>
-                <div className="mt-2 text-xl font-black">{shop}</div>
-              </div>
-              <div className="rounded-2xl bg-emerald-500/15 p-3 text-emerald-300"><Store className="h-5 w-5" /></div>
-            </div>
-            <div className="mt-8 grid grid-cols-2 gap-3">
-              <div className="rounded-2xl bg-white/5 p-4"><div className="text-xs text-slate-400">در انتظار</div><div className="mt-1 text-xl font-black">{stats.pendingOrders.toLocaleString('fa-IR')}</div></div>
-              <div className="rounded-2xl bg-white/5 p-4"><div className="text-xs text-slate-400">ناموجود</div><div className="mt-1 text-xl font-black">{stats.outOfStockProducts.toLocaleString('fa-IR')}</div></div>
-            </div>
-          </div>
-        </div>
+    <div className="space-y-6">
+      <header className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between"><div><h2 className="font-display text-2xl font-bold text-navy-800 dark:text-white">نمای کلی فروشنده</h2><p className="mt-1 text-sm text-muted-foreground">خلاصه‌ای از وضعیت محصولات، سفارش‌ها و درآمد شما</p></div>{isMock && <span className="inline-flex items-center rounded-full bg-amber-500/15 px-3 py-1 text-xs font-medium text-amber-700 dark:text-amber-400">حالت نمایشی — داده‌های Mock</span>}</header>
+      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard label="تعداد محصولات" value={stats.products.toLocaleString('fa-IR')} icon={<Package className="h-5 w-5" />} tone="default" />
+        <StatCard label="تعداد سفارش‌ها" value={stats.orders.toLocaleString('fa-IR')} icon={<ShoppingBag className="h-5 w-5" />} tone="info" />
+        <StatCard label="سفارش‌های در انتظار" value={stats.pendingOrders.toLocaleString('fa-IR')} icon={<Clock className="h-5 w-5" />} tone="warning" />
+        <StatCard label="درآمد تقریبی" value={formatMoney(stats.revenue, stats.currency)} icon={<DollarSign className="h-5 w-5" />} tone="success" />
       </section>
-
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {metrics.map((metric) => {
-          const Icon = metric.icon;
-          return (
-            <Link key={metric.label} href={metric.href} className="group rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-              <div className="flex items-center justify-between">
-                <div className="rounded-2xl bg-emerald-50 p-3 text-emerald-700"><Icon className="h-5 w-5" /></div>
-                <ArrowUpRight className="h-4 w-4 text-slate-300 transition group-hover:text-emerald-600" />
-              </div>
-              <div className="mt-5 text-xs font-bold text-slate-500">{metric.label}</div>
-              <div className="mt-1 text-2xl font-black tracking-tight">{metric.value}</div>
-            </Link>
-          );
-        })}
+      <section className="grid gap-4 sm:grid-cols-2">
+        <StatCard label="محصولات فعال" value={stats.activeProducts.toLocaleString('fa-IR')} icon={<CheckCircle2 className="h-5 w-5" />} tone="success" />
+        <StatCard label="محصولات ناموجود" value={stats.outOfStockProducts.toLocaleString('fa-IR')} icon={<XCircle className="h-5 w-5" />} tone="warning" />
       </section>
-
-      <div className="grid gap-5 xl:grid-cols-[1.15fr_.85fr]">
-        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-          <div className="flex items-center justify-between gap-3">
-            <div><h2 className="text-base font-black">خلاصه عملکرد</h2><p className="mt-1 text-xs text-slate-500">آخرین شاخص‌های فروشگاه</p></div>
-            <Link href={`${base}/analytics`} className="text-xs font-black text-emerald-700">جزئیات <ArrowLeft className="mr-1 inline h-3.5 w-3.5" /></Link>
-          </div>
-          <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-            {[
-              ['اقلام فروخته‌شده', report.totals.unitsSold],
-              ['تحویل‌شده', report.totals.deliveredOrders],
-              ['ارسال‌شده', report.totals.shippedOrders],
-              ['لغوشده', report.totals.cancelledOrders],
-            ].map(([label, value]) => (
-              <div key={String(label)} className="rounded-2xl bg-slate-50 p-4">
-                <div className="text-[11px] text-slate-500">{label}</div>
-                <div className="mt-1 text-xl font-black">{Number(value).toLocaleString('fa-IR')}</div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-          <div className="flex items-center justify-between"><div><h2 className="text-base font-black">پرفروش‌ترین محصولات</h2><p className="mt-1 text-xs text-slate-500">بر اساس فروش ثبت‌شده</p></div><Package className="h-5 w-5 text-emerald-600" /></div>
-          <div className="mt-4 space-y-2">
-            {report.topProducts.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500">هنوز داده‌ای برای نمایش وجود ندارد.</div>
-            ) : report.topProducts.slice(0, 5).map((product) => (
-              <div key={product.productId} className="flex items-center justify-between gap-3 rounded-2xl bg-slate-50 p-3">
-                <div className="min-w-0"><div className="truncate text-sm font-bold">{product.name}</div><div className="mt-0.5 text-[11px] text-slate-500">{product.unitsSold.toLocaleString('fa-IR')} فروش</div></div>
-                <div className="shrink-0 text-xs font-black">{formatMoney(product.revenue, report.currency)}</div>
-              </div>
-            ))}
-          </div>
-        </section>
-      </div>
+      {monthlyData.length > 0 && <Card className="p-5"><div className="mb-4 flex items-center justify-between"><h3 className="font-display text-lg font-semibold text-navy-800 dark:text-white flex items-center gap-2"><TrendingUp className="h-5 w-5 text-rose-500" />روند درآمد (۶ ماه اخیر)</h3></div><SellerSalesChart data={monthlyData} /></Card>}
+      {report && report.totals.orders > 0 && <div className="grid gap-4 lg:grid-cols-3">
+        <Card className="p-5 lg:col-span-1"><h3 className="mb-4 font-display text-base font-semibold text-navy-800 dark:text-white">عملکرد فروش</h3><ul className="space-y-3 text-sm">{[
+          { label: 'کل اقلام فروخته شده', value: report.totals.unitsSold.toLocaleString('fa-IR') + ' عدد' },
+          { label: 'درآمد کل', value: formatMoney(report.totals.revenue, report.currency) },
+          { label: 'سفارش تحویل شده', value: report.totals.deliveredOrders.toLocaleString('fa-IR') },
+          { label: 'سفارش ارسال شده', value: report.totals.shippedOrders.toLocaleString('fa-IR') },
+          { label: 'سفارش لغو شده', value: report.totals.cancelledOrders.toLocaleString('fa-IR') },
+        ].map((row) => <li key={row.label} className="flex items-center justify-between border-b border-border/50 pb-2"><span className="text-muted-foreground">{row.label}</span><span className="font-semibold text-foreground">{row.value}</span></li>)}</ul><Link href={`/${locale}/seller/reports`} className="mt-4 block"><Button variant="outline" size="sm" className="w-full"><BarChart3 className="h-4 w-4" />گزارش کامل</Button></Link></Card>
+        {report.topProducts.length > 0 && <Card className="p-5 lg:col-span-2"><h3 className="mb-3 font-display text-base font-semibold text-navy-800 dark:text-white">محصولات پرفروش</h3><ul className="divide-y divide-border">{report.topProducts.map((p, i) => <li key={p.productId} className="flex items-center gap-3 py-2.5 text-sm"><span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground">{i + 1}</span><div className="min-w-0 flex-1"><div className="truncate font-medium text-foreground">{p.name}</div><div className="text-xs text-muted-foreground">{p.unitsSold.toLocaleString('fa-IR')} فروش</div></div><span className="font-semibold text-navy-800 dark:text-white">{formatMoney(p.revenue, report.currency)}</span></li>)}</ul></Card>}
+      </div>}
+      {recentOrders.length > 0 && <Card className="p-5"><div className="mb-3 flex items-center justify-between"><h3 className="font-display text-base font-semibold text-navy-800 dark:text-white">آخرین سفارش‌ها</h3><Link href={`/${locale}/seller/orders`}><Button variant="outline" size="sm"><ArrowRight className="h-4 w-4 rtl:rotate-180" />همه سفارش‌ها</Button></Link></div><div className="overflow-x-auto"><table className="w-full text-sm"><thead className="bg-muted/40 text-xs text-muted-foreground"><tr><th className="px-4 py-2.5 text-start font-medium">شماره سفارش</th><th className="px-4 py-2.5 text-start font-medium">محصول</th><th className="px-4 py-2.5 text-start font-medium">مبلغ</th><th className="px-4 py-2.5 text-start font-medium">وضعیت</th><th className="px-4 py-2.5 text-start font-medium">تاریخ</th></tr></thead><tbody className="divide-y divide-border">{recentOrders.map((item) => { const badge = ORDER_STATUS[item.order.status] ?? { label: item.order.status, cls: 'bg-muted text-foreground' }; return <tr key={item.order.id} className="hover:bg-muted/30 transition-colors"><td className="px-4 py-2.5 font-mono text-xs text-muted-foreground"><Link href={`/${locale}/seller/orders/${item.order.id}`} className="hover:text-rose-600 hover:underline">#{item.order.reference}</Link></td><td className="px-4 py-2.5 max-w-[160px] truncate">{item.name}</td><td className="px-4 py-2.5 font-semibold">{formatMoney(item.price.toNumber() * item.quantity, item.order.currency)}</td><td className="px-4 py-2.5"><span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${badge.cls}`}>{badge.label}</span></td><td className="px-4 py-2.5 text-xs text-muted-foreground">{new Date(item.order.createdAt).toLocaleDateString('fa-IR')}</td></tr>; })}</tbody></table></div></Card>}
+      {lowStock.length > 0 && <Card className="border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-950/20 p-5"><div className="mb-3 flex items-center gap-2"><AlertTriangle className="h-5 w-5 text-amber-600" /><h3 className="font-display text-base font-semibold text-amber-800 dark:text-amber-300">هشدار: موجودی کم</h3></div><ul className="divide-y divide-amber-200/60 dark:divide-amber-800/40">{lowStock.map((p) => <li key={p.id} className="flex items-center justify-between py-2 text-sm"><span className="text-amber-900 dark:text-amber-300 font-medium">{p.name}</span><div className="flex items-center gap-3"><span className={`font-bold ${p.stockQuantity === 0 ? 'text-red-600' : 'text-amber-600'}`}>{p.stockQuantity === 0 ? 'ناموجود' : `${p.stockQuantity} عدد`}</span><Link href={`/${locale}/seller/products/${p.id}/edit`}><Button variant="outline" size="sm" className="h-7 border-amber-300 text-xs text-amber-700 hover:bg-amber-100">ویرایش</Button></Link></div></li>)}</ul></Card>}
     </div>
   );
 }

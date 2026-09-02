@@ -1,6 +1,117 @@
-'use client';
-import * as React from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
-import { Search, Plus, Pencil } from 'lucide-react';
-export default function SellerProductsPage(){const params=useParams<{locale:string}>();const base=`/${params.locale}/seller`;const[data,setData]=React.useState<any[]>([]);const[q,setQ]=React.useState('');const[loading,setLoading]=React.useState(true);const load=async()=>{setLoading(true);try{const r=await fetch(`/api/seller/products?pageSize=50&q=${encodeURIComponent(q)}`,{credentials:'include',cache:'no-store'});const b=await r.json();setData(Array.isArray(b.data)?b.data:[])}finally{setLoading(false)}};React.useEffect(()=>{void load()},[]);return <div className="mx-auto max-w-7xl space-y-5" dir="rtl"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><h1 className="text-2xl font-black">محصولات</h1><p className="mt-1 text-sm text-muted-foreground">مدیریت محصولات متعلق به فروشگاه شما</p></div><Link href={`${base}/products/new`} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-4 py-3 text-sm font-bold text-primary-foreground"><Plus className="h-4 w-4"/>ثبت محصول</Link></div><div className="rounded-3xl border bg-card p-4 shadow-sm"><div className="flex gap-2"><div className="relative flex-1"><Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"/><input value={q} onChange={e=>setQ(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')void load()}} placeholder="جستجوی نام محصول…" className="h-11 w-full rounded-2xl border bg-background pe-10 ps-3"/></div><button onClick={()=>void load()} className="rounded-2xl border px-5 text-sm font-bold">جستجو</button></div></div><div className="overflow-hidden rounded-3xl border bg-card shadow-sm"><div className="overflow-x-auto">{loading?<div className="p-10 text-center text-sm text-muted-foreground">در حال بارگذاری…</div>:data.length===0?<div className="p-10 text-center text-sm text-muted-foreground">محصولی پیدا نشد.</div>:<table className="w-full text-sm"><thead><tr className="border-b bg-muted/40 text-right text-xs text-muted-foreground"><th className="p-4">محصول</th><th className="p-4">دسته‌بندی</th><th className="p-4">قیمت</th><th className="p-4">موجودی</th><th className="p-4">وضعیت</th><th className="p-4"></th></tr></thead><tbody>{data.map(p=><tr key={p.id} className="border-b last:border-0"><td className="p-4 font-bold">{p.name}</td><td className="p-4 text-muted-foreground">{p.categoryName}</td><td className="p-4">{Number(p.price).toLocaleString('fa-IR')} {p.currency}</td><td className="p-4">{Number(p.stockQuantity).toLocaleString('fa-IR')}</td><td className="p-4"><span className={`rounded-full px-2 py-1 text-[11px] font-bold ${p.isActive?'bg-emerald-100 text-emerald-700':'bg-muted text-muted-foreground'}`}>{p.isActive?'فعال':'غیرفعال'}</span></td><td className="p-4"><Link href={`${base}/products/${p.id}/edit`} className="inline-flex rounded-xl border p-2"><Pencil className="h-4 w-4"/></Link></td></tr>)}</tbody></table>}</div></div></div>}
+import { Plus } from 'lucide-react';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { DataTable, type Column } from '@/features/admin/components/data-table';
+import { SearchForm } from '@/features/admin/components/search-form';
+import { Pagination } from '@/features/admin/components/pagination';
+import { EmptyState } from '@/features/admin/components/empty-state';
+import { formatDate, formatMoney } from '@/features/admin/lib/format';
+import { listSellerProducts, type SellerProductRow } from '@/features/seller/lib/products';
+import { getCurrentUser } from '@/lib/auth/current-user';
+import { SellerProductActions } from '@/features/seller/components/seller-product-actions';
+
+export const dynamic = 'force-dynamic';
+
+interface Props {
+  params: Promise<{ locale: string }>;
+  searchParams: Promise<{ q?: string; page?: string; pageSize?: string }>;
+}
+
+export default async function SellerProductsPage({ params, searchParams }: Props) {
+  const { locale } = await params;
+  const sp = await searchParams;
+  const page = Math.max(1, parseInt(sp.page ?? '1', 10) || 1);
+  const pageSize = Math.min(50, Math.max(5, parseInt(sp.pageSize ?? '10', 10) || 10));
+  const user = await getCurrentUser();
+  const sellerId = user && user.role === 'seller' ? user.id : undefined;
+  const result = await listSellerProducts({ q: sp.q, page, pageSize, sellerId });
+
+  const base = `/${locale}/seller/products`;
+
+  const columns: Column<SellerProductRow>[] = [
+    {
+      key: 'name',
+      header: 'محصول',
+      cell: (r) => (
+        <div className="min-w-0">
+          <div className="truncate font-medium text-foreground">{r.name}</div>
+          <div className="truncate font-mono text-xs text-muted-foreground">{r.slug}</div>
+        </div>
+      ),
+    },
+    {
+      key: 'price',
+      header: 'قیمت',
+      cell: (r) => (
+        <span className="font-semibold text-navy-800">{formatMoney(r.price, r.currency)}</span>
+      ),
+    },
+    {
+      key: 'stock',
+      header: 'وضعیت',
+      cell: (r) => (
+        <span
+          className={
+            r.inStock
+              ? 'inline-flex items-center rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-700'
+              : 'inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground'
+          }
+        >
+          {r.inStock ? 'فعال' : 'غیرفعال'}
+        </span>
+      ),
+    },
+    {
+      key: 'inventory',
+      header: 'موجودی',
+      cell: (r) => (r.inStock ? 'موجود' : 'ناموجود'),
+    },
+    { key: 'created', header: 'ایجاد شده', cell: (r) => formatDate(r.createdAt) },
+    {
+      key: 'actions',
+      header: '',
+      headerClassName: 'w-24',
+      className: 'text-end',
+      cell: (r) => (
+        <SellerProductActions id={r.id} name={r.name} editHref={`${base}/${r.id}/edit`} />
+      ),
+    },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <header className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h2 className="font-display text-2xl font-bold text-navy-800">محصولات من</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            مدیریت محصولات فروشگاه شما — افزودن، ویرایش و حذف
+          </p>
+        </div>
+        <Link href={`${base}/new`}>
+          <Button size="sm" variant="primary">
+            <Plus className="h-4 w-4" />
+            افزودن محصول
+          </Button>
+        </Link>
+      </header>
+
+      <Card className="space-y-4 p-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <SearchForm placeholder="جستجو در محصولات…" />
+        </div>
+
+        {result.total === 0 ? (
+          <EmptyState
+            title="محصولی یافت نشد"
+            description="با افزودن محصول جدید شروع کنید."
+          />
+        ) : (
+          <DataTable columns={columns} rows={result.items} rowKey={(r) => r.id} />
+        )}
+
+        <Pagination page={result.page} pageSize={result.pageSize} total={result.total} />
+      </Card>
+    </div>
+  );
+}
