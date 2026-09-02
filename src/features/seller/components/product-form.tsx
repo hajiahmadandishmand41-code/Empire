@@ -1,39 +1,147 @@
 'use client';
 
 import * as React from 'react';
-import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
-import { ProductImagesEditor } from './product-images-editor';
-import { X, Plus, Package, Tag, ImagePlus, Upload, Store, UserRound, BadgeCheck } from 'lucide-react';
 import { normalizePersianDigits, PRODUCT_MAX_IMAGE_BYTES, PRODUCT_MAX_IMAGES } from '@/features/products/product-contract';
 import { isSupportedImageType } from '@/lib/media/image-upload';
 
 interface CategoryOption { id: string; key: string; name: string }
 interface Attribute { key: string; value: string }
-interface SellerBrand { id: string; name: string; slug?: string | null; logoUrl?: string | null }
-export interface ProductFormInitial { id?: string; slug?: string; name?: string; shortDescription?: string; description?: string | null; price?: number; compareAtPrice?: number | null; categoryId?: string; brandId?: string | null; inStock?: boolean; isActive?: boolean; stockQuantity?: number; images?: string[]; primaryImageIndex?: number; whatsappNumber?: string | null; isTraditional?: boolean; weightKg?: number | null; dimensionsJson?: string | null; tagsJson?: string | null; attributesJson?: string | null }
+export interface ProductFormInitial {
+  id?: string; slug?: string; name?: string; shortDescription?: string; description?: string | null;
+  price?: number; compareAtPrice?: number | null; categoryId?: string; inStock?: boolean; isActive?: boolean;
+  stockQuantity?: number; images?: string[]; primaryImageIndex?: number; whatsappNumber?: string | null;
+  isTraditional?: boolean; weightKg?: number | null; dimensionsJson?: string | null; tagsJson?: string | null;
+  attributesJson?: string | null;
+}
 interface ProductFormProps { mode: 'create' | 'edit'; categories: CategoryOption[]; initial?: ProductFormInitial; backHref: string; sellerName?: string; storeName?: string }
 interface PendingImage { id: string; file: File; preview: string }
-const inputCls = 'h-11 w-full rounded-2xl border border-input bg-background px-3.5 text-sm transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15';
+const inputCls = 'h-11 w-full rounded-2xl border border-input bg-background px-3.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15';
 const numberValue = (value: string) => { const n = Number(normalizePersianDigits(value).replace(/[٬,\s]/g, '').replace(/٫/g, '.')); return Number.isFinite(n) ? n : 0; };
 const slugify = (value: string) => value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80);
 function parseJson<T>(value: string | null | undefined, fallback: T): T { if (!value) return fallback; try { return JSON.parse(value) as T; } catch { return fallback; } }
 const cleanWhatsapp = (value: string) => value.replace(/[^0-9+]/g, '').slice(0, 20);
-const fileToDataUrl = (file: File) => new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result ?? '')); reader.onerror = () => reject(reader.error ?? new Error('file_read_failed')); reader.readAsDataURL(file); });
-function Section({ title, icon, children }: { title: string; icon?: React.ReactNode; children: React.ReactNode }) { return <section className="rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-6"><div className="mb-5 flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">{icon}</span><h2 className="text-base font-black">{title}</h2></div>{children}</section>; }
-export function ProductForm({ mode, categories, initial, backHref, sellerName = 'فروشنده', storeName = 'فروشگاه' }: ProductFormProps) {
- const router = useRouter(); const isEdit = mode === 'edit';
- const [name, setName] = React.useState(initial?.name ?? ''); const [slug, setSlug] = React.useState(initial?.slug ?? ''); const [shortDescription, setShortDescription] = React.useState(initial?.shortDescription ?? ''); const [description, setDescription] = React.useState(initial?.description ?? ''); const [price, setPrice] = React.useState(initial?.price != null ? String(initial.price) : ''); const [compareAt, setCompareAt] = React.useState(initial?.compareAtPrice != null ? String(initial.compareAtPrice) : ''); const [categoryId, setCategoryId] = React.useState(initial?.categoryId ?? categories[0]?.id ?? ''); const [stockQuantity, setStockQuantity] = React.useState(initial?.stockQuantity != null ? String(initial.stockQuantity) : '0'); const [isActive, setIsActive] = React.useState(initial?.isActive !== false); const [isTraditional, setIsTraditional] = React.useState(initial?.isTraditional === true); const [weightKg, setWeightKg] = React.useState(initial?.weightKg != null ? String(initial.weightKg) : ''); const dimensions = parseJson<{ length?: number; width?: number; height?: number }>(initial?.dimensionsJson, {}); const [dimLength, setDimLength] = React.useState(dimensions.length != null ? String(dimensions.length) : ''); const [dimWidth, setDimWidth] = React.useState(dimensions.width != null ? String(dimensions.width) : ''); const [dimHeight, setDimHeight] = React.useState(dimensions.height != null ? String(dimensions.height) : ''); const [tags, setTags] = React.useState(() => { const v = parseJson<string[]>(initial?.tagsJson, []); return Array.isArray(v) ? v.join('، ') : ''; }); const [attributes, setAttributes] = React.useState<Attribute[]>(() => parseJson<Attribute[]>(initial?.attributesJson, [])); const [whatsappNumber, setWhatsappNumber] = React.useState(initial?.whatsappNumber ?? ''); const [availableBrand, setAvailableBrand] = React.useState<SellerBrand | null>(null); const [selectedBrandId, setSelectedBrandId] = React.useState(initial?.brandId ?? ''); const [brandLoading, setBrandLoading] = React.useState(true); const [pendingImages, setPendingImages] = React.useState<PendingImage[]>([]); const [busy, setBusy] = React.useState(false); const [slugTouched, setSlugTouched] = React.useState(Boolean(initial?.slug)); const fileInputRef = React.useRef<HTMLInputElement>(null);
- React.useEffect(() => { if (!slugTouched && name) setSlug(slugify(name)); }, [name, slugTouched]);
- React.useEffect(() => { let active = true; void fetch('/api/seller/brand', { credentials: 'include', cache: 'no-store' }).then(r => r.json()).then(body => { if (!active) return; if (body?.ok && body.data?.id) setAvailableBrand({ id: String(body.data.id), name: String(body.data.name ?? ''), slug: body.data.slug, logoUrl: body.data.logoUrl ?? null }); else setAvailableBrand(null); }).catch(() => { if (active) setAvailableBrand(null); }).finally(() => { if (active) setBrandLoading(false); }); return () => { active = false; }; }, []);
- React.useEffect(() => () => { pendingImages.forEach(item => URL.revokeObjectURL(item.preview)); }, [pendingImages]);
- function addAttribute() { setAttributes(items => [...items, { key: '', value: '' }]); } function updateAttribute(index:number,key:'key'|'value',value:string){setAttributes(items=>items.map((item,i)=>i===index?{...item,[key]:value}:item));} function removeAttribute(index:number){setAttributes(items=>items.filter((_,i)=>i!==index));}
- function chooseImages(files:FileList|null){if(!files?.length||busy)return;const room=PRODUCT_MAX_IMAGES-pendingImages.length-(initial?.images?.length??0);if(room<=0){toast.error(`حداکثر ${PRODUCT_MAX_IMAGES} تصویر مجاز است.`);return}const accepted=Array.from(files).slice(0,room).flatMap(file=>{if(!isSupportedImageType(file.type)&&file.type&&file.type!=='application/octet-stream'){toast.error(`${file.name}: فایل تصویری معتبر نیست.`);return []}if(file.size<=0||file.size>PRODUCT_MAX_IMAGE_BYTES){toast.error(`${file.name}: حجم تصویر نباید بیشتر از ۱۰ مگابایت باشد.`);return []}return[{id:`${Date.now()}-${Math.random().toString(36).slice(2)}`,file,preview:URL.createObjectURL(file)}]});setPendingImages(items=>[...items,...accepted]);if(fileInputRef.current)fileInputRef.current.value='';}
- function removePending(id:string){setPendingImages(items=>{const found=items.find(item=>item.id===id);if(found)URL.revokeObjectURL(found.preview);return items.filter(item=>item.id!==id);});}
- async function uploadPending(productId:string){const failed:string[]=[];let uploaded=0;for(const item of pendingImages){let lastError=`آپلود تصویر «${item.file.name}» ناموفق بود.`;try{const fd=new FormData();fd.append('file',item.file);fd.append('alt',item.file.name);const response=await fetch(`/api/seller/products/${productId}/images`,{method:'POST',body:fd,credentials:'include'});const body=await response.json().catch(()=>null);if(response.ok&&body?.ok){uploaded++;lastError=''}else lastError=body?.error?.message??lastError}catch(error){lastError=error instanceof Error?error.message:lastError}if(lastError)failed.push(`${item.file.name}: ${lastError}`)}return{uploaded,failed};}
- async function onSubmit(event:React.FormEvent){event.preventDefault();if(!name.trim())return toast.error('نام محصول الزامی است.');if(!shortDescription.trim())return toast.error('توضیح کوتاه محصول الزامی است.');const numericPrice=numberValue(price);if(numericPrice<=0)return toast.error('قیمت باید بیشتر از صفر باشد.');if(!categoryId)return toast.error('دسته‌بندی محصول را انتخاب کنید.');const quantity=Math.max(0,Math.floor(numberValue(stockQuantity)));const oldPrice=compareAt.trim()?numberValue(compareAt):null;if(oldPrice!==null&&oldPrice<=numericPrice)return toast.error('قیمت قبلی باید از قیمت فعلی بیشتر باشد.');setBusy(true);try{const payload={slug:slug.trim()||null,name:name.trim(),shortDescription:shortDescription.trim(),description:description.trim()||null,price:numericPrice,compareAtPrice:oldPrice,categoryId,brandId:selectedBrandId||null,inStock:quantity>0,isActive,stockQuantity:quantity,whatsappNumber:whatsappNumber?cleanWhatsapp(whatsappNumber):null,isTraditional,weightKg:weightKg.trim()?numberValue(weightKg):null,dimensionsJson:dimLength||dimWidth||dimHeight?JSON.stringify({length:numberValue(dimLength),width:numberValue(dimWidth),height:numberValue(dimHeight)}):null,tagsJson:JSON.stringify(tags.split(/[،,]+/).map(v=>v.trim()).filter(Boolean)),attributesJson:JSON.stringify(attributes.filter(v=>v.key.trim()&&v.value.trim())),...(isEdit?{}:{currency:'AFN'})};const endpoint=isEdit&&initial?.id?`/api/seller/products/${initial.id}`:'/api/seller/products';const response=await fetch(endpoint,{method:isEdit?'PATCH':'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify(payload)});const body=await response.json().catch(()=>null);if(!response.ok||!body?.ok)throw new Error(body?.error?.message??'ثبت محصول ناموفق بود.');const productId=String(body.data?.id??initial?.id??'');const imageResult=productId?await uploadPending(productId):{uploaded:0,failed:pendingImages.map(item=>`${item.file.name}: شناسه محصول دریافت نشد.`)};setPendingImages([]);if(imageResult.failed.length===0)toast.success(isEdit?'محصول با موفقیت به‌روزرسانی شد.':'محصول با موفقیت ثبت شد.');else toast.warning(`محصول ثبت شد؛ ${imageResult.uploaded} تصویر ذخیره شد و ${imageResult.failed.length} تصویر نیاز به بررسی دارد.`);router.push(backHref);router.refresh();}catch(error){toast.error(error instanceof Error?error.message:'ثبت محصول ناموفق بود.')}finally{setBusy(false)}}
- return <form onSubmit={onSubmit} className="mx-auto max-w-5xl space-y-5" dir="rtl"><header className="rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-7"><div className="flex flex-wrap items-center gap-3"><span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground"><Package className="h-6 w-6"/></span><div className="min-w-0"><h1 className="text-2xl font-black">{isEdit?'ویرایش محصول':'ثبت محصول جدید'}</h1><p className="mt-1 text-xs leading-6 text-muted-foreground">این محصول برای <b>{storeName}</b> و به نام فروشنده <b>{sellerName}</b> ثبت می‌شود.</p></div></div></header><Section title="فروشنده و فروشگاه" icon={<Store className="h-5 w-5"/>}><div className="grid gap-3 sm:grid-cols-2"><div className="flex items-center gap-3 rounded-2xl border border-border bg-muted/20 p-4"><UserRound className="h-5 w-5 text-primary"/><div className="min-w-0"><p className="text-[11px] text-muted-foreground">فروشنده</p><p className="truncate text-sm font-black">{sellerName}</p></div></div><div className="flex items-center gap-3 rounded-2xl border border-border bg-muted/20 p-4"><Store className="h-5 w-5 text-primary"/><div className="min-w-0"><p className="text-[11px] text-muted-foreground">فروشگاه</p><p className="truncate text-sm font-black">{storeName}</p></div></div></div></Section><Section title="هویت محصول" icon={<Tag className="h-5 w-5"/>}><div className="grid gap-4 sm:grid-cols-2"><Field label="نام محصول" required value={name} onChange={setName} placeholder="مثلاً قالی دست‌باف هراتی"/><Field label="شناسه صفحه" value={slug} onChange={(v)=>{setSlugTouched(true);setSlug(v)}} placeholder="خودکار ساخته می‌شود" dir="ltr"/><div className="sm:col-span-2"><Field label="توضیح کوتاه" required value={shortDescription} onChange={setShortDescription}/><label className="mt-4 block"><span className="mb-2 block text-xs font-bold">توضیحات کامل</span><textarea value={description} onChange={e=>setDescription(e.target.value)} rows={5} className="w-full rounded-2xl border border-input bg-background p-3.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"/></label></div></div></Section><Section title="برند محصول (اختیاری)" icon={<BadgeCheck className="h-5 w-5"/>}><div className="flex flex-col gap-3 sm:flex-row sm:items-center"><select value={selectedBrandId} onChange={e=>setSelectedBrandId(e.target.value)} disabled={brandLoading} className={inputCls}><option value="">بدون برند — فقط فروشگاه و فروشنده</option>{availableBrand?<option value={availableBrand.id}>{availableBrand.name}</option>:null}</select>{selectedBrandId&&availableBrand?.logoUrl?<Image src={availableBrand.logoUrl} alt="" width={44} height={44} className="h-11 w-11 rounded-xl object-cover"/>:null}</div><p className="mt-2 text-[11px] leading-5 text-muted-foreground">برند به‌صورت خودکار انتخاب نمی‌شود. فقط اگر آن را از فهرست انتخاب کنید، ارتباط برند در محصول ذخیره خواهد شد.</p></Section><Section title="قیمت و دسته‌بندی" icon={<Tag className="h-5 w-5"/>}><div className="grid gap-4 sm:grid-cols-2"><Field label="قیمت فعلی" required value={price} onChange={setPrice} inputMode="decimal"/><Field label="قیمت قبلی (اختیاری)" value={compareAt} onChange={setCompareAt} inputMode="decimal"/><label className="space-y-2"><span className="text-xs font-bold">دسته‌بندی</span><select value={categoryId} onChange={e=>setCategoryId(e.target.value)} className={inputCls}>{categories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label><Field label="موجودی" value={stockQuantity} onChange={setStockQuantity} inputMode="numeric"/></div><label className="mt-4 flex items-center gap-3 rounded-2xl border border-border bg-muted/20 p-4 text-sm font-bold"><input type="checkbox" checked={isTraditional} onChange={e=>setIsTraditional(e.target.checked)} className="h-5 w-5"/>در محصولات وطنی نمایش داده شود.</label><label className="mt-3 flex items-center gap-3 rounded-2xl border border-border bg-muted/20 p-4 text-sm font-bold"><input type="checkbox" checked={isActive} onChange={e=>setIsActive(e.target.checked)} className="h-5 w-5"/>محصول فعال و قابل نمایش باشد.</label></Section><Section title="تصاویر محصول" icon={<ImagePlus className="h-5 w-5"/>}><div className="flex flex-wrap items-center gap-2"><input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={e=>chooseImages(e.target.files)}/><Button type="button" variant="outline" onClick={()=>fileInputRef.current?.click()} disabled={busy||pendingImages.length+(initial?.images?.length??0)>=PRODUCT_MAX_IMAGES}><Upload className="h-4 w-4"/>انتخاب تصاویر</Button><span className="text-xs text-muted-foreground">حداکثر ۱۰ مگابایت برای هر تصویر.</span></div>{pendingImages.length>0&&<div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">{pendingImages.map((item,index)=><div key={item.id} className="group relative overflow-hidden rounded-2xl border-2 border-primary/30 bg-muted"><img src={item.preview} alt={`پیش‌نمایش ${index+1}`} className="aspect-square w-full object-cover"/><button type="button" onClick={()=>removePending(item.id)} disabled={busy} className="absolute end-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-black/65 text-white hover:bg-red-600" aria-label="حذف تصویر"><X className="h-4 w-4"/></button></div>)}</div>}{isEdit&&initial?.id&&<div className="mt-5"><ProductImagesEditor productId={initial.id} initial={initial.images??[]} initialPrimaryIndex={initial.primaryImageIndex??0}/></div>}</Section><Section title="مشخصات تکمیلی" icon={<Plus className="h-5 w-5"/>}><div className="grid gap-4 sm:grid-cols-2"><Field label="وزن (کیلوگرم)" value={weightKg} onChange={setWeightKg} inputMode="decimal"/><Field label="شماره واتساپ فروشنده" value={whatsappNumber} onChange={v=>setWhatsappNumber(cleanWhatsapp(v))} dir="ltr"/></div><div className="mt-4 grid grid-cols-3 gap-3"><Field label="طول" value={dimLength} onChange={setDimLength} inputMode="decimal"/><Field label="عرض" value={dimWidth} onChange={setDimWidth} inputMode="decimal"/><Field label="ارتفاع" value={dimHeight} onChange={setDimHeight} inputMode="decimal"/></div><label className="mt-4 block"><span className="mb-2 block text-xs font-bold">برچسب‌ها</span><input value={tags} onChange={e=>setTags(e.target.value)} className={inputCls} placeholder="مثلاً دست‌ساز، هراتی، باکیفیت"/></label><div className="mt-5 space-y-2">{attributes.map((item,index)=><div key={index} className="flex gap-2"><input value={item.key} onChange={e=>updateAttribute(index,'key',e.target.value)} className={inputCls} placeholder="ویژگی"/><input value={item.value} onChange={e=>updateAttribute(index,'value',e.target.value)} className={inputCls} placeholder="مقدار"/><button type="button" onClick={()=>removeAttribute(index)} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-border text-destructive" aria-label="حذف ویژگی"><X className="h-4 w-4"/></button></div>)}<Button type="button" variant="outline" size="sm" onClick={addAttribute}><Plus className="h-4 w-4"/>افزودن ویژگی</Button></div></Section><div className="sticky bottom-3 z-10 flex justify-end gap-2 rounded-3xl border border-border bg-card/95 p-3 shadow-xl backdrop-blur"><Button type="button" variant="outline" onClick={()=>router.push(backHref)} disabled={busy}>انصراف</Button><Button type="submit" disabled={busy||brandLoading}>{busy?'در حال ذخیره و آپلود…':isEdit?'ذخیره تغییرات':'ثبت محصول'}</Button></div></form>;
+
+function Field({ label, value, onChange, required = false, placeholder = '', type = 'text', inputMode }: { label: string; value: string; onChange: (value: string) => void; required?: boolean; placeholder?: string; type?: string; inputMode?: React.HTMLAttributes<HTMLInputElement>['inputMode'] }) {
+  return <label className="block space-y-2"><span className="text-xs font-bold">{label}{required ? <span className="text-destructive"> *</span> : null}</span><input value={value} onChange={(e) => onChange(e.target.value)} type={type} inputMode={inputMode} placeholder={placeholder} className={inputCls} /></label>;
 }
-function Field({label,value,onChange,required=false,placeholder,inputMode,dir}:{label:string;value:string;onChange:(value:string)=>void;required?:boolean;placeholder?:string;inputMode?:React.HTMLAttributes<HTMLInputElement>['inputMode'];dir?:'ltr'|'rtl'}){return <label className="block space-y-2"><span className="text-xs font-bold">{label}{required?' *':''}</span><input dir={dir} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} inputMode={inputMode} className={inputCls} required={required}/></label>}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return <section className="rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-6"><h2 className="mb-5 text-base font-black">{title}</h2>{children}</section>;
+}
+
+export function ProductForm({ mode, categories, initial, backHref, sellerName = 'فروشنده', storeName = 'فروشگاه' }: ProductFormProps) {
+  const router = useRouter();
+  const isEdit = mode === 'edit';
+  const [name, setName] = React.useState(initial?.name ?? '');
+  const [slug, setSlug] = React.useState(initial?.slug ?? '');
+  const [slugTouched, setSlugTouched] = React.useState(Boolean(initial?.slug));
+  const [shortDescription, setShortDescription] = React.useState(initial?.shortDescription ?? '');
+  const [description, setDescription] = React.useState(initial?.description ?? '');
+  const [price, setPrice] = React.useState(initial?.price != null ? String(initial.price) : '');
+  const [compareAt, setCompareAt] = React.useState(initial?.compareAtPrice != null ? String(initial.compareAtPrice) : '');
+  const [categoryId, setCategoryId] = React.useState(initial?.categoryId ?? categories[0]?.id ?? '');
+  const [stockQuantity, setStockQuantity] = React.useState(initial?.stockQuantity != null ? String(initial.stockQuantity) : '0');
+  const [isActive, setIsActive] = React.useState(initial?.isActive !== false);
+  const [isTraditional, setIsTraditional] = React.useState(initial?.isTraditional === true);
+  const [whatsappNumber, setWhatsappNumber] = React.useState(initial?.whatsappNumber ?? '');
+  const [weightKg, setWeightKg] = React.useState(initial?.weightKg != null ? String(initial.weightKg) : '');
+  const [tags, setTags] = React.useState(() => { const v = parseJson<string[]>(initial?.tagsJson, []); return Array.isArray(v) ? v.join('، ') : ''; });
+  const [attributes, setAttributes] = React.useState<Attribute[]>(() => parseJson<Attribute[]>(initial?.attributesJson, []));
+  const [pendingImages, setPendingImages] = React.useState<PendingImage[]>([]);
+  const [busy, setBusy] = React.useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => { if (!slugTouched && name) setSlug(slugify(name)); }, [name, slugTouched]);
+  React.useEffect(() => () => { pendingImages.forEach((item) => URL.revokeObjectURL(item.preview)); }, [pendingImages]);
+
+  function chooseImages(files: FileList | null) {
+    if (!files?.length || busy) return;
+    const existing = initial?.images?.length ?? 0;
+    const room = PRODUCT_MAX_IMAGES - existing - pendingImages.length;
+    if (room <= 0) { toast.error(`حداکثر ${PRODUCT_MAX_IMAGES} تصویر مجاز است.`); return; }
+    const accepted = Array.from(files).slice(0, room).flatMap((file) => {
+      if (!isSupportedImageType(file.type) && file.type !== 'application/octet-stream') { toast.error(`${file.name}: فایل تصویری معتبر نیست.`); return []; }
+      if (file.size <= 0 || file.size > PRODUCT_MAX_IMAGE_BYTES) { toast.error(`${file.name}: حجم تصویر نباید بیشتر از ۱۰ مگابایت باشد.`); return []; }
+      return [{ id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, file, preview: URL.createObjectURL(file) }];
+    });
+    setPendingImages((items) => [...items, ...accepted]);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }
+
+  function removePending(id: string) {
+    setPendingImages((items) => { const found = items.find((item) => item.id === id); if (found) URL.revokeObjectURL(found.preview); return items.filter((item) => item.id !== id); });
+  }
+
+  async function uploadPending(productId: string) {
+    const failed: string[] = [];
+    let uploaded = 0;
+    for (const item of pendingImages) {
+      try {
+        const fd = new FormData();
+        fd.append('file', item.file);
+        const response = await fetch(`/api/seller/products/${productId}/images`, { method: 'POST', body: fd, credentials: 'include' });
+        const body = await response.json().catch(() => null);
+        if (!response.ok || !body?.ok) failed.push(`${item.file.name}: ${body?.error?.message ?? 'آپلود تصویر ناموفق بود.'}`);
+        else uploaded += 1;
+      } catch (error) { failed.push(`${item.file.name}: ${error instanceof Error ? error.message : 'آپلود تصویر ناموفق بود.'}`); }
+    }
+    return { uploaded, failed };
+  }
+
+  async function onSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    if (!name.trim()) return toast.error('نام محصول الزامی است.');
+    if (!shortDescription.trim()) return toast.error('توضیح کوتاه محصول الزامی است.');
+    const numericPrice = numberValue(price);
+    if (numericPrice <= 0) return toast.error('قیمت باید بیشتر از صفر باشد.');
+    if (!categoryId) return toast.error('دسته‌بندی محصول را انتخاب کنید.');
+    const quantity = Math.max(0, Math.floor(numberValue(stockQuantity)));
+    const oldPrice = compareAt.trim() ? numberValue(compareAt) : null;
+    if (oldPrice !== null && oldPrice <= numericPrice) return toast.error('قیمت قبلی باید از قیمت فعلی بیشتر باشد.');
+    setBusy(true);
+    try {
+      const payload = {
+        slug: slug.trim() || null,
+        name: name.trim(),
+        shortDescription: shortDescription.trim(),
+        description: description.trim() || null,
+        price: numericPrice,
+        compareAtPrice: oldPrice,
+        categoryId,
+        inStock: quantity > 0,
+        isActive,
+        stockQuantity: quantity,
+        whatsappNumber: whatsappNumber ? cleanWhatsapp(whatsappNumber) : null,
+        isTraditional,
+        weightKg: weightKg.trim() ? numberValue(weightKg) : null,
+        tagsJson: JSON.stringify(tags.split(/[،,]+/).map((value) => value.trim()).filter(Boolean)),
+        attributesJson: JSON.stringify(attributes.filter((value) => value.key.trim() && value.value.trim())),
+        ...(isEdit ? {} : { currency: 'AFN' }),
+      };
+      const endpoint = isEdit && initial?.id ? `/api/seller/products/${initial.id}` : '/api/seller/products';
+      const response = await fetch(endpoint, { method: isEdit ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(payload) });
+      const body = await response.json().catch(() => null);
+      if (!response.ok || !body?.ok) throw new Error(body?.error?.message ?? 'ثبت محصول ناموفق بود.');
+      const productId = String(body.data?.id ?? initial?.id ?? '');
+      const imageResult = productId ? await uploadPending(productId) : { uploaded: 0, failed: pendingImages.map((item) => `${item.file.name}: شناسه محصول دریافت نشد.`) };
+      setPendingImages([]);
+      if (imageResult.failed.length === 0) toast.success(isEdit ? 'محصول با موفقیت به‌روزرسانی شد.' : 'محصول با موفقیت ثبت شد.');
+      else toast.warning(`محصول ثبت شد؛ ${imageResult.uploaded} تصویر ذخیره شد و ${imageResult.failed.length} تصویر نیاز به بررسی دارد.`);
+      router.push(backHref); router.refresh();
+    } catch (error) { toast.error(error instanceof Error ? error.message : 'ثبت محصول ناموفق بود.'); }
+    finally { setBusy(false); }
+  }
+
+  const existingImages = initial?.images ?? [];
+
+  return <form onSubmit={onSubmit} className="mx-auto max-w-5xl space-y-5" dir="rtl">
+    <header className="rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-7"><h1 className="text-2xl font-black">{isEdit ? 'ویرایش محصول' : 'ثبت محصول جدید'}</h1><p className="mt-2 text-xs leading-6 text-muted-foreground">این محصول برای <b>{storeName}</b> و به نام فروشنده <b>{sellerName}</b> ثبت می‌شود.</p></header>
+    <Section title="اطلاعات محصول"><div className="grid gap-4 sm:grid-cols-2"><Field label="نام محصول" required value={name} onChange={setName} placeholder="مثلاً قالی دست‌باف هراتی"/><Field label="شناسه صفحه" value={slug} onChange={(value) => { setSlugTouched(true); setSlug(value); }} placeholder="خودکار ساخته می‌شود"/><div className="sm:col-span-2"><Field label="توضیح کوتاه" required value={shortDescription} onChange={setShortDescription}/><label className="mt-4 block space-y-2"><span className="text-xs font-bold">توضیحات کامل</span><textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={5} className="w-full rounded-2xl border border-input bg-background p-3.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"/></label></div></div></Section>
+    <Section title="قیمت و دسته‌بندی"><div className="grid gap-4 sm:grid-cols-2"><Field label="قیمت فعلی" required value={price} onChange={setPrice} inputMode="decimal"/><Field label="قیمت قبلی" value={compareAt} onChange={setCompareAt} inputMode="decimal"/><label className="space-y-2"><span className="text-xs font-bold">دسته‌بندی</span><select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className={inputCls}><option value="">انتخاب دسته‌بندی</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label><Field label="موجودی" value={stockQuantity} onChange={setStockQuantity} type="number" inputMode="numeric"/><Field label="شماره واتساپ" value={whatsappNumber} onChange={setWhatsappNumber} placeholder="+937..."/><Field label="وزن (کیلوگرام)" value={weightKg} onChange={setWeightKg} inputMode="decimal"/></div></Section>
+    <Section title="تصاویر محصول"><div className="space-y-4"><div className="flex flex-wrap items-center gap-3"><button type="button" disabled={busy} onClick={() => fileInputRef.current?.click()} className="rounded-2xl bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground disabled:opacity-60">افزودن تصویر</button><input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => chooseImages(e.target.files)}/><span className="text-[11px] text-muted-foreground">حداکثر {PRODUCT_MAX_IMAGES} تصویر، هر تصویر حداکثر ۱۰MB</span></div>{existingImages.length || pendingImages.length ? <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">{existingImages.map((src, index) => <div key={`${src}-${index}`} className="relative overflow-hidden rounded-2xl border border-border bg-muted"><img src={src} alt="" className="aspect-square h-full w-full object-cover" loading="lazy"/></div>)}{pendingImages.map((item) => <div key={item.id} className="relative overflow-hidden rounded-2xl border border-primary/30 bg-muted"><img src={item.preview} alt="" className="aspect-square h-full w-full object-cover"/><button type="button" onClick={() => removePending(item.id)} className="absolute end-2 top-2 rounded-lg bg-black/65 px-2 py-1 text-[10px] font-bold text-white">حذف</button></div>)}</div> : <div className="rounded-2xl border border-dashed border-border p-8 text-center text-xs text-muted-foreground">هنوز تصویری اضافه نشده است.</div>}</div></Section>
+    <Section title="تنظیمات"><div className="grid gap-3 sm:grid-cols-2"><label className="flex items-center gap-3 rounded-2xl border border-border p-4"><input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} className="h-4 w-4"/><span className="text-sm font-bold">محصول فعال باشد</span></label><label className="flex items-center gap-3 rounded-2xl border border-border p-4"><input type="checkbox" checked={isTraditional} onChange={(e) => setIsTraditional(e.target.checked)} className="h-4 w-4"/><span className="text-sm font-bold">محصول وطنی/سنتی</span></label></div><label className="mt-4 block space-y-2"><span className="text-xs font-bold">برچسب‌ها</span><input value={tags} onChange={(e) => setTags(e.target.value)} className={inputCls} placeholder="مثلاً جدید، پرفروش"/></label></Section>
+    <div className="flex flex-wrap items-center justify-end gap-3"><button type="button" disabled={busy} onClick={() => router.push(backHref)} className="rounded-2xl border border-border bg-background px-5 py-3 text-xs font-bold">انصراف</button><button type="submit" disabled={busy} className="rounded-2xl bg-primary px-6 py-3 text-xs font-black text-primary-foreground disabled:cursor-wait disabled:opacity-60">{busy ? 'در حال ذخیره…' : isEdit ? 'ذخیره تغییرات' : 'ثبت محصول'}</button></div>
+  </form>;
+}
