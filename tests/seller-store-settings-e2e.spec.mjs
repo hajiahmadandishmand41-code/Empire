@@ -13,14 +13,8 @@ async function login(page) {
   await expect(page).toHaveURL(/\/fa\/seller(?:[/?#]|$)/, { timeout: 20000 });
 }
 
-test('brand route, store settings GET/PATCH and media URL persistence are healthy', async ({ page }) => {
+test('store settings GET/PATCH and media URL validation are healthy', async ({ page }) => {
   await login(page);
-
-  const brandPage = await page.goto(`${base}/fa/seller/brand`, { waitUntil: 'domcontentloaded' });
-  expect(brandPage?.status()).toBeLessThan(500);
-  await expect(page.locator('#main')).toBeVisible();
-  await expect(page.locator('body')).toContainText('برند من');
-
   const settingsPage = await page.goto(`${base}/fa/seller/settings`, { waitUntil: 'domcontentloaded' });
   expect(settingsPage?.status()).toBeLessThan(500);
   await expect(page.locator('#main')).toBeVisible();
@@ -37,7 +31,7 @@ test('brand route, store settings GET/PATCH and media URL persistence are health
   const patchedBody = await patch.json();
   expect(patchedBody.ok).toBeTruthy();
   expect(patchedBody.data.sellerBio).toBe(marker);
-  expect(patchedBody.brandSynced).toBe(true);
+  expect(patchedBody.data.brandSynced).toBeUndefined();
 
   const media = 'https://example.com/e2e-banner.jpg';
   const mediaPatch = await page.request.patch(`${base}/api/seller/settings`, { data: { sellerBannerUrl: media } });
@@ -46,7 +40,7 @@ test('brand route, store settings GET/PATCH and media URL persistence are health
   expect(mediaBody.ok).toBeTruthy();
   expect(mediaBody.data.sellerBannerUrl).toBe(media);
 
-  const invalidMedia = await page.request.patch(`${base}/api/seller/settings`, { data: { sellerBannerUrl: 'javascript:alert(1)' } });
+  const invalidMedia = await page.request.patch(`${base}/api/seller/settings`, { data: { sellerBannerUrl: 'ftp://example.com/banner.jpg' } });
   expect(invalidMedia.status()).toBe(422);
 
   const restored = await page.request.patch(`${base}/api/seller/settings`, {
@@ -58,10 +52,10 @@ test('brand route, store settings GET/PATCH and media URL persistence are health
   expect(restored.status()).toBe(200);
 });
 
-test('legacy my-brand alias resolves to the canonical brand page', async ({ page }) => {
+test('removed seller brand routes are not exposed', async ({ page }) => {
   await login(page);
-  const response = await page.goto(`${base}/fa/seller/my-brand`, { waitUntil: 'domcontentloaded' });
-  expect(response?.status()).toBeLessThan(400);
-  await expect(page).toHaveURL(/\/fa\/seller\/brand$/);
-  await expect(page.locator('body')).toContainText('برند من');
+  for (const route of ['/fa/seller/brand', '/fa/seller/my-brand']) {
+    const response = await page.goto(`${base}${route}`, { waitUntil: 'domcontentloaded' });
+    expect(response?.status()).toBe(404);
+  }
 });
