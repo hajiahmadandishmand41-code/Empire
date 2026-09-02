@@ -48,7 +48,7 @@ export function ProductForm({ mode, categories, initial, backHref, sellerName = 
   const [whatsappNumber, setWhatsappNumber] = React.useState(initial?.whatsappNumber ?? '');
   const [weightKg, setWeightKg] = React.useState(initial?.weightKg != null ? String(initial.weightKg) : '');
   const [tags, setTags] = React.useState(() => { const v = parseJson<string[]>(initial?.tagsJson, []); return Array.isArray(v) ? v.join('، ') : ''; });
-  const [attributes, setAttributes] = React.useState<Attribute[]>(() => parseJson<Attribute[]>(initial?.attributesJson, []));
+  const [attributes] = React.useState<Attribute[]>(() => parseJson<Attribute[]>(initial?.attributesJson, []));
   const [pendingImages, setPendingImages] = React.useState<PendingImage[]>([]);
   const [busy, setBusy] = React.useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -129,17 +129,15 @@ export function ProductForm({ mode, categories, initial, backHref, sellerName = 
       if (!response.ok || !body?.ok) throw new Error(body?.error?.message ?? 'ثبت محصول ناموفق بود.');
       const productId = String(body.data?.id ?? initial?.id ?? '');
       const imageResult = productId ? await uploadPending(productId) : { uploaded: 0, failed: pendingImages.map((item) => `${item.file.name}: شناسه محصول دریافت نشد.`) };
-      const totalImages = (initial?.images?.length ?? 0) + imageResult.uploaded;
       setPendingImages([]);
       if (imageResult.failed.length > 0) {
-        toast.error(`محصول ذخیره شد، اما ${imageResult.failed.length} تصویر آپلود نشد. محصول تا رفع مشکل منتشر نشد.`);
-        router.push(`/seller/products/${productId}/edit`);
+        toast.error(`محصول ذخیره شد، اما ${imageResult.failed.length} تصویر آپلود نشد. محصول را از فهرست باز کنید و تصاویر را کامل کنید.`);
+        router.push(backHref);
         router.refresh();
         return;
       }
-      if (isActive && totalImages < 3) {
-        throw new Error('محصول ذخیره شد اما تعداد تصاویر به حداقل ۳ نرسید؛ وضعیت انتشار را بررسی کنید.');
-      }
+      const totalImages = (initial?.images?.length ?? 0) + imageResult.uploaded;
+      if (isActive && totalImages < 3) throw new Error('محصول ذخیره شد اما تعداد تصاویر به حداقل ۳ نرسید؛ وضعیت انتشار را بررسی کنید.');
       toast.success(isEdit ? 'محصول با موفقیت به‌روزرسانی شد.' : 'محصول با موفقیت ثبت شد.');
       router.push(backHref); router.refresh();
     } catch (error) { toast.error(error instanceof Error ? error.message : 'ثبت محصول ناموفق بود.'); }
