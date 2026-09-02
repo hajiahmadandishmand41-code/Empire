@@ -22,6 +22,7 @@ export async function POST(req: NextRequest) {
   let body: unknown; try { body = await req.json(); } catch { return jsonError('invalid_json', 'دادهٔ ارسال‌شده معتبر نیست.', { status: 400 }); }
   const parsed = productCreateSchema.safeParse(body); if (!parsed.success) return jsonError('invalid_body', productValidationMessage(parsed.error.issues), { status: 422, details: { issues: parsed.error.issues } });
   const productInput = parsed.data;
+  if (productInput.isActive && productInput.images.length < 3) return jsonError('insufficient_images', 'برای فعال‌سازی محصول حداقل ۳ تصویر لازم است.', { status: 422 });
   try {
     const created = await getProductService().createProduct({ ...productInput, sellerId: guard.user.id });
     logger.info('seller.product.created', { productId: created.id, sellerId: guard.user.id, slug: created.slug, imageCount: parsed.data.images.length });
