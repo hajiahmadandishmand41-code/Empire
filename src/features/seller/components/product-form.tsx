@@ -5,16 +5,11 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { normalizePersianDigits, PRODUCT_MAX_IMAGE_BYTES, PRODUCT_MAX_IMAGES } from '@/features/products/product-contract';
 import { isSupportedImageType } from '@/lib/media/image-upload';
+import { optimizeImage, uploadImageWithProgress, formatBytes } from '@/lib/media/client-image-upload';
 
 interface CategoryOption { id: string; key: string; name: string }
 interface Attribute { key: string; value: string }
-export interface ProductFormInitial {
-  id?: string; slug?: string; name?: string; shortDescription?: string; description?: string | null;
-  price?: number; compareAtPrice?: number | null; categoryId?: string; inStock?: boolean; isActive?: boolean;
-  stockQuantity?: number; images?: string[]; primaryImageIndex?: number; whatsappNumber?: string | null;
-  isTraditional?: boolean; weightKg?: number | null; dimensionsJson?: string | null; tagsJson?: string | null;
-  attributesJson?: string | null;
-}
+export interface ProductFormInitial { id?: string; slug?: string; name?: string; shortDescription?: string; description?: string | null; price?: number; compareAtPrice?: number | null; categoryId?: string; inStock?: boolean; isActive?: boolean; stockQuantity?: number; images?: string[]; primaryImageIndex?: number; whatsappNumber?: string | null; isTraditional?: boolean; weightKg?: number | null; dimensionsJson?: string | null; tagsJson?: string | null; attributesJson?: string | null }
 interface ProductFormProps { mode: 'create' | 'edit'; categories: CategoryOption[]; initial?: ProductFormInitial; backHref: string; sellerName?: string; storeName?: string }
 interface PendingImage { id: string; file: File; preview: string }
 const inputCls = 'h-11 w-full rounded-2xl border border-input bg-background px-3.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15';
@@ -22,137 +17,65 @@ const numberValue = (value: string) => { const n = Number(normalizePersianDigits
 const slugify = (value: string) => value.normalize('NFKC').trim().toLocaleLowerCase().replace(/[^\p{L}\p{N}\s-]/gu, '').replace(/[\s_-]+/gu, '-').replace(/-+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80);
 function parseJson<T>(value: string | null | undefined, fallback: T): T { if (!value) return fallback; try { return JSON.parse(value) as T; } catch { return fallback; } }
 const cleanWhatsapp = (value: string) => value.replace(/[^0-9+]/g, '').slice(0, 20);
-
-function Field({ label, value, onChange, required = false, placeholder = '', type = 'text', inputMode }: { label: string; value: string; onChange: (value: string) => void; required?: boolean; placeholder?: string; type?: string; inputMode?: React.HTMLAttributes<HTMLInputElement>['inputMode'] }) {
-  return <label className="block space-y-2"><span className="text-xs font-bold">{label}{required ? <span className="text-destructive"> *</span> : null}</span><input value={value} onChange={(e) => onChange(e.target.value)} type={type} inputMode={inputMode} placeholder={placeholder} className={inputCls} /></label>;
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return <section className="rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-6"><h2 className="mb-5 text-base font-black">{title}</h2>{children}</section>;
-}
+function Field({ label, value, onChange, required = false, placeholder = '', type = 'text', inputMode }: { label: string; value: string; onChange: (value: string) => void; required?: boolean; placeholder?: string; type?: string; inputMode?: React.HTMLAttributes<HTMLInputElement>['inputMode'] }) { return <label className="block space-y-2"><span className="text-xs font-bold">{label}{required ? <span className="text-destructive"> *</span> : null}</span><input value={value} onChange={(e) => onChange(e.target.value)} type={type} inputMode={inputMode} placeholder={placeholder} className={inputCls} /></label>; }
+function Section({ title, children }: { title: string; children: React.ReactNode }) { return <section className="rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-6"><h2 className="mb-5 text-base font-black">{title}</h2>{children}</section>; }
 
 export function ProductForm({ mode, categories, initial, backHref, sellerName = 'فروشنده', storeName = 'فروشگاه' }: ProductFormProps) {
-  const router = useRouter();
-  const isEdit = mode === 'edit';
-  const [name, setName] = React.useState(initial?.name ?? '');
-  const [slug, setSlug] = React.useState(initial?.slug ?? '');
-  const [slugTouched, setSlugTouched] = React.useState(Boolean(initial?.slug));
-  const [shortDescription, setShortDescription] = React.useState(initial?.shortDescription ?? '');
-  const [description, setDescription] = React.useState(initial?.description ?? '');
-  const [price, setPrice] = React.useState(initial?.price != null ? String(initial.price) : '');
-  const [compareAt, setCompareAt] = React.useState(initial?.compareAtPrice != null ? String(initial.compareAtPrice) : '');
-  const [categoryId, setCategoryId] = React.useState(initial?.categoryId ?? categories[0]?.id ?? '');
-  const [stockQuantity, setStockQuantity] = React.useState(initial?.stockQuantity != null ? String(initial.stockQuantity) : '0');
-  const [isActive, setIsActive] = React.useState(initial?.isActive !== false);
-  const [isTraditional, setIsTraditional] = React.useState(initial?.isTraditional === true);
-  const [whatsappNumber, setWhatsappNumber] = React.useState(initial?.whatsappNumber ?? '');
-  const [weightKg, setWeightKg] = React.useState(initial?.weightKg != null ? String(initial.weightKg) : '');
-  const [tags, setTags] = React.useState(() => { const v = parseJson<string[]>(initial?.tagsJson, []); return Array.isArray(v) ? v.join('، ') : ''; });
-  const [attributes] = React.useState<Attribute[]>(() => parseJson<Attribute[]>(initial?.attributesJson, []));
-  const [pendingImages, setPendingImages] = React.useState<PendingImage[]>([]);
-  const [busy, setBusy] = React.useState(false);
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
-
+  const router = useRouter(); const isEdit = mode === 'edit';
+  const [name, setName] = React.useState(initial?.name ?? ''); const [slug, setSlug] = React.useState(initial?.slug ?? ''); const [slugTouched, setSlugTouched] = React.useState(Boolean(initial?.slug));
+  const [shortDescription, setShortDescription] = React.useState(initial?.shortDescription ?? ''); const [description, setDescription] = React.useState(initial?.description ?? '');
+  const [price, setPrice] = React.useState(initial?.price != null ? String(initial.price) : ''); const [compareAt, setCompareAt] = React.useState(initial?.compareAtPrice != null ? String(initial.compareAtPrice) : '');
+  const [categoryId, setCategoryId] = React.useState(initial?.categoryId ?? categories[0]?.id ?? ''); const [stockQuantity, setStockQuantity] = React.useState(initial?.stockQuantity != null ? String(initial.stockQuantity) : '0');
+  const [isActive, setIsActive] = React.useState(initial?.isActive !== false); const [isTraditional, setIsTraditional] = React.useState(initial?.isTraditional === true); const [whatsappNumber, setWhatsappNumber] = React.useState(initial?.whatsappNumber ?? ''); const [weightKg, setWeightKg] = React.useState(initial?.weightKg != null ? String(initial.weightKg) : '');
+  const [tags, setTags] = React.useState(() => { const v = parseJson<string[]>(initial?.tagsJson, []); return Array.isArray(v) ? v.join('، ') : ''; }); const [attributes] = React.useState<Attribute[]>(() => parseJson<Attribute[]>(initial?.attributesJson, []));
+  const [pendingImages, setPendingImages] = React.useState<PendingImage[]>([]); const [busy, setBusy] = React.useState(false); const [uploadProgress, setUploadProgress] = React.useState(0); const fileInputRef = React.useRef<HTMLInputElement>(null);
   React.useEffect(() => { if (!slugTouched && name) setSlug(slugify(name)); }, [name, slugTouched]);
   React.useEffect(() => () => { pendingImages.forEach((item) => URL.revokeObjectURL(item.preview)); }, [pendingImages]);
 
   function chooseImages(files: FileList | null) {
-    if (!files?.length || busy) return;
-    const existing = initial?.images?.length ?? 0;
-    const room = PRODUCT_MAX_IMAGES - existing - pendingImages.length;
+    if (!files?.length || busy) return; const existing = initial?.images?.length ?? 0; const room = PRODUCT_MAX_IMAGES - existing - pendingImages.length;
     if (room <= 0) { toast.error(`حداکثر ${PRODUCT_MAX_IMAGES} تصویر مجاز است.`); return; }
     const accepted = Array.from(files).slice(0, room).flatMap((file) => {
       if (!isSupportedImageType(file.type) && file.type !== 'application/octet-stream') { toast.error(`${file.name}: فایل تصویری معتبر نیست.`); return []; }
       if (file.size <= 0 || file.size > PRODUCT_MAX_IMAGE_BYTES) { toast.error(`${file.name}: حجم تصویر نباید بیشتر از ۱۰ مگابایت باشد.`); return []; }
       return [{ id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, file, preview: URL.createObjectURL(file) }];
     });
-    setPendingImages((items) => [...items, ...accepted]);
-    if (fileInputRef.current) fileInputRef.current.value = '';
+    setPendingImages((items) => [...items, ...accepted]); if (fileInputRef.current) fileInputRef.current.value = '';
   }
-
-  function removePending(id: string) {
-    setPendingImages((items) => { const found = items.find((item) => item.id === id); if (found) URL.revokeObjectURL(found.preview); return items.filter((item) => item.id !== id); });
-  }
+  function removePending(id: string) { setPendingImages((items) => { const found = items.find((item) => item.id === id); if (found) URL.revokeObjectURL(found.preview); return items.filter((item) => item.id !== id); }); }
 
   async function uploadPending(productId: string) {
-    const failed: string[] = [];
-    let uploaded = 0;
+    const failed: string[] = []; let uploaded = 0; let completed = 0;
     for (const item of pendingImages) {
       try {
-        const fd = new FormData();
-        fd.append('file', item.file);
-        const response = await fetch(`/api/seller/products/${productId}/images`, { method: 'POST', body: fd, credentials: 'include' });
-        const body = await response.json().catch(() => null);
-        if (!response.ok || !body?.ok) failed.push(`${item.file.name}: ${body?.error?.message ?? 'آپلود تصویر ناموفق بود.'}`);
-        else uploaded += 1;
-      } catch (error) { failed.push(`${item.file.name}: ${error instanceof Error ? error.message : 'آپلود تصویر ناموفق بود.'}`); }
+        const optimized = await optimizeImage(item.file, 'product');
+        const result = await uploadImageWithProgress(`/api/seller/products/${productId}/images`, optimized.file, (part) => setUploadProgress(Math.round(((completed + part / 100) / pendingImages.length) * 100)));
+        uploaded += 1; completed += 1;
+        if (optimized.optimizedBytes < optimized.originalBytes) toast.success(`${item.file.name}: ${formatBytes(optimized.originalBytes - optimized.optimizedBytes)} سبک‌تر شد.`);
+        void result;
+      } catch (error) { completed += 1; failed.push(`${item.file.name}: ${error instanceof Error ? error.message : 'آپلود تصویر ناموفق بود.'}`); setUploadProgress(Math.round((completed / pendingImages.length) * 100)); }
     }
     return { uploaded, failed };
   }
 
   async function onSubmit(event: React.FormEvent) {
-    event.preventDefault();
-    if (!name.trim()) return toast.error('نام محصول الزامی است.');
-    if (!shortDescription.trim()) return toast.error('توضیح کوتاه محصول الزامی است.');
-    const numericPrice = numberValue(price);
-    if (numericPrice <= 0) return toast.error('قیمت باید بیشتر از صفر باشد.');
-    if (!categoryId) return toast.error('دسته‌بندی محصول را انتخاب کنید.');
-    const quantity = Math.max(0, Math.floor(numberValue(stockQuantity)));
-    const oldPrice = compareAt.trim() ? numberValue(compareAt) : null;
+    event.preventDefault(); if (!name.trim()) return toast.error('نام محصول الزامی است.'); if (!shortDescription.trim()) return toast.error('توضیح کوتاه محصول الزامی است.');
+    const numericPrice = numberValue(price); if (numericPrice <= 0) return toast.error('قیمت باید بیشتر از صفر باشد.'); if (!categoryId) return toast.error('دسته‌بندی محصول را انتخاب کنید.');
+    const quantity = Math.max(0, Math.floor(numberValue(stockQuantity))); const oldPrice = compareAt.trim() ? numberValue(compareAt) : null;
     if (oldPrice !== null && oldPrice <= numericPrice) return toast.error('قیمت قبلی باید از قیمت فعلی بیشتر باشد.');
-    const plannedImageCount = (initial?.images?.length ?? 0) + pendingImages.length;
-    if (isActive && plannedImageCount < 3) return toast.error('برای فعال‌سازی محصول حداقل ۳ تصویر لازم است.');
-    if (!isEdit && pendingImages.length === 0) return toast.error('برای ثبت محصول حداقل ۳ تصویر انتخاب کنید.');
-    setBusy(true);
+    const plannedImageCount = (initial?.images?.length ?? 0) + pendingImages.length; if (isActive && plannedImageCount < 3) return toast.error('برای فعال‌سازی محصول حداقل ۳ تصویر لازم است.'); if (!isEdit && pendingImages.length === 0) return toast.error('برای ثبت محصول حداقل ۳ تصویر انتخاب کنید.');
+    setBusy(true); setUploadProgress(0);
     try {
-      const payload = {
-        slug: slug.trim() || null,
-        name: name.trim(),
-        shortDescription: shortDescription.trim(),
-        description: description.trim() || null,
-        price: numericPrice,
-        compareAtPrice: oldPrice,
-        categoryId,
-        inStock: quantity > 0,
-        isActive,
-        stockQuantity: quantity,
-        whatsappNumber: whatsappNumber ? cleanWhatsapp(whatsappNumber) : null,
-        isTraditional,
-        weightKg: weightKg.trim() ? numberValue(weightKg) : null,
-        tagsJson: JSON.stringify(tags.split(/[،,]+/).map((value) => value.trim()).filter(Boolean)),
-        attributesJson: JSON.stringify(attributes.filter((value) => value.key.trim() && value.value.trim())),
-        ...(isEdit ? {} : { currency: 'AFN' }),
-      };
-      const endpoint = isEdit && initial?.id ? `/api/seller/products/${initial.id}` : '/api/seller/products';
-      const response = await fetch(endpoint, { method: isEdit ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(payload) });
-      const body = await response.json().catch(() => null);
-      if (!response.ok || !body?.ok) throw new Error(body?.error?.message ?? 'ثبت محصول ناموفق بود.');
-      const productId = String(body.data?.id ?? initial?.id ?? '');
-      const imageResult = productId ? await uploadPending(productId) : { uploaded: 0, failed: pendingImages.map((item) => `${item.file.name}: شناسه محصول دریافت نشد.`) };
-      setPendingImages([]);
-      if (imageResult.failed.length > 0) {
-        toast.error(`محصول ذخیره شد، اما ${imageResult.failed.length} تصویر آپلود نشد. محصول را از فهرست باز کنید و تصاویر را کامل کنید.`);
-        router.push(backHref);
-        router.refresh();
-        return;
-      }
-      const totalImages = (initial?.images?.length ?? 0) + imageResult.uploaded;
-      if (isActive && totalImages < 3) throw new Error('محصول ذخیره شد اما تعداد تصاویر به حداقل ۳ نرسید؛ وضعیت انتشار را بررسی کنید.');
-      toast.success(isEdit ? 'محصول با موفقیت به‌روزرسانی شد.' : 'محصول با موفقیت ثبت شد.');
-      router.push(backHref); router.refresh();
-    } catch (error) { toast.error(error instanceof Error ? error.message : 'ثبت محصول ناموفق بود.'); }
-    finally { setBusy(false); }
+      const payload = { slug: slug.trim() || null, name: name.trim(), shortDescription: shortDescription.trim(), description: description.trim() || null, price: numericPrice, compareAtPrice: oldPrice, categoryId, inStock: quantity > 0, isActive, stockQuantity: quantity, whatsappNumber: whatsappNumber ? cleanWhatsapp(whatsappNumber) : null, isTraditional, weightKg: weightKg.trim() ? numberValue(weightKg) : null, tagsJson: JSON.stringify(tags.split(/[،,]+/).map((value) => value.trim()).filter(Boolean)), attributesJson: JSON.stringify(attributes.filter((value) => value.key.trim() && value.value.trim())), ...(isEdit ? {} : { currency: 'AFN' }) };
+      const endpoint = isEdit && initial?.id ? `/api/seller/products/${initial.id}` : '/api/seller/products'; const response = await fetch(endpoint, { method: isEdit ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(payload) });
+      const body = await response.json().catch(() => null); if (!response.ok || !body?.ok) throw new Error(body?.error?.message ?? 'ثبت محصول ناموفق بود.');
+      const productId = String(body.data?.id ?? initial?.id ?? ''); const imageResult = productId ? await uploadPending(productId) : { uploaded: 0, failed: pendingImages.map((item) => `${item.file.name}: شناسه محصول دریافت نشد.`) }; setPendingImages([]);
+      if (imageResult.failed.length > 0) { toast.error(`محصول ذخیره شد، اما ${imageResult.failed.length} تصویر آپلود نشد. محصول را از فهرست باز کنید و تصاویر را کامل کنید.`); router.push(backHref); router.refresh(); return; }
+      const totalImages = (initial?.images?.length ?? 0) + imageResult.uploaded; if (isActive && totalImages < 3) throw new Error('محصول ذخیره شد اما تعداد تصاویر به حداقل ۳ نرسید؛ وضعیت انتشار را بررسی کنید.');
+      toast.success(isEdit ? 'محصول با موفقیت به‌روزرسانی شد.' : 'محصول با موفقیت ثبت شد.'); router.push(backHref); router.refresh();
+    } catch (error) { toast.error(error instanceof Error ? error.message : 'ثبت محصول ناموفق بود.'); } finally { setBusy(false); setUploadProgress(0); }
   }
 
-  const existingImages = initial?.images ?? [];
-  const imageCount = existingImages.length + pendingImages.length;
-
-  return <form onSubmit={onSubmit} className="mx-auto max-w-5xl space-y-5" dir="rtl">
-    <header className="rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-7"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-bold text-primary">Seller Center / Products</p><h1 className="mt-1 text-2xl font-black">{isEdit ? 'ویرایش محصول' : 'ثبت محصول جدید'}</h1><p className="mt-2 text-xs leading-6 text-muted-foreground">این محصول برای <b>{storeName}</b> و به نام فروشنده <b>{sellerName}</b> ثبت می‌شود.</p></div><div className="rounded-2xl border border-border bg-muted/40 px-3 py-2 text-xs font-bold">تصاویر: {imageCount} / {PRODUCT_MAX_IMAGES}</div></div></header>
-    <Section title="۱. اطلاعات محصول"><div className="grid gap-4 sm:grid-cols-2"><Field label="نام محصول" required value={name} onChange={setName} placeholder="مثلاً قالی دست‌باف هراتی"/><Field label="شناسه صفحه" value={slug} onChange={(value) => { setSlugTouched(true); setSlug(value); }} placeholder="خودکار ساخته می‌شود"/><div className="sm:col-span-2"><Field label="توضیح کوتاه" required value={shortDescription} onChange={setShortDescription}/><label className="mt-4 block space-y-2"><span className="text-xs font-bold">توضیحات کامل</span><textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={5} className="w-full rounded-2xl border border-input bg-background p-3.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"/></label></div></div></Section>
-    <Section title="۲. قیمت، دسته‌بندی و موجودی"><div className="grid gap-4 sm:grid-cols-2"><Field label="قیمت فعلی (AFN)" required value={price} onChange={setPrice} inputMode="decimal"/><Field label="قیمت قبلی (AFN)" value={compareAt} onChange={setCompareAt} inputMode="decimal"/><label className="space-y-2"><span className="text-xs font-bold">دسته‌بندی</span><select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className={inputCls}><option value="">انتخاب دسته‌بندی</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label><Field label="موجودی" value={stockQuantity} onChange={setStockQuantity} type="number" inputMode="numeric"/><Field label="شماره واتساپ" value={whatsappNumber} onChange={setWhatsappNumber} placeholder="+937..."/><Field label="وزن (کیلوگرام)" value={weightKg} onChange={setWeightKg} inputMode="decimal"/></div></Section>
-    <Section title="۳. تصاویر محصول"><div className="space-y-4"><div className="flex flex-wrap items-center gap-3"><button type="button" disabled={busy} onClick={() => fileInputRef.current?.click()} className="rounded-2xl bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground disabled:opacity-60">افزودن تصویر</button><input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => chooseImages(e.target.files)}/><span className={`text-[11px] ${imageCount < 3 ? 'font-bold text-destructive' : 'text-emerald-600'}`}>{imageCount < 3 ? `حداقل ۳ تصویر لازم است (${imageCount}/3)` : 'حداقل تصاویر تکمیل است'} · حداکثر {PRODUCT_MAX_IMAGES} تصویر · هر تصویر حداکثر ۱۰MB</span></div>{existingImages.length || pendingImages.length ? <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">{existingImages.map((src, index) => <div key={`${src}-${index}`} className="relative overflow-hidden rounded-2xl border border-border bg-muted"><img src={src} alt={`تصویر ${index + 1}`} className="aspect-square h-full w-full object-cover" loading="lazy"/></div>)}{pendingImages.map((item) => <div key={item.id} className="relative overflow-hidden rounded-2xl border border-primary/30 bg-muted"><img src={item.preview} alt={item.file.name} className="aspect-square h-full w-full object-cover"/><button type="button" onClick={() => removePending(item.id)} className="absolute end-2 top-2 rounded-lg bg-black/65 px-2 py-1 text-[10px] font-bold text-white">حذف</button></div>)}</div> : <div className="rounded-2xl border border-dashed border-border p-8 text-center text-xs text-muted-foreground">برای ایجاد صفحه حرفه‌ای محصول، حداقل ۳ تصویر واضح انتخاب کنید.</div>}</div></Section>
-    <Section title="۴. انتشار و برچسب‌ها"><div className="grid gap-3 sm:grid-cols-2"><label className="flex items-center gap-3 rounded-2xl border border-border p-4"><input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} className="h-4 w-4"/><span className="text-sm font-bold">محصول فعال باشد</span></label><label className="flex items-center gap-3 rounded-2xl border border-border p-4"><input type="checkbox" checked={isTraditional} onChange={(e) => setIsTraditional(e.target.checked)} className="h-4 w-4"/><span className="text-sm font-bold">محصول وطنی/سنتی</span></label></div><label className="mt-4 block space-y-2"><span className="text-xs font-bold">برچسب‌ها</span><input value={tags} onChange={(e) => setTags(e.target.value)} className={inputCls} placeholder="مثلاً جدید، پرفروش"/></label></Section>
-    <div className="sticky bottom-3 z-10 flex flex-wrap items-center justify-end gap-3 rounded-2xl border border-border bg-background/95 p-3 shadow-lg backdrop-blur"><button type="button" disabled={busy} onClick={() => router.push(backHref)} className="rounded-2xl border border-border bg-background px-5 py-3 text-xs font-bold">انصراف</button><button type="submit" disabled={busy || (isActive && imageCount < 3)} className="rounded-2xl bg-primary px-6 py-3 text-xs font-black text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50">{busy ? 'در حال ذخیره…' : isEdit ? 'ذخیره تغییرات' : 'ثبت محصول'}</button></div>
-  </form>;
+  const existingImages = initial?.images ?? []; const imageCount = existingImages.length + pendingImages.length;
+  return <form onSubmit={onSubmit} className="mx-auto max-w-5xl space-y-5" dir="rtl"><header className="rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-7"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-bold text-primary">Seller Center / Products</p><h1 className="mt-1 text-2xl font-black">{isEdit ? 'ویرایش محصول' : 'ثبت محصول جدید'}</h1><p className="mt-2 text-xs leading-6 text-muted-foreground">این محصول برای <b>{storeName}</b> و به نام فروشنده <b>{sellerName}</b> ثبت می‌شود.</p></div><div className="rounded-2xl border border-border bg-muted/40 px-3 py-2 text-xs font-bold">تصاویر: {imageCount} / {PRODUCT_MAX_IMAGES}</div></div></header><Section title="۱. اطلاعات محصول"><div className="grid gap-4 sm:grid-cols-2"><Field label="نام محصول" required value={name} onChange={setName} placeholder="مثلاً قالی دست‌باف هراتی"/><Field label="شناسه صفحه" value={slug} onChange={(value) => { setSlugTouched(true); setSlug(value); }} placeholder="خودکار ساخته می‌شود"/><div className="sm:col-span-2"><Field label="توضیح کوتاه" required value={shortDescription} onChange={setShortDescription}/><label className="mt-4 block space-y-2"><span className="text-xs font-bold">توضیحات کامل</span><textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={5} className="w-full rounded-2xl border border-input bg-background p-3.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"/></label></div></div></Section><Section title="۲. قیمت، دسته‌بندی و موجودی"><div className="grid gap-4 sm:grid-cols-2"><Field label="قیمت فعلی (AFN)" required value={price} onChange={setPrice} inputMode="decimal"/><Field label="قیمت قبلی (AFN)" value={compareAt} onChange={setCompareAt} inputMode="decimal"/><label className="space-y-2"><span className="text-xs font-bold">دسته‌بندی</span><select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className={inputCls}><option value="">انتخاب دسته‌بندی</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label><Field label="موجودی" value={stockQuantity} onChange={setStockQuantity} type="number" inputMode="numeric"/><Field label="شماره واتساپ" value={whatsappNumber} onChange={setWhatsappNumber} placeholder="+937..."/><Field label="وزن (کیلوگرام)" value={weightKg} onChange={setWeightKg} inputMode="decimal"/></div></Section><Section title="۳. تصاویر محصول"><div className="space-y-4"><div className="flex flex-wrap items-center gap-3"><button type="button" disabled={busy} onClick={() => fileInputRef.current?.click()} className="rounded-2xl bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground disabled:opacity-60">افزودن تصویر</button><input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => chooseImages(e.target.files)}/><span className={`text-[11px] ${imageCount < 3 ? 'font-bold text-destructive' : 'text-emerald-600'}`}>{imageCount < 3 ? `حداقل ۳ تصویر لازم است (${imageCount}/3)` : 'حداقل تصاویر تکمیل است'} · حداکثر {PRODUCT_MAX_IMAGES} تصویر · هر تصویر حداکثر ۱۰MB</span></div>{busy && pendingImages.length > 0 ? <div className="space-y-1"><div className="h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary transition-all" style={{ width: `${uploadProgress}%` }}/></div><p className="text-[11px] text-muted-foreground">در حال آماده‌سازی و آپلود تصاویر: {uploadProgress}%</p></div> : null}{existingImages.length || pendingImages.length ? <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">{existingImages.map((src, index) => <div key={`${src}-${index}`} className="relative overflow-hidden rounded-2xl border border-border bg-muted"><img src={src} alt={`تصویر ${index + 1}`} className="aspect-square h-full w-full object-cover" loading="lazy"/></div>)}{pendingImages.map((item) => <div key={item.id} className="relative overflow-hidden rounded-2xl border border-primary/30 bg-muted"><img src={item.preview} alt={item.file.name} className="aspect-square h-full w-full object-cover"/><button type="button" onClick={() => removePending(item.id)} disabled={busy} className="absolute end-2 top-2 rounded-lg bg-black/65 px-2 py-1 text-[10px] font-bold text-white">حذف</button></div>)}</div> : <div className="rounded-2xl border border-dashed border-border p-8 text-center text-xs text-muted-foreground">برای ایجاد صفحه حرفه‌ای محصول، حداقل ۳ تصویر واضح انتخاب کنید.</div>}</div></Section><Section title="۴. انتشار و برچسب‌ها"><div className="grid gap-3 sm:grid-cols-2"><label className="flex items-center gap-3 rounded-2xl border border-border p-4"><input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} className="h-4 w-4"/><span className="text-sm font-bold">محصول فعال باشد</span></label><label className="flex items-center gap-3 rounded-2xl border border-border p-4"><input type="checkbox" checked={isTraditional} onChange={(e) => setIsTraditional(e.target.checked)} className="h-4 w-4"/><span className="text-sm font-bold">محصول وطنی/سنتی</span></label></div><label className="mt-4 block space-y-2"><span className="text-xs font-bold">برچسب‌ها</span><input value={tags} onChange={(e) => setTags(e.target.value)} className={inputCls} placeholder="مثلاً جدید، پرفروش"/></label></Section><div className="sticky bottom-3 z-10 flex flex-wrap items-center justify-end gap-3 rounded-2xl border border-border bg-background/95 p-3 shadow-lg backdrop-blur"><button type="button" disabled={busy} onClick={() => router.push(backHref)} className="rounded-2xl border border-border bg-background px-5 py-3 text-xs font-bold">انصراف</button><button type="submit" disabled={busy || (isActive && imageCount < 3)} className="rounded-2xl bg-primary px-6 py-3 text-xs font-black text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50">{busy ? 'در حال ذخیره و بهینه‌سازی تصاویر…' : isEdit ? 'ذخیره تغییرات' : 'ثبت محصول'}</button></div></form>;
 }

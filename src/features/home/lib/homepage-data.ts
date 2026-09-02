@@ -12,11 +12,11 @@ export type HomepageState = { status: 'ok'; data: HomepageData } | { status: 'un
 export type HomepageSectionState = { status: 'ok'; products: ProductSummary[] } | { status: 'unavailable'; products: [] };
 
 const EMPTY_HOME_DATA: HomepageData = { newest: [], bestSelling: [], mostViewed: [], popular: [], featured: [] };
+const HOME_SECTION_SIZE = 8;
 
 export const getHomepageDataState = cache(async (): Promise<HomepageState> => {
-  // Fail closed when the deployment has no database connection: no fake data and no crash.
   if (!isDatabaseConfigured()) return { status: 'unavailable', data: EMPTY_HOME_DATA };
-  try { return { status: 'ok', data: await getProductService().getHomepageSections(12) }; }
+  try { return { status: 'ok', data: await getProductService().getHomepageSections(HOME_SECTION_SIZE) }; }
   catch { return { status: 'unavailable', data: EMPTY_HOME_DATA }; }
 });
 
@@ -27,14 +27,14 @@ export const getHomepageData = cache(async (): Promise<HomepageData> => {
   return state.data;
 });
 
-export const getHomepageSectionState = cache(async (section: HomeSection, size = 12, userId?: string | null): Promise<HomepageSectionState> => {
+export const getHomepageSectionState = cache(async (section: HomeSection, size = HOME_SECTION_SIZE, userId?: string | null): Promise<HomepageSectionState> => {
   if (!isDatabaseConfigured()) return { status: 'unavailable', products: [] };
   try {
     const service = getProductService();
     const personalized = section === 'popular' || section === 'bestSelling';
     const effectiveUserId = userId ?? (personalized ? (await getCurrentUser())?.id ?? null : null);
     const usePersonalization = Boolean(effectiveUserId) && personalized;
-    const candidateSize = usePersonalization ? Math.max(size * 3, 36) : size;
+    const candidateSize = usePersonalization ? Math.max(size * 3, 24) : size;
     const result = await service.listProducts({ isActive: true, page: 1, pageSize: candidateSize, sort: section === 'featured' ? 'featured' : section, ...(section === 'featured' ? { featured: true } : {}) });
     const products = usePersonalization ? await rankProductsForUser(result.products, effectiveUserId!, section) : result.products;
     return { status: 'ok', products: products.slice(0, size) };
@@ -42,7 +42,7 @@ export const getHomepageSectionState = cache(async (section: HomeSection, size =
 });
 
 /** @deprecated Prefer getHomepageSectionState so callers can distinguish empty from unavailable. */
-export const getHomepageSection = cache(async (section: HomeSection, size = 12, userId?: string | null): Promise<ProductSummary[]> => {
+export const getHomepageSection = cache(async (section: HomeSection, size = HOME_SECTION_SIZE, userId?: string | null): Promise<ProductSummary[]> => {
   const state = await getHomepageSectionState(section, size, userId);
   return state.products;
 });
@@ -52,7 +52,8 @@ export const getHeroProductsState = cache(async () => {
   try {
     const result = await getProductService().listProducts({ badge: 'hero', page: 1, pageSize: 2, sort: 'newest', isActive: true });
     return { status: 'ok' as const, products: result.products.slice(0, 2) };
-  } catch { return { status: 'unavailable' as const, products: [] as ProductSummary[] }; }
+  } catch { return { status: 'unavailable' as const, products: [] as ProductSummary[] };
+  }
 });
 
 export const getHeroProducts = cache(async (): Promise<ProductSummary[]> => (await getHeroProductsState()).products);
