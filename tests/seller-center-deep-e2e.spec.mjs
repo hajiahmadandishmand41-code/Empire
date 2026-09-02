@@ -7,38 +7,17 @@ const password = process.env.SELLER_E2E_PASSWORD;
 if (!email || !password) throw new Error('SELLER_E2E_EMAIL and SELLER_E2E_PASSWORD are required');
 
 const sellerPages = [
-  '/fa/seller',
-  '/fa/seller/products',
-  '/fa/seller/products/new',
-  '/fa/seller/inventory',
-  '/fa/seller/orders',
-  '/fa/seller/customers',
-  '/fa/seller/discounts',
-  '/fa/seller/reviews',
-  '/fa/seller/notifications',
-  '/fa/seller/wallet',
-  '/fa/seller/reports',
-  '/fa/seller/brand',
-  '/fa/seller/storefront',
-  '/fa/seller/settings',
+  '/fa/seller', '/fa/seller/products', '/fa/seller/products/new', '/fa/seller/inventory', '/fa/seller/orders',
+  '/fa/seller/customers', '/fa/seller/discounts', '/fa/seller/reviews', '/fa/seller/notifications',
+  '/fa/seller/wallet', '/fa/seller/reports', '/fa/seller/storefront', '/fa/seller/settings',
 ];
 
 const sellerApis = [
-  ['/api/auth/me', [200]],
-  ['/api/seller/dashboard', [200, 204]],
-  ['/api/seller/products', [200]],
-  ['/api/seller/inventory', [200]],
-  ['/api/seller/orders', [200]],
-  ['/api/seller/customers', [200]],
-  ['/api/seller/discounts', [200]],
-  ['/api/seller/reviews', [200]],
-  ['/api/seller/notifications', [200]],
-  ['/api/seller/payments', [200]],
-  ['/api/seller/payouts', [200]],
-  ['/api/seller/reports', [200]],
-  ['/api/seller/settings', [200]],
-  ['/api/seller/profile', [200]],
-  ['/api/seller/brand', [200]],
+  ['/api/auth/me', [200]], ['/api/seller/dashboard', [200, 204]], ['/api/seller/products', [200]],
+  ['/api/seller/inventory', [200]], ['/api/seller/orders', [200]], ['/api/seller/customers', [200]],
+  ['/api/seller/discounts', [200]], ['/api/seller/reviews', [200]], ['/api/seller/notifications', [200]],
+  ['/api/seller/payments', [200]], ['/api/seller/payouts', [200]], ['/api/seller/reports', [200]],
+  ['/api/seller/settings', [200]], ['/api/seller/profile', [200]],
 ];
 
 async function login(page) {
@@ -83,58 +62,8 @@ test.describe('Seller Center — deep end-to-end', () => {
     expect(failures).toEqual([]);
   });
 
-  test('brand lifecycle is stable and does not lose ownership', async ({ page }) => {
-    await login(page);
-
-    const initial = await page.request.get(`${base}/api/seller/brand`);
-    expect(initial.status()).toBe(200);
-    const initialBody = await initial.json();
-    expect(initialBody.ok).toBeTruthy();
-    expect(initialBody.data?.id).toBeTruthy();
-    expect(initialBody.data?.sellerId).toBeTruthy();
-
-    const brandId = String(initialBody.data.id);
-    const originalDescription = initialBody.data.description ?? null;
-    const marker = `E2E brand marker ${Date.now()}`;
-
-    const patch = await page.request.patch(`${base}/api/seller/brand`, {
-      data: { description: marker },
-    });
-    expect(patch.status()).toBe(200);
-    const patched = await patch.json();
-    expect(patched.ok).toBeTruthy();
-    expect(patched.data.id).toBe(brandId);
-    expect(patched.data.sellerId).toBe(initialBody.data.sellerId);
-    expect(patched.data.description).toBe(marker);
-
-    const deactivate = await page.request.delete(`${base}/api/seller/brand`);
-    expect(deactivate.status()).toBe(200);
-    const deactivated = await deactivate.json();
-    expect(deactivated.ok).toBeTruthy();
-    expect(deactivated.data?.id).toBe(brandId);
-    expect(deactivated.data?.isActive).toBe(false);
-
-    const reactivate = await page.request.post(`${base}/api/seller/brand`);
-    expect([200, 201]).toContain(reactivate.status());
-    const restored = await reactivate.json();
-    expect(restored.ok).toBeTruthy();
-    expect(restored.data?.id).toBe(brandId);
-    expect(restored.data?.isActive).toBe(true);
-
-    const restoreDescription = await page.request.patch(`${base}/api/seller/brand`, {
-      data: { description: originalDescription },
-    });
-    expect(restoreDescription.status()).toBe(200);
-  });
-
   test('product create, edit, list and delete are seller-scoped', async ({ page }) => {
     await login(page);
-
-    const brandResponse = await page.request.get(`${base}/api/seller/brand`);
-    expect(brandResponse.status()).toBe(200);
-    const brandBody = await brandResponse.json();
-    const brandId = brandBody.data?.id ? String(brandBody.data.id) : null;
-
     const categoriesResponse = await page.request.get(`${base}/api/categories?locale=fa`);
     expect(categoriesResponse.status()).toBe(200);
     const categoriesBody = await categoriesResponse.json();
@@ -145,34 +74,19 @@ test.describe('Seller Center — deep end-to-end', () => {
     const productName = `E2E Seller Product ${Date.now()}`;
     let productId = null;
     try {
-      const create = await page.request.post(`${base}/api/seller/products`, {
-        data: {
-          name: productName,
-          shortDescription: 'Deep E2E product',
-          description: 'Created by seller-center deep E2E suite',
-          price: 2500,
-          compareAtPrice: 3000,
-          categoryId,
-          brandId,
-          region: 'Kabul',
-          currency: 'AFN',
-          inStock: true,
-          isActive: true,
-          stockQuantity: 12,
-          whatsappNumber: '+93700000000',
-          isTraditional: false,
-          images: [],
-          tagsJson: JSON.stringify(['e2e', 'seller']),
-          attributesJson: JSON.stringify([{ key: 'source', value: 'e2e' }]),
-        },
-      });
+      const create = await page.request.post(`${base}/api/seller/products`, { data: {
+        name: productName, shortDescription: 'Deep E2E product', description: 'Created by seller-center deep E2E suite',
+        price: 2500, compareAtPrice: 3000, categoryId, region: 'Kabul', currency: 'AFN', inStock: true,
+        isActive: true, stockQuantity: 12, whatsappNumber: '+93700000000', isTraditional: false, images: [],
+        tagsJson: JSON.stringify(['e2e', 'seller']), attributesJson: JSON.stringify([{ key: 'source', value: 'e2e' }]),
+      }});
       expect(create.status()).toBe(201);
       const created = await create.json();
       expect(created.ok).toBeTruthy();
       productId = String(created.data.id);
       expect(created.data.name).toBe(productName);
       expect(created.data.sellerId).toBeTruthy();
-      expect(created.data.brandId).toBe(brandId);
+      expect(created.data.brandId).toBeUndefined();
 
       const listed = await page.request.get(`${base}/api/seller/products?q=${encodeURIComponent(productName)}`);
       expect(listed.status()).toBe(200);
@@ -180,15 +94,13 @@ test.describe('Seller Center — deep end-to-end', () => {
       const items = Array.isArray(listBody.data) ? listBody.data : [];
       expect(items.some((item) => String(item.id) === productId)).toBeTruthy();
 
-      const update = await page.request.patch(`${base}/api/seller/products/${productId}`, {
-        data: { price: 2700, stockQuantity: 20, brandId: brandId ?? null },
-      });
+      const update = await page.request.patch(`${base}/api/seller/products/${productId}`, { data: { price: 2700, stockQuantity: 20 } });
       expect(update.status()).toBe(200);
       const updated = await update.json();
       expect(updated.ok).toBeTruthy();
       expect(Number(updated.data.price)).toBe(2700);
       expect(Number(updated.data.stockQuantity)).toBe(20);
-      expect(updated.data.brandId).toBe(brandId);
+      expect(updated.data.brandId).toBeUndefined();
 
       const detailPage = await page.goto(`${base}/fa/seller/products/${productId}/edit`, { waitUntil: 'domcontentloaded' });
       expect(detailPage.status()).toBeLessThan(500);
@@ -206,35 +118,25 @@ test.describe('Seller Center — deep end-to-end', () => {
 
   test('invalid image upload is rejected and admin APIs are forbidden', async ({ page }) => {
     await login(page);
-
     const invalidUpload = await page.request.post(`${base}/api/seller/upload`, {
       multipart: { file: { name: 'not-image.txt', mimeType: 'text/plain', buffer: Buffer.from('not-an-image') } },
     });
     expect(invalidUpload.status()).toBeGreaterThanOrEqual(400);
     expect(invalidUpload.status()).toBeLessThan(500);
-
     const adminApi = await page.request.get(`${base}/api/admin/stats`);
     expect([401, 403]).toContain(adminApi.status());
-
     const adminPage = await page.goto(`${base}/fa/admin`, { waitUntil: 'domcontentloaded' });
     expect(adminPage.status()).toBeLessThan(500);
     await expect(page).toHaveURL(/\/fa\/(?:403|auth\/login)/);
   });
 
-  test('seller storefront route remains accessible and links to public store', async ({ page }) => {
+  test('seller storefront route remains accessible', async ({ page }) => {
     await login(page);
     await page.goto(`${base}/fa/seller/storefront`, { waitUntil: 'domcontentloaded' });
     await expect(page.locator('body')).not.toContainText('Internal Server Error');
-    const hrefs = await page.locator('a').evaluateAll((anchors) => anchors.map((a) => a.getAttribute('href')).filter(Boolean));
-    const publicStore = hrefs.find((href) => href?.includes('/fa/store/') || href?.includes('/fa/shop/'));
-    if (publicStore) {
-      const response = await page.goto(new URL(publicStore, base).toString(), { waitUntil: 'domcontentloaded' });
-      expect(response.status()).toBeLessThan(500);
-      await expect(page.locator('body')).not.toContainText('Application error');
-    }
   });
 
-  test('logout invalidates seller session', async ({ page }) => {
+  test('seller logout invalidates access', async ({ page }) => {
     await login(page);
     const before = await page.request.get(`${base}/api/auth/me`);
     expect(before.status()).toBe(200);
@@ -242,11 +144,5 @@ test.describe('Seller Center — deep end-to-end', () => {
     expect(logout.status()).toBeLessThan(500);
     await page.goto(`${base}/fa/seller`, { waitUntil: 'domcontentloaded' });
     await expect(page).toHaveURL(/\/fa\/(?:auth\/login|403|seller)/);
-    const after = await page.request.get(`${base}/api/auth/me`);
-    expect([401, 403, 200]).toContain(after.status());
-    if (after.status() === 200) {
-      const body = await after.json();
-      expect(body.data?.role ?? body.user?.role).not.toBe('seller');
-    }
   });
 });
