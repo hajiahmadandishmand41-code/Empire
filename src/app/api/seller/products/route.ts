@@ -1,6 +1,6 @@
 /** Seller Products API */
 import type { NextRequest } from 'next/server';
-import { isDatabaseConfigured } from '@/lib/db';
+import { prisma, isDatabaseConfigured } from '@/lib/db';
 import { jsonError, jsonOk, jsonPreflight } from '@/lib/api/response';
 import { requireSellerApi } from '@/lib/auth/require-seller-api';
 import { listSellerProducts } from '@/features/seller/lib/products';
@@ -23,8 +23,22 @@ export async function POST(req: NextRequest) {
   const parsed = productCreateSchema.safeParse(body); if (!parsed.success) return jsonError('invalid_body', productValidationMessage(parsed.error.issues), { status: 422, details: { issues: parsed.error.issues } });
   const productInput = parsed.data;
   if (productInput.isActive && productInput.images.length < 3) return jsonError('insufficient_images', 'برای فعال‌سازی محصول حداقل ۳ تصویر لازم است.', { status: 422 });
+  const brandId = productInput.brandId;
+  if (brandId) {
+    try {
+      const rows = await prisma.$queryRaw<Array<{ id: string }>>`
+        SELECT "id" FROM "SellerBrand"
+        WHERE "id" = ${brandId} AND "sellerId" = ${guard.user.id} AND "isActive" = true
+        LIMIT 1
+      `;
+      if (!rows[0]) return jsonError('invalid_brand', 'برند فعال متعلق به این فروشنده پیدا نشد.', { status: 422 });
+    } catch (error) {
+      logger.error('seller.product.brand_lookup_failed', { sellerId: guard.user.id, brandId }, error);
+      return jsonError('brand_lookup_failed', 'بررسی برند محصول ناموفق بود.', { status: 500 });
+    }
+  }
   try {
-    const created = await getProductService().createProduct({ ...productInput, sellerId: guard.user.id });
+    const created = await getProductService().createProduct({ ...productInput, brandId, sellerId: guard.user.id });
     logger.info('seller.product.created', { productId: created.id, sellerId: guard.user.id, slug: created.slug, imageCount: parsed.data.images.length });
     return jsonOk(serializeProduct(created), { status: 201 });
   } catch (err) { if (err instanceof ProductServiceError) return jsonError(err.code, err.message, { status: err.httpStatus }); logger.error('seller.product.create_failed', { sellerId: guard.user.id }, err); return mapErrorToResponse(err); }
