@@ -28,9 +28,10 @@ export function ProductForm({ mode, categories, initial, backHref, sellerName = 
   const [categoryId, setCategoryId] = React.useState(initial?.categoryId ?? categories[0]?.id ?? ''); const [stockQuantity, setStockQuantity] = React.useState(initial?.stockQuantity != null ? String(initial.stockQuantity) : '0');
   const [isActive, setIsActive] = React.useState(initial?.isActive !== false); const [isTraditional, setIsTraditional] = React.useState(initial?.isTraditional === true); const [whatsappNumber, setWhatsappNumber] = React.useState(initial?.whatsappNumber ?? ''); const [weightKg, setWeightKg] = React.useState(initial?.weightKg != null ? String(initial.weightKg) : '');
   const [tags, setTags] = React.useState(() => { const v = parseJson<string[]>(initial?.tagsJson, []); return Array.isArray(v) ? v.join('، ') : ''; }); const [attributes] = React.useState<Attribute[]>(() => parseJson<Attribute[]>(initial?.attributesJson, []));
-  const [pendingImages, setPendingImages] = React.useState<PendingImage[]>([]); const [busy, setBusy] = React.useState(false); const [uploadProgress, setUploadProgress] = React.useState(0); const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [pendingImages, setPendingImages] = React.useState<PendingImage[]>([]); const [busy, setBusy] = React.useState(false); const [uploadProgress, setUploadProgress] = React.useState(0); const fileInputRef = React.useRef<HTMLInputElement>(null); const pendingImagesRef = React.useRef<PendingImage[]>([]);
+  React.useEffect(() => { pendingImagesRef.current = pendingImages; }, [pendingImages]);
   React.useEffect(() => { if (!slugTouched && name) setSlug(slugify(name)); }, [name, slugTouched]);
-  React.useEffect(() => () => { pendingImages.forEach((item) => URL.revokeObjectURL(item.preview)); }, [pendingImages]);
+  React.useEffect(() => () => { pendingImagesRef.current.forEach((item) => URL.revokeObjectURL(item.preview)); }, []);
 
   function chooseImages(files: FileList | null) {
     if (!files?.length || busy) return; const existing = initial?.images?.length ?? 0; const room = PRODUCT_MAX_IMAGES - existing - pendingImages.length;
@@ -66,12 +67,18 @@ export function ProductForm({ mode, categories, initial, backHref, sellerName = 
     const plannedImageCount = (initial?.images?.length ?? 0) + pendingImages.length; if (isActive && plannedImageCount < 3) return toast.error('برای فعال‌سازی محصول حداقل ۳ تصویر لازم است.'); if (!isEdit && pendingImages.length === 0) return toast.error('برای ثبت محصول حداقل ۳ تصویر انتخاب کنید.');
     setBusy(true); setUploadProgress(0);
     try {
-      const payload = { slug: slug.trim() || null, name: name.trim(), shortDescription: shortDescription.trim(), description: description.trim() || null, price: numericPrice, compareAtPrice: oldPrice, categoryId, inStock: quantity > 0, isActive, stockQuantity: quantity, whatsappNumber: whatsappNumber ? cleanWhatsapp(whatsappNumber) : null, isTraditional, weightKg: weightKg.trim() ? numberValue(weightKg) : null, tagsJson: JSON.stringify(tags.split(/[،,]+/).map((value) => value.trim()).filter(Boolean)), attributesJson: JSON.stringify(attributes.filter((value) => value.key.trim() && value.value.trim())), ...(isEdit ? {} : { currency: 'AFN' }) };
+      const requestedActive = isActive;
+      const payload = { slug: slug.trim() || null, name: name.trim(), shortDescription: shortDescription.trim(), description: description.trim() || null, price: numericPrice, compareAtPrice: oldPrice, categoryId, inStock: quantity > 0, isActive: isEdit ? requestedActive : false, stockQuantity: quantity, whatsappNumber: whatsappNumber ? cleanWhatsapp(whatsappNumber) : null, isTraditional, weightKg: weightKg.trim() ? numberValue(weightKg) : null, tagsJson: JSON.stringify(tags.split(/[،,]+/).map((value) => value.trim()).filter(Boolean)), attributesJson: JSON.stringify(attributes.filter((value) => value.key.trim() && value.value.trim())), ...(isEdit ? {} : { currency: 'AFN' }) };
       const endpoint = isEdit && initial?.id ? `/api/seller/products/${initial.id}` : '/api/seller/products'; const response = await fetch(endpoint, { method: isEdit ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(payload) });
       const body = await response.json().catch(() => null); if (!response.ok || !body?.ok) throw new Error(body?.error?.message ?? 'ثبت محصول ناموفق بود.');
       const productId = String(body.data?.id ?? initial?.id ?? ''); const imageResult = productId ? await uploadPending(productId) : { uploaded: 0, failed: pendingImages.map((item) => `${item.file.name}: شناسه محصول دریافت نشد.`) }; setPendingImages([]);
       if (imageResult.failed.length > 0) { toast.error(`محصول ذخیره شد، اما ${imageResult.failed.length} تصویر آپلود نشد. محصول را از فهرست باز کنید و تصاویر را کامل کنید.`); router.push(backHref); router.refresh(); return; }
-      const totalImages = (initial?.images?.length ?? 0) + imageResult.uploaded; if (isActive && totalImages < 3) throw new Error('محصول ذخیره شد اما تعداد تصاویر به حداقل ۳ نرسید؛ وضعیت انتشار را بررسی کنید.');
+      const totalImages = (initial?.images?.length ?? 0) + imageResult.uploaded; if (requestedActive && totalImages < 3) throw new Error('محصول ذخیره شد اما تعداد تصاویر به حداقل ۳ نرسید؛ وضعیت انتشار را بررسی کنید.');
+      if (!isEdit && requestedActive) {
+        const activation = await fetch(`/api/seller/products/${productId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ isActive: true }) });
+        const activationBody = await activation.json().catch(() => null);
+        if (!activation.ok || !activationBody?.ok) throw new Error(activationBody?.error?.message ?? 'تصاویر ذخیره شدند اما فعال‌سازی محصول ناموفق بود.');
+      }
       toast.success(isEdit ? 'محصول با موفقیت به‌روزرسانی شد.' : 'محصول با موفقیت ثبت شد.'); router.push(backHref); router.refresh();
     } catch (error) { toast.error(error instanceof Error ? error.message : 'ثبت محصول ناموفق بود.'); } finally { setBusy(false); setUploadProgress(0); }
   }
