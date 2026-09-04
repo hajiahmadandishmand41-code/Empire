@@ -54,7 +54,7 @@ assert(/guard\.user\.role === 'admin'.*seller_context_required/.test(brandApi), 
 
 const productBrandApi = read('src/app/api/seller/products/[id]/brand/route.ts');
 assert(/sellerId.*guard\.user\.id/.test(productBrandApi), 'product brand linkage must validate the brand against the authenticated seller');
-assert(/isActive = true/.test(productBrandApi), 'product brand linkage must only accept active seller brands');
+assert(/\"isActive\"\s*=\s*true/.test(productBrandApi), 'product brand linkage must only accept active seller brands');
 
 const migration = read('prisma/migrations/20260829193000_seller_store_brand/migration.sql');
 assert(/CREATE UNIQUE INDEX IF NOT EXISTS "SellerBrand_sellerId_key"/.test(migration), 'DB must enforce one SellerBrand per seller');
