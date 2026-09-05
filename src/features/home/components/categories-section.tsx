@@ -1,7 +1,7 @@
 import { getTranslations, getLocale } from 'next-intl/server';
 import { ArrowLeft, FolderTree } from 'lucide-react';
 import { Container } from '@/components/layout/container';
-import Link from 'next/link';
+import { Link } from '@/i18n/routing';
 import { CategoryCard } from './category-card';
 import { getCategoryRepository } from '@/server/infrastructure/registry';
 import { isDatabaseConfigured } from '@/lib/db';
@@ -29,7 +29,7 @@ export async function CategoriesSection() {
               <p className="mt-0.5 line-clamp-1 text-[9px] text-muted-foreground sm:text-xs">{t('sectionSubtitle')}</p>
             </div>
           </div>
-          <Link href={`/${locale}/categories`} className="flex min-h-8 shrink-0 items-center gap-1 rounded-lg border border-border bg-background px-2.5 py-1 text-[9px] font-bold text-muted-foreground transition hover:border-primary/30 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-9 sm:px-3 sm:text-xs">
+          <Link href="/categories" className="flex min-h-8 shrink-0 items-center gap-1 rounded-lg border border-border bg-background px-2.5 py-1 text-[9px] font-bold text-muted-foreground transition hover:border-primary/30 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-9 sm:px-3 sm:text-xs">
             <span>{t('viewAll')}</span><ArrowLeft className="h-3 w-3 rtl:rotate-180" aria-hidden="true" />
           </Link>
         </div>
