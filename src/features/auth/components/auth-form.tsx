@@ -12,7 +12,8 @@ import Link from 'next/link';
 
 type Mode = 'login' | 'register';
 type ApiUser = { id: string; fullName?: string | null; email?: string | null; phone?: string | null; role?: 'user' | 'customer' | 'seller' | 'admin' };
-type ApiResult = { ok: boolean; user?: ApiUser; error?: { code?: string; message?: string } };
+/** Matches the jsonOk envelope: { ok: true, data: { user } } / jsonError: { ok: false, error }. */
+type ApiResult = { ok: boolean; data?: { user?: ApiUser }; error?: { code?: string; message?: string } };
 
 export function AuthForm({ mode }: { mode: Mode }) {
   const router = useRouter();
@@ -63,7 +64,8 @@ export function AuthForm({ mode }: { mode: Mode }) {
         setError(messages[code] ?? t('unknown')); return;
       }
       const requested = safeRedirect();
-      const destination = requested !== '/' ? requested : data.user?.role === 'admin' ? '/admin' : data.user?.role === 'seller' ? '/seller' : mode === 'register' ? '/profile' : '/';
+      const signedIn = data.data?.user;
+      const destination = requested !== '/' ? requested : signedIn?.role === 'admin' ? '/admin' : signedIn?.role === 'seller' ? '/seller' : mode === 'register' ? '/profile' : '/';
       router.replace(destination);
     } catch { setError(t('connection')); } finally { setLoading(false); }
   }

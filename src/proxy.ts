@@ -9,7 +9,11 @@ const PROTECTED_SEGMENTS = ['/profile', '/admin', '/seller'] as const;
 const SESSION_COOKIE = 'empire_session';
 const API_RATE_LIMIT = Number(process.env.API_RATE_LIMIT ?? 300);
 const API_RATE_WINDOW_MS = Number(process.env.API_RATE_WINDOW_MS ?? 60_000);
-const PUBLIC_SELLER_STORE_RESERVED = new Set(['products', 'orders', 'inventory', 'customers', 'discounts', 'reviews', 'wallet', 'reports', 'notifications', 'settings', 'storefront']);
+// Segments under `/seller/` that belong to the protected Seller Center and
+// must never be treated as a public storefront slug. `brand`/`my-brand` were
+// removed Seller Center sections; keeping them reserved stops the storefront
+// rewrite from silently answering for them (they must 404).
+const PUBLIC_SELLER_STORE_RESERVED = new Set(['products', 'orders', 'inventory', 'customers', 'discounts', 'reviews', 'wallet', 'reports', 'notifications', 'settings', 'storefront', 'brand', 'my-brand', 'apply', 'brands']);
 
 function stripLocale(pathname: string): { locale: string | null; rest: string } {
   const parts = pathname.split('/').filter(Boolean);

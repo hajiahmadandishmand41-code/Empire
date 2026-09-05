@@ -58,10 +58,15 @@ if (!env.NEXT_PUBLIC_SITE_URL) warn('NEXT_PUBLIC_SITE_URL not set — sitemap.xm
 else ok(`NEXT_PUBLIC_SITE_URL = ${env.NEXT_PUBLIC_SITE_URL}`);
 
 if (isProd) {
-  for (const key of ['DATABASE_URL','UPSTASH_REDIS_REST_URL','UPSTASH_REDIS_REST_TOKEN','CLOUDINARY_CLOUD_NAME','CLOUDINARY_API_KEY','CLOUDINARY_API_SECRET','ATOMA_PAY_MERCHANT_ID','ATOMA_PAY_API_KEY','ATOMA_PAY_WEBHOOK_SECRET']) {
+  for (const key of ['DATABASE_URL','UPSTASH_REDIS_REST_URL','UPSTASH_REDIS_REST_TOKEN','ATOMA_PAY_MERCHANT_ID','ATOMA_PAY_API_KEY','ATOMA_PAY_WEBHOOK_SECRET']) {
     if (!env[key]) fail(`${key} not set in production`);
     else ok(`${key} configured`);
   }
+  const cloudinaryKeys = ['CLOUDINARY_CLOUD_NAME','CLOUDINARY_API_KEY','CLOUDINARY_API_SECRET'];
+  const cloudinarySet = cloudinaryKeys.filter((key) => env[key]);
+  if (cloudinarySet.length === cloudinaryKeys.length) ok('image storage: Cloudinary');
+  else if (cloudinarySet.length === 0) ok('image storage: database (MediaAsset fallback)');
+  else fail(`partial Cloudinary configuration — set all of ${cloudinaryKeys.join(', ')} or none`);
   if (env.ALLOW_MOCK_AUTH === 'true' || env.APP_MODE === 'demo') fail('mock/demo mode is forbidden in production');
 } else if (!env.DATABASE_URL) warn('DATABASE_URL not set — local/demo execution may be unavailable');
 else ok('DATABASE_URL configured');

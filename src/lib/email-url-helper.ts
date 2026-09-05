@@ -8,7 +8,11 @@
  * startup rather than producing broken links in transactional emails.
  */
 export function resolveAppUrl(): string {
+  // SITE_URL is a plain runtime variable (never inlined into bundles), so
+  // containers built without NEXT_PUBLIC_* values can still be configured at
+  // start. NEXT_PUBLIC_* values remain as build-time fallbacks.
   const raw = (
+    process.env.SITE_URL ??
     process.env.NEXT_PUBLIC_APP_URL ??
     process.env.NEXT_PUBLIC_SITE_URL ??
     ''

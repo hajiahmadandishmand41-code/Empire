@@ -17,8 +17,10 @@ if (isProduction) {
     failures.push('NEXT_PUBLIC_SITE_URL must use HTTPS in production');
   }
   if (process.env.ALLOW_MOCK_AUTH === 'true') failures.push('ALLOW_MOCK_AUTH must be false/unset in production');
-  if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
-    failures.push('Production uploads require Cloudinary credentials');
+  const cloudinaryKeys = ['CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET'];
+  const cloudinarySet = cloudinaryKeys.filter((key) => process.env[key]?.trim());
+  if (cloudinarySet.length > 0 && cloudinarySet.length < cloudinaryKeys.length) {
+    failures.push('Partial Cloudinary configuration — set all CLOUDINARY_* variables or none (database-backed media storage is the fallback)');
   }
 }
 

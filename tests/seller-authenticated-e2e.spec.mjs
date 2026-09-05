@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
+import { makePngBytes } from './helpers/png.mjs';
 
-const base = process.env.BASE_URL ?? 'http://127.0.0.1:3000';
+const base = process.env.BASE_URL ?? 'http://localhost:3000';
 const email = process.env.SELLER_E2E_EMAIL;
 const password = process.env.SELLER_E2E_PASSWORD;
 if (!email || !password) throw new Error('SELLER_E2E_EMAIL and SELLER_E2E_PASSWORD are required');
@@ -8,10 +9,9 @@ if (!email || !password) throw new Error('SELLER_E2E_EMAIL and SELLER_E2E_PASSWO
 const routes = ['/fa/seller','/fa/seller/products','/fa/seller/products/new','/fa/seller/inventory','/fa/seller/orders','/fa/seller/customers','/fa/seller/discounts','/fa/seller/reviews','/fa/seller/notifications','/fa/seller/wallet','/fa/seller/reports','/fa/seller/storefront','/fa/seller/settings'];
 
 async function login(page) {
-  await page.goto(`${base}/fa/auth/login`, { waitUntil: 'domcontentloaded' });
-  await page.locator('input[type="text"], input[type="email"]').first().fill(email);
-  await page.locator('input[type="password"]').fill(password);
-  await page.locator('form[aria-label]').getByRole('button', { name: /ورود|login/i }).click();
+  // The session is restored from the shared storageState (see auth.setup.mjs);
+  // entering the Seller Center must not bounce to the login page.
+  await page.goto(`${base}/fa/seller`, { waitUntil: 'domcontentloaded' });
   await expect(page).toHaveURL(/\/fa\/seller(?:[/?#]|$)/, { timeout: 20000 });
 }
 
@@ -45,17 +45,24 @@ test('seller product flow is available', async ({ page }) => {
   await login(page);
   await page.goto(`${base}/fa/seller/products/new`, { waitUntil: 'domcontentloaded' });
   const form = page.locator('form').last();
-  const textInputs = form.locator('input[type="text"]');
-  const numericInputs = form.locator('input[type="number"]');
-  await textInputs.nth(0).fill('محصول تست فروشنده E2E');
-  await form.locator('textarea').nth(0).fill('توضیح تست واقعی محصول فروشنده');
-  await numericInputs.nth(0).fill('2500');
-  await numericInputs.nth(2).fill('12');
-  await form.locator('select').first().selectOption({ index: 0 });
+  const productName = `محصول تست فروشنده E2E ${Date.now()}`;
+  await form.getByLabel(/نام محصول/).fill(productName);
+  await form.getByLabel(/توضیح کوتاه/).fill('توضیح تست واقعی محصول فروشنده');
+  await form.getByLabel(/قیمت فعلی/).fill('2500');
+  await form.getByLabel(/^موجودی/).fill('12');
+  // First option is the empty placeholder — pick the first real category.
+  await form.locator('select').first().selectOption({ index: 1 });
   await expect(form.locator('input[type="file"]')).toHaveCount(1);
+  // Activation requires 3 images; attach them through the real upload pipeline.
+  const png = makePngBytes();
+  await form.locator('input[type="file"]').setInputFiles([
+    { name: 'e2e-1.png', mimeType: 'image/png', buffer: png },
+    { name: 'e2e-2.png', mimeType: 'image/png', buffer: png },
+    { name: 'e2e-3.png', mimeType: 'image/png', buffer: png },
+  ]);
   await form.locator('button[type="submit"]').click();
-  await expect(page).toHaveURL(/\/fa\/seller\/products(?:[/?#]|$)/, { timeout: 20000 });
-  await expect(page.locator('body')).toContainText('محصول تست فروشنده E2E');
+  await expect(page).toHaveURL(/\/fa\/seller\/products(?:[/?#]|$)/, { timeout: 45000 });
+  await expect(page.locator('body')).toContainText(productName, { timeout: 15000 });
 });
 
 test('seller is blocked from admin-only area', async ({ page }) => {

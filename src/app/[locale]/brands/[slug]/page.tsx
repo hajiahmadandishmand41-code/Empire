@@ -12,6 +12,7 @@ import { BottomNavigation } from '@/features/home/components/bottom-navigation';
 import { MarketplaceProductCard } from '@/components/marketplace-product-card';
 import { getProductLocalizedTexts } from '@/server/localization/product-localization';
 import { getProductService } from '@/server/infrastructure/registry';
+import { decodeRouteParam } from '@/lib/url-params';
 
 type Locale = 'fa' | 'ps' | 'en';
 type BrandRecord = { id: string; slug: string; name: string; description: string | null; logoUrl: string | null; bannerUrl: string | null; country: string | null; sellerId: string; sellerName: string; shopName: string | null; city: string | null; productCount: number };
@@ -49,7 +50,8 @@ async function loadBrand(slug: string) {
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string; slug: string }> }) {
-  const { slug } = await params;
+  const { slug: rawSlug } = await params;
+  const slug = decodeRouteParam(rawSlug);
   const result = await loadBrand(slug);
   if (result.status !== 'ok') return { title: 'Brand | Eshop' };
   return { title: `${result.brand.name} | Eshop`, description: result.brand.description ?? `برند ${result.brand.name} در ایشاپ` };

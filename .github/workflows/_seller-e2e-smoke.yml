@@ -33,7 +33,7 @@ jobs:
       AUTH_SECRET: ci-seller-e2e-auth-secret-20260905
       NEXTAUTH_SECRET: ci-seller-e2e-auth-secret-20260905
       SESSION_SECRET: ci-seller-e2e-auth-secret-20260905
-      NEXT_PUBLIC_SITE_URL: http://127.0.0.1:3000
+      NEXT_PUBLIC_SITE_URL: https://ci.example.test
       NODE_ENV: production
       SELLER_E2E_EMAIL: seller-e2e@empire.shop
       SELLER_E2E_PASSWORD: seller-e2e-password-12345
@@ -79,7 +79,7 @@ jobs:
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
           const deadline = Date.now() + 120000;
-          const url = 'http://127.0.0.1:3000/api/healthz';
+          const url = 'http://localhost:3000/api/healthz';
           while (Date.now() < deadline) {
             try { const r = await fetch(url); if (r.ok) process.exit(0); } catch {}
             await new Promise(r => setTimeout(r, 1000));
@@ -93,7 +93,7 @@ jobs:
       - name: Seller API route smoke
         run: |
           node --input-type=module <<'NODE'
-          const base = 'http://127.0.0.1:3000';
+          const base = 'http://localhost:3000';
           const login = await fetch(`${base}/api/auth/login`, { method: 'POST', headers: {'content-type':'application/json', accept:'application/json', origin: base, referer: `${base}/fa/auth/login`}, body: JSON.stringify({identifier: process.env.SELLER_E2E_EMAIL, password: process.env.SELLER_E2E_PASSWORD}) });
           if (!login.ok) throw new Error(`Seller login failed: ${login.status} ${await login.text()}`);
           const rawCookie = login.headers.get('set-cookie');

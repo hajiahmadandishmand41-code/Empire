@@ -30,7 +30,7 @@ jobs:
       AUTH_SECRET: ci-admin-e2e-secret-should-never-be-used-in-production
       NEXTAUTH_SECRET: ci-admin-e2e-secret-should-never-be-used-in-production
       SESSION_SECRET: ci-admin-e2e-secret-should-never-be-used-in-production
-      NEXT_PUBLIC_SITE_URL: http://127.0.0.1:3000
+      NEXT_PUBLIC_SITE_URL: https://ci.example.test
       NODE_ENV: production
       ADMIN_SEED_EMAIL: admin2@empire.shop
       ADMIN_SEED_PASSWORD: ci-admin-password-12345
@@ -78,7 +78,7 @@ jobs:
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
           const deadline = Date.now() + 120000;
-          const url = 'http://127.0.0.1:3000/api/healthz';
+          const url = 'http://localhost:3000/api/healthz';
           while (Date.now() < deadline) {
             try {
               const r = await fetch(url);
@@ -95,7 +95,7 @@ jobs:
       - name: Auth/API route smoke
         run: |
           node --input-type=module <<'NODE'
-          const base = 'http://127.0.0.1:3000';
+          const base = 'http://localhost:3000';
           const login = await fetch(`${base}/api/auth/login`, {
             method: 'POST',
             headers: {'content-type': 'application/json', accept: 'application/json'},

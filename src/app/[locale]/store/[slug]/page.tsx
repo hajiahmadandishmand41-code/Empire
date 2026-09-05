@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
+import { decodeRouteParam } from '@/lib/url-params';
 import { cache } from 'react';
 import { setRequestLocale } from 'next-intl/server';
 import { prisma, isDatabaseConfigured } from '@/lib/db';
@@ -59,7 +60,8 @@ const getSeller = cache(async (slug: string) => {
 });
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { locale, slug } = await params;
+  const { locale, slug: rawSlug } = await params;
+  const slug = decodeRouteParam(rawSlug);
   if (!isDatabaseConfigured()) return { title: locale === 'en' ? 'Store | Eshop' : locale === 'ps' ? 'پلورنځی | Eshop' : 'فروشگاه | Eshop' };
   const seller = await getSeller(slug);
   if (!seller) return { title: locale === 'en' ? 'Store | Eshop' : locale === 'ps' ? 'پلورنځی | Eshop' : 'فروشگاه | Eshop' };
@@ -68,7 +70,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function SellerStorefront({ params }: Props) {
-  const { locale, slug } = await params;
+  const { locale, slug: rawSlug } = await params;
+  const slug = decodeRouteParam(rawSlug);
   setRequestLocale(locale);
   const lang = locale === 'en' || locale === 'ps' ? locale : 'fa';
   const t = copy[lang];

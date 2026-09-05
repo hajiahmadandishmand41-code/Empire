@@ -1,15 +1,14 @@
 import { test, expect } from '@playwright/test';
 
-const base = process.env.BASE_URL ?? 'http://127.0.0.1:3000';
+const base = process.env.BASE_URL ?? 'http://localhost:3000';
 const email = process.env.SELLER_E2E_EMAIL;
 const password = process.env.SELLER_E2E_PASSWORD;
 if (!email || !password) throw new Error('SELLER_E2E_EMAIL and SELLER_E2E_PASSWORD are required');
 
 async function login(page) {
-  await page.goto(`${base}/fa/auth/login`, { waitUntil: 'domcontentloaded' });
-  await page.locator('input[type="text"], input[type="email"]').first().fill(email);
-  await page.locator('input[type="password"]').fill(password);
-  await page.locator('form[aria-label]').getByRole('button', { name: /ورود|login/i }).click();
+  // The session is restored from the shared storageState (see auth.setup.mjs);
+  // entering the Seller Center must not bounce to the login page.
+  await page.goto(`${base}/fa/seller`, { waitUntil: 'domcontentloaded' });
   await expect(page).toHaveURL(/\/fa\/seller(?:[/?#]|$)/, { timeout: 20000 });
 }
 

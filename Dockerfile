@@ -16,6 +16,12 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # Image builds must never contact a database: migrations are applied at
 # deploy time (`npm run db:deploy`), keeping the build reproducible.
 ENV SKIP_DB_MIGRATE=1
+# NEXT_PUBLIC_SITE_URL is inlined into client/server bundles at build time.
+# Pass it with `docker build --build-arg NEXT_PUBLIC_SITE_URL=https://...`.
+# The runtime SITE_URL variable (see docker-compose.production.yml) overrides
+# server-side resolution when the build arg was not provided.
+ARG NEXT_PUBLIC_SITE_URL=""
+ENV NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL}
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY . .
 RUN npm run build

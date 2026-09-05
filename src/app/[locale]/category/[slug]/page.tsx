@@ -8,6 +8,7 @@ import { BottomNavigation } from '@/features/home/components/bottom-navigation';
 import { ShopPageClient } from '@/features/shop';
 import { getCategoryRepository, getProductService } from '@/server/infrastructure/registry';
 import { getProductLocalizedTexts, normalizeCatalogLocale } from '@/server/localization/product-localization';
+import { decodeRouteParam } from '@/lib/url-params';
 
 type Props = { params: Promise<{ locale: string; slug: string }> };
 type FallbackCategory = { key: string; name: string; slug: string; productCount: number };
@@ -52,7 +53,8 @@ async function getInitialCatalog(locale: string, categoryKey: string) {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { locale, slug } = await params;
+  const { locale, slug: rawSlug } = await params;
+  const slug = decodeRouteParam(rawSlug);
   const category = (await getCategory(slug)) ?? fallbackCategories[slug];
   if (!category) return { title: locale === 'en' ? 'Category | Eshop' : 'دسته‌بندی | ایشاپ' };
   const title = locale === 'en' ? `${category.name} | Eshop` : `${category.name} | ایشاپ`;
@@ -61,7 +63,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function CategoryPage({ params }: Props) {
-  const { locale, slug } = await params;
+  const { locale, slug: rawSlug } = await params;
+  const slug = decodeRouteParam(rawSlug);
   setRequestLocale(locale);
   const category = (await getCategory(slug)) ?? fallbackFor(slug);
   const initialCatalog = await getInitialCatalog(locale, category.key);

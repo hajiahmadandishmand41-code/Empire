@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
+import { makePngBytes } from './helpers/png.mjs';
 
-const base = process.env.BASE_URL ?? 'http://127.0.0.1:3000';
+const base = process.env.BASE_URL ?? 'http://localhost:3000';
 const email = process.env.SELLER_E2E_EMAIL;
 const password = process.env.SELLER_E2E_PASSWORD;
 
@@ -21,10 +22,9 @@ const sellerApis = [
 ];
 
 async function login(page) {
-  await page.goto(`${base}/fa/auth/login`, { waitUntil: 'domcontentloaded' });
-  await page.locator('input[type="text"], input[type="email"]').first().fill(email);
-  await page.locator('input[type="password"]').fill(password);
-  await page.locator('form[aria-label]').getByRole('button', { name: /ورود|login/i }).click();
+  // The session is restored from the shared storageState (see auth.setup.mjs);
+  // entering the Seller Center must not bounce to the login page.
+  await page.goto(`${base}/fa/seller`, { waitUntil: 'domcontentloaded' });
   await expect(page).toHaveURL(/\/fa\/seller(?:[/?#]|$)/, { timeout: 20000 });
 }
 
@@ -74,10 +74,13 @@ test.describe('Seller Center — deep end-to-end', () => {
     const productName = `E2E Seller Product ${Date.now()}`;
     let productId = null;
     try {
+      // Activation requires at least 3 images, so the product is created
+      // inactive, images are uploaded through the real storage pipeline, and
+      // only then is the product activated.
       const create = await page.request.post(`${base}/api/seller/products`, { data: {
         name: productName, shortDescription: 'Deep E2E product', description: 'Created by seller-center deep E2E suite',
         price: 2500, compareAtPrice: 3000, categoryId, region: 'Kabul', currency: 'AFN', inStock: true,
-        isActive: true, stockQuantity: 12, whatsappNumber: '+93700000000', isTraditional: false, images: [],
+        isActive: false, stockQuantity: 12, whatsappNumber: '+93700000000', isTraditional: false, images: [],
         tagsJson: JSON.stringify(['e2e', 'seller']), attributesJson: JSON.stringify([{ key: 'source', value: 'e2e' }]),
       }});
       expect(create.status()).toBe(201);
@@ -87,6 +90,27 @@ test.describe('Seller Center — deep end-to-end', () => {
       expect(created.data.name).toBe(productName);
       expect(created.data.sellerId).toBeTruthy();
       expect(created.data.brandId).toBeUndefined();
+
+      // Uploading 3 real images through the seller image endpoint and serving
+      // them back verifies the storage path end to end.
+      const png = makePngBytes();
+      const uploadedUrls = [];
+      for (let i = 0; i < 3; i += 1) {
+        const upload = await page.request.post(`${base}/api/seller/products/${productId}/images`, {
+          multipart: { file: { name: `e2e-${i}.png`, mimeType: 'image/png', buffer: png } },
+        });
+        expect(upload.status()).toBe(200);
+        const uploadBody = await upload.json();
+        expect(uploadBody.ok).toBeTruthy();
+        expect(typeof uploadBody.data.url).toBe('string');
+        expect(uploadBody.data.url.length).toBeGreaterThan(0);
+        uploadedUrls.push(uploadBody.data.url);
+        const served = await page.request.get(`${base}${uploadBody.data.url}`);
+        expect(served.status()).toBe(200);
+      }
+
+      const activation = await page.request.patch(`${base}/api/seller/products/${productId}`, { data: { isActive: true } });
+      expect(activation.status()).toBe(200);
 
       const listed = await page.request.get(`${base}/api/seller/products?q=${encodeURIComponent(productName)}`);
       expect(listed.status()).toBe(200);
@@ -101,6 +125,8 @@ test.describe('Seller Center — deep end-to-end', () => {
       expect(Number(updated.data.price)).toBe(2700);
       expect(Number(updated.data.stockQuantity)).toBe(20);
       expect(updated.data.brandId).toBeUndefined();
+      expect(Array.isArray(updated.data.images)).toBeTruthy();
+      expect(updated.data.images).toEqual(uploadedUrls);
 
       const detailPage = await page.goto(`${base}/fa/seller/products/${productId}/edit`, { waitUntil: 'domcontentloaded' });
       expect(detailPage.status()).toBeLessThan(500);

@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-const base = 'http://127.0.0.1:3000';
+const base = process.env.BASE_URL ?? 'http://localhost:3000';
 const routes = [
   '/fa/admin',
   '/fa/admin/products',

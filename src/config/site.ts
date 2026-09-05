@@ -16,19 +16,31 @@ import type { BrandMeta } from '@/types';
  */
 
 function resolveSiteUrl(): string {
+  // `NEXT_PUBLIC_*` values are inlined into bundles at build time, so a
+  // container built without them cannot be reconfigured at start. `SITE_URL`
+  // is a plain runtime variable: it is evaluated when the server boots and is
+  // `undefined` inside client bundles, where the baked NEXT_PUBLIC value (or
+  // nothing) is used instead.
+  const runtimeOverride = process.env.SITE_URL?.trim();
   const configured = process.env.NEXT_PUBLIC_SITE_URL;
   const runtimeDomain = (
     process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL
   )?.trim();
-  const raw = configured || (runtimeDomain ? `https://${runtimeDomain}` : '');
+  const raw =
+    runtimeOverride || configured || (runtimeDomain ? `https://${runtimeDomain}` : '');
   const trimmed = raw.replace(/\/$/, '');
   const isBuildPhase = process.env.NEXT_PHASE === 'phase-production-build';
   if (process.env.NODE_ENV === 'production' && !isBuildPhase) {
-    if (configured && (!trimmed || trimmed.startsWith('http://localhost'))) {
+    if (
+      !trimmed ||
+      trimmed.startsWith('http://localhost') ||
+      trimmed.startsWith('http://127.0.0.1')
+    ) {
       throw new Error(
-        '[eshop] FATAL: NEXT_PUBLIC_SITE_URL must be set to your production domain ' +
-          '(e.g. https://www.eshop.shop) in production. ' +
-          'A localhost fallback is not allowed in production.',
+        '[eshop] FATAL: the production site URL is not configured. Set SITE_URL ' +
+          '(runtime) or NEXT_PUBLIC_SITE_URL (build time) to your production ' +
+          'domain (e.g. https://www.eshop.shop). A localhost fallback is not ' +
+          'allowed in production.',
       );
     }
   }

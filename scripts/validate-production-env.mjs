@@ -18,9 +18,6 @@ const required = [
   'AUTH_SECRET',
   'UPSTASH_REDIS_REST_URL',
   'UPSTASH_REDIS_REST_TOKEN',
-  'CLOUDINARY_CLOUD_NAME',
-  'CLOUDINARY_API_KEY',
-  'CLOUDINARY_API_SECRET',
   'ATOMA_PAY_BASE_URL',
   'ATOMA_PAY_MERCHANT_ID',
   'ATOMA_PAY_API_KEY',
@@ -29,7 +26,14 @@ const required = [
   'ATOMA_PAY_STATUS_PATH',
 ];
 
-const productionSiteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim()
+// Image storage: Cloudinary when configured, otherwise the database-backed
+// MediaAsset store (which always exists because a database URL is mandatory).
+// Partial Cloudinary configuration is a misconfiguration and must fail closed.
+const cloudinaryKeys = ['CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET'];
+const cloudinarySet = cloudinaryKeys.filter((key) => process.env[key]?.trim());
+
+const productionSiteUrl = process.env.SITE_URL?.trim()
+  || process.env.NEXT_PUBLIC_SITE_URL?.trim()
   || (process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim()
     ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL.trim()}`
     : '');
@@ -47,15 +51,20 @@ for (const key of required) {
 if (process.env.ALLOW_MOCK_AUTH === 'true') errors.push('ALLOW_MOCK_AUTH=true is forbidden in production');
 if (process.env.CSP_REPORT_ONLY === 'true') errors.push('CSP_REPORT_ONLY=true is forbidden in production');
 
+if (cloudinarySet.length > 0 && cloudinarySet.length < cloudinaryKeys.length) {
+  const missing = cloudinaryKeys.filter((key) => !process.env[key]?.trim());
+  errors.push(`partial Cloudinary configuration: ${missing.join(', ')} must be set when any CLOUDINARY_* variable is used (or remove all of them to use database-backed media storage)`);
+}
+
 const authSecret = process.env.AUTH_SECRET ?? '';
 if (authSecret.length < 32) errors.push('AUTH_SECRET must be at least 32 characters');
 
 try {
   const url = new URL(productionSiteUrl);
   if (url.protocol !== 'https:') errors.push('production site URL must use https');
-} catch {
-  errors.push('NEXT_PUBLIC_SITE_URL or VERCEL_PROJECT_PRODUCTION_URL must provide a valid production URL');
-}
+  } catch {
+    errors.push('SITE_URL, NEXT_PUBLIC_SITE_URL or VERCEL_PROJECT_PRODUCTION_URL must provide a valid production URL');
+  }
 
 for (const key of ['UPSTASH_REDIS_REST_URL', 'ATOMA_PAY_BASE_URL']) {
   try {
@@ -72,4 +81,5 @@ if (errors.length) {
   process.exit(1);
 }
 
-console.log('[production-env] required production configuration is present');
+const storageBackend = cloudinarySet.length === cloudinaryKeys.length ? 'cloudinary' : 'database (MediaAsset)';
+console.log(`[production-env] required production configuration is present (image storage: ${storageBackend})`);

@@ -7,6 +7,21 @@ const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   compress: true,
+  // Next.js 16 blocks cross-origin loads of dev resources (/_next/*) by
+  // default. Local loopback aliases must be allowlisted, otherwise every
+  // client chunk is rejected with 403 when the app is opened via
+  // http://127.0.0.1:3000 (or [::1]) instead of http://localhost:3000 and the
+  // whole UI fails to hydrate. Add ALLOWED_DEV_ORIGINS (comma separated) for
+  // LAN/tunnel hosts used during development.
+  allowedDevOrigins: [
+    '127.0.0.1',
+    '[::1]',
+    ...(process.env.ALLOWED_DEV_ORIGINS
+      ? process.env.ALLOWED_DEV_ORIGINS.split(',')
+          .map((host) => host.trim())
+          .filter(Boolean)
+      : []),
+  ],
   ...(process.env.VERCEL ? {} : { output: 'standalone' }),
   outputFileTracingRoot: process.cwd(),
   productionBrowserSourceMaps: false,

@@ -133,6 +133,13 @@ npm run build
 npm run start
 ```
 
+### ذخیره‌سازی تصاویر
+
+دو backend پشتیبانی می‌شود:
+
+- **Cloudinary** (پیشنهادی برای مقیاس بالا): هر سه متغیر `CLOUDINARY_CLOUD_NAME`، `CLOUDINARY_API_KEY` و `CLOUDINARY_API_SECRET` را تنظیم کنید.
+- **پایگاه داده** (بدون وابستگی خارجی): اگر هیچ متغیر Cloudinary تنظیم نشود، تصاویر در جدول `MediaAsset` ذخیره و از مسیر `/api/media/{id}` سرو می‌شوند. تنظیم ناقص Cloudinary باعث رد شدن اعتبارسنجی محیط تولید می‌شود.
+
 ---
 
 ## فناوری‌ها

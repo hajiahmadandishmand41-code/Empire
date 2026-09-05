@@ -46,3 +46,8 @@ next-env.d.ts
 *.REPORT.md
 FINAL_FIX_REPORT.md
 STAGE*.md
+
+# Playwright
+/tests/.auth/
+/test-results/
+/playwright-report/
