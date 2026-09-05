@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import Image from 'next/image';
 import { Heart, ShieldCheck, Star, Store } from 'lucide-react';
 import { setRequestLocale } from 'next-intl/server';
+import { Link } from '@/i18n/routing';
 import { HomepageHeroCarousel } from '@/features/home/components/homepage-hero-carousel';
 import { HomeDiscoveryStrip } from '@/features/home/components/home-discovery-strip';
 import { BrandsSection } from '@/features/home/components/brands-section';
@@ -91,17 +92,17 @@ async function HomePopularStores({ locale }: { locale: Locale }) {
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-violet-500/10 text-violet-600 dark:text-violet-400"><Store className="h-4 w-4" aria-hidden="true" /></span>
           <div className="min-w-0"><h2 className="truncate text-sm font-black sm:text-lg">{copy.title}</h2><p className="mt-0.5 truncate text-[10px] text-muted-foreground sm:text-xs">{copy.subtitle}</p></div>
         </div>
-        <a href={locale === 'en' ? '/en/stores' : locale === 'ps' ? '/ps/stores' : '/fa/stores'} className="min-h-8 shrink-0 rounded-full border border-border bg-background px-2.5 py-1.5 text-[10px] font-bold sm:px-3 sm:text-xs">{copy.all}</a>
+        <Link href="/stores" className="min-h-8 shrink-0 rounded-full border border-border bg-background px-2.5 py-1.5 text-[10px] font-bold sm:px-3 sm:text-xs">{copy.all}</Link>
       </div>
       <div className="flex snap-x snap-mandatory gap-2 overflow-x-auto pb-1 [scrollbar-width:none] sm:gap-3 [&::-webkit-scrollbar]:hidden">
-        {result.items.slice(0, 10).map((store) => <a key={store.id} href={locale === 'en' ? `/en/store/${store.id}` : locale === 'ps' ? `/ps/store/${store.id}` : `/fa/store/${store.id}`} aria-label={store.shopName} className="group relative flex w-[180px] shrink-0 snap-start items-center gap-2 rounded-2xl border border-border bg-background p-2.5 transition hover:border-primary/30 hover:shadow-sm sm:w-[220px] sm:p-3">
+        {result.items.slice(0, 10).map((store) => <Link key={store.id} href={`/store/${store.id}` as never} aria-label={store.shopName} className="group relative flex w-[180px] shrink-0 snap-start items-center gap-2 rounded-2xl border border-border bg-background p-2.5 transition hover:border-primary/30 hover:shadow-sm sm:w-[220px] sm:p-3">
           <span className="pointer-events-none absolute end-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-background/90 text-rose-500 shadow-sm ring-1 ring-border/70" aria-hidden="true"><Heart className="h-3.5 w-3.5 fill-current" /></span>
           <span className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-muted sm:h-14 sm:w-14">
             {store.logoUrl ? <Image src={store.logoUrl} alt="" fill sizes="56px" /> : <span className="text-sm font-black text-primary">{store.shopName.charAt(0)}</span>}
             <span className="absolute -end-0.5 -top-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full border border-background bg-emerald-500 text-white"><ShieldCheck className="h-2 w-2" aria-hidden="true" /></span>
           </span>
           <span className="min-w-0 pe-7"><strong className="block truncate text-[11px] font-black sm:text-xs">{store.shopName}</strong><span className="mt-0.5 block truncate text-[9px] text-muted-foreground sm:text-[10px]">{store.productCount} {locale === 'en' ? 'products' : locale === 'ps' ? 'محصولات' : 'محصول'}</span></span>
-        </a>)}
+        </Link>)}
       </div>
     </div>
   </section>;
@@ -128,7 +129,7 @@ async function PopularCategoryRanking({ locale }: { locale: Locale }) {
   const title = locale === 'en' ? 'Popular categories' : locale === 'ps' ? 'مشهورې کټګورۍ' : 'دسته‌های محبوب';
   const productLabel = locale === 'en' ? 'products' : locale === 'ps' ? 'محصولات' : 'محصول';
   const numberLocale = locale === 'en' ? 'en-US' : locale === 'ps' ? 'ps-AF' : 'fa-IR';
-  return <section className="border-b border-border bg-card py-4 sm:py-6" aria-label={title}><div className="mx-auto max-w-screen-xl px-2.5 sm:px-6"><div className="mb-3 flex items-center gap-2 sm:mb-4"><span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-sm font-black text-primary"><Star className="h-4 w-4" aria-hidden="true" /></span><h2 className="text-sm font-black sm:text-lg">{title}</h2></div><div className="grid grid-cols-2 gap-2 sm:gap-3">{top.map((category, index) => <a key={category.id} href={locale === 'en' ? `/en/category/${category.slug}` : locale === 'ps' ? `/ps/category/${category.slug}` : `/fa/category/${category.slug}`} className="relative flex min-h-20 items-center gap-2 overflow-hidden rounded-2xl border border-border bg-background p-2.5 transition hover:border-primary/30 hover:shadow-sm sm:min-h-24 sm:p-3"><span className="absolute start-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-[11px] font-black text-primary-foreground">{index + 1}</span><span className="relative ms-8 h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-muted sm:h-16 sm:w-16">{category.imageUrl ? <Image src={category.imageUrl} alt={category.name} fill sizes="64px" loading="lazy" className="object-cover" /> : <span className="flex h-full w-full items-center justify-center text-sm font-black text-muted-foreground">{index + 1}</span>}</span><span className="min-w-0"><strong className="block truncate text-xs font-black sm:text-sm">{category.name}</strong><span className="mt-1 block text-[10px] text-muted-foreground sm:text-[10px]">{Number(category.productCount ?? 0).toLocaleString(numberLocale)} {productLabel}</span></span></a>)}</div></div></section>;
+  return <section className="border-b border-border bg-card py-4 sm:py-6" aria-label={title}><div className="mx-auto max-w-screen-xl px-2.5 sm:px-6"><div className="mb-3 flex items-center gap-2 sm:mb-4"><span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-sm font-black text-primary"><Star className="h-4 w-4" aria-hidden="true" /></span><h2 className="text-sm font-black sm:text-lg">{title}</h2></div><div className="grid grid-cols-2 gap-2 sm:gap-3">{top.map((category, index) => <Link key={category.id} href={`/category/${category.slug}` as never} className="relative flex min-h-20 items-center gap-2 overflow-hidden rounded-2xl border border-border bg-background p-2.5 transition hover:border-primary/30 hover:shadow-sm sm:min-h-24 sm:p-3"><span className="absolute start-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-[11px] font-black text-primary-foreground">{index + 1}</span><span className="relative ms-8 h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-muted sm:h-16 sm:w-16">{category.imageUrl ? <Image src={category.imageUrl} alt={category.name} fill sizes="64px" loading="lazy" className="object-cover" /> : <span className="flex h-full w-full items-center justify-center text-sm font-black text-muted-foreground">{index + 1}</span>}</span><span className="min-w-0"><strong className="block truncate text-xs font-black sm:text-sm">{category.name}</strong><span className="mt-1 block text-[10px] text-muted-foreground sm:text-[10px]">{Number(category.productCount ?? 0).toLocaleString(numberLocale)} {productLabel}</span></span></Link>)}</div></div></section>;
 }
 
 export default async function HomePage({ params }: { params: Promise<{ locale: string }> }) {
