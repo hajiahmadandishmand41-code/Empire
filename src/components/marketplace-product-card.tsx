@@ -1,12 +1,12 @@
 'use client';
 
 import Image from 'next/image';
-import Link from 'next/link';
 import { MessageCircle, ShoppingCart, Star, Store, UserRound, Tag } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { cn, formatPrice } from '@/lib/utils';
 import { useCartStore } from '@/features/cart/store/cart-store';
 import { WishlistButton } from '@/features/wishlist/components/wishlist-button';
+import { Link } from '@/i18n/routing';
 import type { ProductSummary } from '@/types';
 
 export interface MarketplaceProductCardProps {
