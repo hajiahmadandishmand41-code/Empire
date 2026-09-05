@@ -30,9 +30,9 @@ jobs:
           --health-retries=20
     env:
       DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
-      AUTH_SECRET: ci-seller-e2e-secret
-      NEXTAUTH_SECRET: ci-seller-e2e-secret
-      SESSION_SECRET: ci-seller-e2e-secret
+      AUTH_SECRET: ci-seller-e2e-auth-secret-20260905
+      NEXTAUTH_SECRET: ci-seller-e2e-auth-secret-20260905
+      SESSION_SECRET: ci-seller-e2e-auth-secret-20260905
       NEXT_PUBLIC_SITE_URL: http://127.0.0.1:3000
       NODE_ENV: production
       SELLER_E2E_EMAIL: seller-e2e@empire.shop
@@ -94,12 +94,12 @@ jobs:
         run: |
           node --input-type=module <<'NODE'
           const base = 'http://127.0.0.1:3000';
-          const login = await fetch(`${base}/api/auth/login`, { method: 'POST', headers: {'content-type': 'application/json', accept: 'application/json'}, body: JSON.stringify({identifier: process.env.SELLER_E2E_EMAIL, password: process.env.SELLER_E2E_PASSWORD}) });
+          const login = await fetch(`${base}/api/auth/login`, { method: 'POST', headers: {'content-type':'application/json', accept:'application/json', origin: base, referer: `${base}/fa/auth/login`}, body: JSON.stringify({identifier: process.env.SELLER_E2E_EMAIL, password: process.env.SELLER_E2E_PASSWORD}) });
           if (!login.ok) throw new Error(`Seller login failed: ${login.status} ${await login.text()}`);
           const rawCookie = login.headers.get('set-cookie');
           if (!rawCookie) throw new Error('Seller login succeeded without session cookie');
           const cookie = rawCookie.split(';', 1)[0];
-          const routes = ['/fa/seller','/fa/seller/products','/fa/seller/products/new','/fa/seller/inventory','/fa/seller/orders','/fa/seller/customers','/fa/seller/discounts','/fa/seller/reviews','/fa/seller/notifications','/fa/seller/wallet','/fa/seller/reports','/fa/seller/brand','/fa/seller/my-brand','/fa/seller/storefront','/fa/seller/settings'];
+          const routes = ['/fa/seller','/fa/seller/products','/fa/seller/products/new','/fa/seller/inventory','/fa/seller/orders','/fa/seller/customers','/fa/seller/discounts','/fa/seller/reviews','/fa/seller/notifications','/fa/seller/wallet','/fa/seller/reports','/fa/seller/brands','/fa/seller/storefront','/fa/seller/settings'];
           let failures = 0;
           for (const path of routes) { const r = await fetch(`${base}${path}`, {redirect:'manual',headers:{cookie}}); const body = await r.text(); const bad = r.status >= 500 || body.includes('Application error') || body.includes('Internal Server Error') || body.includes('NEXT_HTTP_ERROR_FALLBACK'); console.log(`${bad?'FAIL':'PASS'} ${r.status} ${path}`); if (bad) failures++; }
           const products = await fetch(`${base}/api/seller/products`, {headers:{cookie}}); if (!products.ok) { console.error('Seller products API failed', products.status, await products.text()); failures++; }
@@ -164,16 +164,18 @@ jobs:
             echo '## Server log tail'
             tail -200 "$RUNNER_TEMP/empire-seller.log" 2>/dev/null || true
           } > "$RUNNER_TEMP/seller-e2e-result.md"
-          mkdir -p qa-results
-          cp "$RUNNER_TEMP/seller-e2e-result.md" "$report"
-          if git diff --quiet -- "$report"; then
-            echo 'E2E report already current.'
+          if [ "${GITHUB_EVENT_NAME:-}" != "pull_request" ]; then
+            mkdir -p qa-results
+            cp "$RUNNER_TEMP/seller-e2e-result.md" "$report"
+            if git status --short -- "$report" | grep -q .; then
+              git config user.name 'github-actions[bot]'
+              git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+              git add "$report"
+              git commit -m "[skip ci] qa: persist seller e2e result"
+              git push origin "HEAD:$branch"
+            fi
           else
-            git config user.name 'github-actions[bot]'
-            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-            git add "$report"
-            git commit -m "[skip ci] qa: persist seller e2e result"
-            git push origin "HEAD:$branch"
+            echo 'Pull request merge refs do not persist QA reports; diagnostics remain in the workflow artifact/logs.'
           fi
           if [ "$overall" -ne 0 ]; then exit 1; fi
       - name: Upload app log on failure
