@@ -103,7 +103,7 @@
 }
 
 @layer components {
-  .btn-empire { @apply inline-flex min-h-10 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition-[transform,box-shadow,background-color] duration-180 hover:-translate-y-0.5 hover:bg-primary/90 hover:shadow-md active:translate-y-0; }
+  .btn-empire { @apply inline-flex min-h-10 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition-[transform,box-shadow,background-color] duration-200 hover:-translate-y-0.5 hover:bg-primary/90 hover:shadow-md active:translate-y-0; }
   .section-heading { @apply text-xl font-semibold tracking-tight text-foreground sm:text-2xl; }
   .product-grid { @apply grid grid-cols-3 gap-2 sm:grid-cols-3 sm:gap-3; }
   .input-empire { @apply h-11 w-full rounded-xl border border-input bg-background px-3 text-sm text-foreground shadow-sm placeholder:text-muted-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15; }
