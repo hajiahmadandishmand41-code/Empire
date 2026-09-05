@@ -58,8 +58,9 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
 }
 
 export default async function BrandPage({ params }: { params: Promise<{ locale: string; slug: string }> }) {
-  const { locale: rawLocale, slug } = await params;
+  const { locale: rawLocale, slug: rawSlug } = await params;
   const locale = (['fa', 'ps', 'en'].includes(rawLocale) ? rawLocale : 'fa') as Locale;
+  const slug = decodeRouteParam(rawSlug);
   setRequestLocale(locale);
   const t = copy(locale);
   const result = await loadBrand(slug);
