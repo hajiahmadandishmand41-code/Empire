@@ -126,7 +126,7 @@ jobs:
         run: npx playwright test tests/admin-authenticated-e2e.spec.mjs --reporter=line
       - name: Upload app log on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: admin-e2e-log
           path: ${{ runner.temp }}/empire-admin.log
