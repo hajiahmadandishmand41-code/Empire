@@ -76,22 +76,23 @@ export default async function SellerInventoryPage({ params, searchParams }: Prop
   }
 
   return (
-    <Container size="xl" className="space-y-5 py-2">
+    <div className="space-y-5">
       <header className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-black">مدیریت موجودی</h1>
+          <p className="text-xs font-bold text-primary">Seller Center / Inventory</p>
+          <h1 className="mt-1 font-display text-2xl font-black tracking-tight text-foreground">مدیریت موجودی</h1>
           <p className="mt-1 text-sm text-muted-foreground">موجودی را سریع پیدا کنید و از همان‌جا وارد ویرایش محصول شوید.</p>
         </div>
-        <Link href={`/${locale}/seller/products`} className="text-sm font-semibold text-primary hover:underline">مدیریت محصولات ←</Link>
+        <Link href={`/${locale}/seller/products`} className="text-sm font-bold text-primary hover:underline">مدیریت محصولات ←</Link>
       </header>
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-2xl border border-border bg-card p-4"><p className="text-xs text-muted-foreground">کل محصولات</p><p className="mt-1 text-2xl font-black">{totalProducts.toLocaleString()}</p></div>
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/40 dark:bg-amber-950/20"><p className="text-xs text-amber-700 dark:text-amber-300">موجودی کم</p><p className="mt-1 text-2xl font-black text-amber-700 dark:text-amber-300">{lowStock.toLocaleString()}</p></div>
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 dark:border-red-900/40 dark:bg-red-950/20"><p className="text-xs text-red-700 dark:text-red-300">ناموجود</p><p className="mt-1 text-2xl font-black text-red-700 dark:text-red-300">{outOfStock.toLocaleString()}</p></div>
+        <div className="card-luxury rounded-2xl border border-border/60 bg-card p-4 shadow-sm"><p className="text-[11px] font-bold text-muted-foreground">کل محصولات</p><p className="mt-1 text-2xl font-black text-foreground">{totalProducts.toLocaleString()}</p></div>
+        <div className="card-luxury rounded-2xl border border-amber-500/15 bg-amber-500/5 p-4 shadow-sm"><p className="text-[11px] font-bold text-amber-700 dark:text-amber-400">موجودی کم</p><p className="mt-1 text-2xl font-black text-amber-700 dark:text-amber-400">{lowStock.toLocaleString()}</p></div>
+        <div className="card-luxury rounded-2xl border border-red-500/15 bg-red-500/5 p-4 shadow-sm"><p className="text-[11px] font-bold text-red-700 dark:text-red-400">ناموجود</p><p className="mt-1 text-2xl font-black text-red-700 dark:text-red-400">{outOfStock.toLocaleString()}</p></div>
       </div>
 
-      <form className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 sm:flex-row sm:items-center">
+      <form className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card p-4 shadow-sm sm:flex-row sm:items-center">
         <div className="relative flex-1">
           <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input name="q" defaultValue={q} placeholder="نام یا slug محصول…" className="w-full rounded-xl border border-border bg-background py-2.5 pe-3 ps-9 text-sm outline-none focus:ring-2 focus:ring-primary/20" />
@@ -109,7 +110,7 @@ export default async function SellerInventoryPage({ params, searchParams }: Prop
         <button type="submit" className="rounded-xl bg-foreground px-4 py-2.5 text-sm font-bold text-background hover:opacity-90">اعمال</button>
       </form>
 
-      <div className="overflow-hidden rounded-2xl border border-border bg-card">
+      <div className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm">
         <div className="grid grid-cols-[1fr_130px_110px_110px] gap-3 border-b border-border px-4 py-3 text-xs font-bold text-muted-foreground sm:grid-cols-[1fr_150px_110px_120px_120px]">
           <span>محصول</span><span className="hidden sm:block">دسته</span><span>موجودی</span><span>وضعیت</span><span>قیمت</span>
         </div>
@@ -133,6 +134,6 @@ export default async function SellerInventoryPage({ params, searchParams }: Prop
           <Link aria-disabled={currentPage >= totalPages} className={currentPage >= totalPages ? 'pointer-events-none rounded-xl border border-border px-4 py-2 text-muted-foreground/50' : 'rounded-xl border border-border px-4 py-2 hover:bg-muted'} href={pageHref(Math.min(totalPages, currentPage + 1))}>بعدی</Link>
         </div>
       </div>
-    </Container>
+    </div>
   );
 }

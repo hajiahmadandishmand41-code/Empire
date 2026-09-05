@@ -49,9 +49,9 @@ export async function TrustSection() {
               try { sub = t(`${key}.sub` as never); } catch { /* fallback */ }
             }
             return (
-              <div key={key} className="flex items-center gap-2.5 rounded-2xl border border-border/70 bg-background p-3 transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-sm">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                  <Icon className="h-4 w-4" aria-hidden="true" />
+              <div key={key} className="group/trust flex items-center gap-2.5 rounded-2xl border border-border/60 bg-gradient-to-br from-background to-muted/30 p-3 transition-all duration-300 hover:-translate-y-1 hover:border-primary/25 hover:shadow-[var(--shadow-card-hover)]">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary/15 to-primary/5 text-primary transition-all duration-300 group-hover/trust:shadow-glow">
+                  <Icon className="h-4.5 w-4.5" aria-hidden="true" />
                 </span>
                 <div className="min-w-0">
                   <p className="truncate text-[11px] font-extrabold text-foreground">{label}</p>

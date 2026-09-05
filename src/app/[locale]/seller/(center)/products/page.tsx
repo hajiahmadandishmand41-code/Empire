@@ -35,8 +35,8 @@ export default async function SellerProductsPage({ params, searchParams }: Props
       header: 'محصول',
       cell: (r) => (
         <div className="min-w-0">
-          <div className="truncate font-medium text-foreground">{r.name}</div>
-          <div className="truncate font-mono text-xs text-muted-foreground">{r.slug}</div>
+          <div className="truncate font-bold text-foreground">{r.name}</div>
+          <div className="truncate font-mono text-[11px] text-muted-foreground">{r.slug}</div>
         </div>
       ),
     },
@@ -44,7 +44,7 @@ export default async function SellerProductsPage({ params, searchParams }: Props
       key: 'price',
       header: 'قیمت',
       cell: (r) => (
-        <span className="font-semibold text-navy-800">{formatMoney(r.price, r.currency)}</span>
+        <span className="font-bold text-foreground">{formatMoney(r.price, r.currency)}</span>
       ),
     },
     {
@@ -53,21 +53,25 @@ export default async function SellerProductsPage({ params, searchParams }: Props
       cell: (r) => (
         <span
           className={
-            r.inStock
-              ? 'inline-flex items-center rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-700'
-              : 'inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground'
+            r.isActive
+              ? 'inline-flex items-center rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700 dark:text-emerald-400'
+              : 'inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-[11px] font-bold text-muted-foreground'
           }
         >
-          {r.inStock ? 'فعال' : 'غیرفعال'}
+          {r.isActive ? 'فعال' : 'غیرفعال'}
         </span>
       ),
     },
     {
       key: 'inventory',
       header: 'موجودی',
-      cell: (r) => (r.inStock ? 'موجود' : 'ناموجود'),
+      cell: (r) => (
+        <span className={r.stockQuantity <= 0 ? 'font-bold text-red-600 dark:text-red-400' : r.stockQuantity <= 5 ? 'font-bold text-amber-600 dark:text-amber-400' : 'font-medium text-emerald-700 dark:text-emerald-400'}>
+          {r.stockQuantity <= 0 ? 'ناموجود' : `${r.stockQuantity.toLocaleString('fa-IR')} عدد`}
+        </span>
+      ),
     },
-    { key: 'created', header: 'ایجاد شده', cell: (r) => formatDate(r.createdAt) },
+    { key: 'created', header: 'ایجاد شده', cell: (r) => <span className="text-muted-foreground">{formatDate(r.createdAt)}</span> },
     {
       key: 'actions',
       header: '',
@@ -80,38 +84,31 @@ export default async function SellerProductsPage({ params, searchParams }: Props
   ];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <header className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h2 className="font-display text-2xl font-bold text-navy-800">محصولات من</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            مدیریت محصولات فروشگاه شما — افزودن، ویرایش و حذف
-          </p>
+          <p className="text-xs font-bold text-primary">Seller Center / Products</p>
+          <h2 className="mt-1 font-display text-2xl font-black tracking-tight text-foreground">محصولات من</h2>
+          <p className="mt-1 text-sm text-muted-foreground">مدیریت محصولات فروشگاه شما — افزودن، ویرایش و حذف</p>
         </div>
         <Link href={`${base}/new`}>
-          <Button size="sm" variant="primary">
-            <Plus className="h-4 w-4" />
-            افزودن محصول
-          </Button>
+          <Button className="btn-empire gap-2" size="sm"><Plus className="h-4 w-4" />افزودن محصول</Button>
         </Link>
       </header>
 
-      <Card className="space-y-4 p-4">
+      <div className="card-luxury space-y-4 rounded-2xl border border-border/60 bg-card p-4 shadow-sm sm:p-5">
         <div className="flex flex-wrap items-center gap-3">
           <SearchForm placeholder="جستجو در محصولات…" />
         </div>
 
         {result.total === 0 ? (
-          <EmptyState
-            title="محصولی یافت نشد"
-            description="با افزودن محصول جدید شروع کنید."
-          />
+          <EmptyState title="محصولی یافت نشد" description="با افزودن محصول جدید شروع کنید." />
         ) : (
           <DataTable columns={columns} rows={result.items} rowKey={(r) => r.id} />
         )}
 
         <Pagination page={result.page} pageSize={result.pageSize} total={result.total} />
-      </Card>
+      </div>
     </div>
   );
 }

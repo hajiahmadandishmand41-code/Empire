@@ -30,6 +30,10 @@
     --header-height: 112px; --bottom-nav-height: 64px; --content-max-width: 1440px;
     --motion-fast: 120ms; --motion-standard: 180ms; --motion-slow: 260ms; --ease-standard: cubic-bezier(0.2, 0, 0, 1);
     --shadow-premium: 0 14px 34px hsl(var(--foreground) / 0.07), 0 3px 10px hsl(var(--foreground) / 0.035);
+    --shadow-card-hover: 0 20px 40px hsl(var(--primary) / 0.10), 0 4px 14px hsl(var(--foreground) / 0.06);
+    --shadow-glow: 0 0 24px hsl(var(--primary) / 0.15);
+    --gradient-brand: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--color-brand-secondary)));
+    --gradient-surface: linear-gradient(180deg, hsl(var(--surface)) 0%, hsl(var(--color-surface-muted)) 100%);
     --z-dropdown: 40; --z-sticky: 30; --z-overlay: 50; --z-modal: 60; --z-toast: 70;
   }
   html.dark {
@@ -43,6 +47,8 @@
     --secondary: var(--color-surface-muted); --secondary-foreground: var(--color-foreground); --muted: var(--color-surface-muted); --muted-foreground: var(--color-foreground-muted);
     --accent: 345 35% 18%; --accent-foreground: 345 82% 82%; --destructive: var(--color-danger); --destructive-foreground: 0 0% 100%;
     --border: var(--color-border); --input: var(--color-border); --ring: var(--color-focus);
+    --shadow-card-hover: 0 20px 40px hsl(var(--primary) / 0.15), 0 4px 14px hsl(var(--foreground) / 0.10);
+    --shadow-glow: 0 0 30px hsl(var(--primary) / 0.20);
   }
   * { @apply border-border; box-sizing: border-box; }
   html { scroll-behavior: smooth; -webkit-tap-highlight-color: transparent; text-size-adjust: 100%; }
@@ -72,8 +78,12 @@
   [dir='rtl'] .progress-indicator { transform: translateX(var(--progress-offset)); }
   .glass { background: hsl(var(--surface) / 0.94); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
   .card-luxury { transition: box-shadow var(--motion-standard) var(--ease-standard), border-color var(--motion-standard) var(--ease-standard), transform var(--motion-standard) var(--ease-standard); }
-  .card-luxury:hover { transform: translateY(-1px); box-shadow: 0 8px 20px hsl(var(--foreground) / 0.07); border-color: hsl(var(--primary) / .24); }
+  .card-luxury:hover { transform: translateY(-2px); box-shadow: var(--shadow-card-hover); border-color: hsl(var(--primary) / .24); }
   .shadow-premium { box-shadow: var(--shadow-premium); }
+  .shadow-glow { box-shadow: var(--shadow-glow); }
+  .gradient-brand { background: var(--gradient-brand); }
+  .gradient-brand-text { background: var(--gradient-brand); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .glass-strong { background: hsl(var(--surface) / 0.85); backdrop-filter: blur(16px) saturate(1.8); -webkit-backdrop-filter: blur(16px) saturate(1.8); }
   .price-current, .text-price-current { color: hsl(var(--color-price-current)); }
   .bg-price-sale { background: hsl(var(--color-price-sale)); }
   .text-price-warning { color: hsl(var(--color-price-warning)); }

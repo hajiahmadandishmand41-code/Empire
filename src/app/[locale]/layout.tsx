@@ -10,6 +10,8 @@ import { ThemeProvider } from '@/components/providers/theme-provider';
 import { baseMetadata, htmlProps, pwaViewport } from '@/components/providers/locale-html-attrs';
 import { PWAProvider } from '@/components/pwa/pwa-provider';
 import { AuthProvider } from '@/providers/auth-provider';
+import { WebVitals } from '@/components/providers/web-vitals';
+import { MotionProvider } from '@/components/providers/motion-provider';
 import { vazirmatn, inter } from '@/lib/fonts';
 import '@/styles/globals.css';
 import '@/styles/shop-overrides.css';
@@ -36,5 +38,5 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
   const requestHeaders = await headers();
   const nonce = requestHeaders.get('x-nonce') ?? undefined;
   const [messages, t] = await Promise.all([getMessages(), getTranslations('common')]);
-  return <html {...htmlProps(locale as AppLocale)} className={`${vazirmatn.variable} ${inter.variable}`}><head><script nonce={nonce} dangerouslySetInnerHTML={{ __html: ANTI_FLICKER_SCRIPT }} /></head><body className="bg-background font-sans text-foreground"><NextIntlClientProvider locale={locale} messages={messages}><ThemeProvider><DirectionProvider locale={locale as AppLocale}><AuthProvider><a href="#main" className="skip-link">{t('skipToContent')}</a>{children}<PWAProvider /><Toaster /></AuthProvider></DirectionProvider></ThemeProvider></NextIntlClientProvider></body></html>;
+  return <html {...htmlProps(locale as AppLocale)} className={`${vazirmatn.variable} ${inter.variable}`}><head><script nonce={nonce} dangerouslySetInnerHTML={{ __html: ANTI_FLICKER_SCRIPT }} /></head><body className="bg-background font-sans text-foreground"><NextIntlClientProvider locale={locale} messages={messages}><ThemeProvider><DirectionProvider locale={locale as AppLocale}><MotionProvider><AuthProvider><WebVitals /><a href="#main" className="skip-link">{t('skipToContent')}</a>{children}<PWAProvider /><Toaster /></AuthProvider></MotionProvider></DirectionProvider></ThemeProvider></NextIntlClientProvider></body></html>;
 }
