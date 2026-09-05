@@ -1,6 +1,7 @@
 'use client';
 
 import type { ProductSummary } from '@/types';
+import { Link } from '@/i18n/routing';
 import { MarketplaceProductCard } from '@/components/marketplace-product-card';
 
 export function HomeCatalogGrid({ products, locale = 'fa', currency = 'AFN' }: { products: ProductSummary[]; locale?: string; currency?: string }) {
@@ -19,7 +20,7 @@ export function HomeCatalogGrid({ products, locale = 'fa', currency = 'AFN' }: {
             <div className="flex items-center gap-2"><span className="h-6 w-1 rounded-full bg-gradient-to-b from-fuchsia-300 via-rose-300 to-sky-300" aria-hidden="true" /><h2 className="text-sm font-black tracking-tight sm:text-lg">{copy.title}</h2></div>
             <p className="mt-0.5 text-[11px] leading-4 text-muted-foreground sm:mt-1 sm:text-xs sm:leading-5">{copy.subtitle}</p>
           </div>
-          <a href={locale === 'en' ? '/en/shop' : locale === 'ps' ? '/ps/shop' : '/fa/shop'} className="shrink-0 rounded-full border border-border bg-card px-3 py-1.5 text-[11px] font-bold transition-colors hover:bg-muted sm:px-3.5 sm:py-1.5 sm:text-[11px]">{copy.all}</a>
+          <Link href="/shop" className="shrink-0 rounded-full border border-border bg-card px-3 py-1.5 text-[11px] font-bold transition-colors hover:bg-muted sm:px-3.5 sm:py-1.5 sm:text-[11px]">{copy.all}</Link>
         </div>
 
         <div className="grid grid-cols-3 gap-2 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4 xl:grid-cols-5">
