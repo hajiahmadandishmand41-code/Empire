@@ -7,7 +7,7 @@ import { requireSellerApi } from '@/lib/auth/require-seller-api';
 import { logger } from '@/lib/logger';
 import { uploadPersistent, deletePersistent } from '@/lib/storage';
 import { parseProductImages, PRODUCT_MAX_IMAGE_BYTES, PRODUCT_MAX_IMAGES } from '@/features/products/product-contract';
-import { detectImageMime } from '@/lib/media/image-upload';
+import { detectImageMime, hasValidImageSignature, imageUploadError } from '@/lib/media/image-upload';
 
 export const dynamic = 'force-dynamic';
 const MAX_TRANSACTION_RETRIES = 3;
@@ -57,7 +57,7 @@ async function readUpload(req: NextRequest): Promise<{ file: File; alt?: string 
   if (!match) return { error: jsonError('invalid_image', 'تصویر پایه۶۴ نامعتبر است.', { status: 400 }) };
   const buffer = Buffer.from(match[2], 'base64');
   const mime = detectImageMime(buffer);
-  if (!mime || !(mime in EXT)) return { error: jsonError('invalid_image', 'محتوای فایل یک تصویر معتبر پشتیبانی‌شده نیست.', { status: 400 }) };
+  if (!mime || !(mime in EXT) || !hasValidImageSignature(buffer, mime)) return { error: jsonError('invalid_image', 'محتوای فایل یک تصویر معتبر پشتیبانی‌شده نیست.', { status: 400 }) };
   return { file: new File([buffer], parsed.data.fileName || `product.${EXT[mime]}`, { type: mime }), alt: parsed.data.alt };
 }
 
@@ -71,10 +71,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const upload = await readUpload(req);
   if ('error' in upload) return upload.error;
   const { file } = upload;
+  const uploadError = imageUploadError(file);
+  if (uploadError) return jsonError('invalid_image', uploadError, { status: file.size > PRODUCT_MAX_IMAGE_BYTES ? 413 : 400 });
   if (!file.type || !(file.type in EXT)) return jsonError('invalid_image', 'فرمت تصویر پشتیبانی نمی‌شود.', { status: 400 });
-  if (file.size <= 0 || file.size > PRODUCT_MAX_IMAGE_BYTES) return jsonError('too_large', 'حجم تصویر نباید بیشتر از ۱۰ مگابایت باشد.', { status: 413 });
 
   const buffer = Buffer.from(await file.arrayBuffer());
+  if (!hasValidImageSignature(buffer, file.type)) return jsonError('invalid_image', 'محتوای فایل یک تصویر معتبر پشتیبانی‌شده نیست.', { status: 400 });
   const detectedMime = detectImageMime(buffer);
   if (!detectedMime || !(detectedMime in EXT)) return jsonError('invalid_image', 'محتوای فایل یک تصویر معتبر پشتیبانی‌شده نیست.', { status: 400 });
   const owned = await loadOwned(id, guard.user.role, guard.user.id);
