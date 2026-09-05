@@ -30,9 +30,9 @@ jobs:
           --health-retries=20
     env:
       DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
-      AUTH_SECRET: ci-seller-e2e-secret
-      NEXTAUTH_SECRET: ci-seller-e2e-secret
-      SESSION_SECRET: ci-seller-e2e-secret
+      AUTH_SECRET: ci-seller-e2e-auth-secret-20260905
+      NEXTAUTH_SECRET: ci-seller-e2e-auth-secret-20260905
+      SESSION_SECRET: ci-seller-e2e-auth-secret-20260905
       NEXT_PUBLIC_SITE_URL: http://127.0.0.1:3000
       NODE_ENV: production
       SELLER_E2E_EMAIL: seller-e2e@empire.shop
@@ -166,14 +166,14 @@ jobs:
           } > "$RUNNER_TEMP/seller-e2e-result.md"
           mkdir -p qa-results
           cp "$RUNNER_TEMP/seller-e2e-result.md" "$report"
-          if git diff --quiet -- "$report"; then
-            echo 'E2E report already current.'
-          else
+          if git status --short -- "$report" | grep -q .; then
             git config user.name 'github-actions[bot]'
             git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
             git add "$report"
             git commit -m "[skip ci] qa: persist seller e2e result"
             git push origin "HEAD:$branch"
+          else
+            echo 'E2E report already current.'
           fi
           if [ "$overall" -ne 0 ]; then exit 1; fi
       - name: Upload app log on failure
