@@ -94,7 +94,7 @@ jobs:
         run: |
           node --input-type=module <<'NODE'
           const base = 'http://127.0.0.1:3000';
-          const login = await fetch(`${base}/api/auth/login`, { method: 'POST', headers: {'content-type': 'application/json', accept: 'application/json'}, body: JSON.stringify({identifier: process.env.SELLER_E2E_EMAIL, password: process.env.SELLER_E2E_PASSWORD}) });
+          const login = await fetch(`${base}/api/auth/login`, { method: 'POST', headers: {'content-type': 'application/json', accept: 'application/json', origin: base, referer: `${base}/fa/auth/login`}, body: JSON.stringify({identifier: process.env.SELLER_E2E_EMAIL, password: process.env.SELLER_E2E_PASSWORD}) });
           if (!login.ok) throw new Error(`Seller login failed: ${login.status} ${await login.text()}`);
           const rawCookie = login.headers.get('set-cookie');
           if (!rawCookie) throw new Error('Seller login succeeded without session cookie');
