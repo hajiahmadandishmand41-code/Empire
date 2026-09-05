@@ -41,9 +41,11 @@ jobs:
       ADMIN_SEED_PASSWORD: ci-admin-password-12345
       NEXT_TELEMETRY_DISABLED: '1'
       PRISMA_HIDE_UPDATE_MESSAGE: '1'
-      CLOUDINARY_CLOUD_NAME: ci
-      CLOUDINARY_API_KEY: ci
-      CLOUDINARY_API_SECRET: ci
+      # Leave Cloudinary creds empty so uploadPersistent() falls back to
+      # the built-in database storage (uploadToDatabase) in CI.
+      CLOUDINARY_CLOUD_NAME: ''
+      CLOUDINARY_API_KEY: ''
+      CLOUDINARY_API_SECRET: ''
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
