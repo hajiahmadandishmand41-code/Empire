@@ -135,7 +135,7 @@ jobs:
       - name: Persist E2E result
         if: always()
         run: |
-          set -euo pipefail
+          set -uo pipefail
           branch="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
           report="qa-results/seller-e2e-${GITHUB_SHA}.md"
           auth_status="$(cat "$RUNNER_TEMP/authenticated-ui.exit" 2>/dev/null || echo 1)"
@@ -172,7 +172,11 @@ jobs:
               git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
               git add "$report"
               git commit -m "[skip ci] qa: persist seller e2e result"
-              git push origin "HEAD:$branch"
+              # Push may fail if the branch moved ahead (race with other pushes).
+              # That is non-fatal — the report is already in the workflow artifact/logs.
+              if ! git push origin "HEAD:$branch"; then
+                echo "::warning::Persist E2E result: git push failed (branch likely moved ahead). Report is in workflow logs."
+              fi
             fi
           else
             echo 'Pull request merge refs do not persist QA reports; diagnostics remain in the workflow artifact/logs.'
