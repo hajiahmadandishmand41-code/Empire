@@ -17,24 +17,24 @@ export async function CategoriesSection() {
   if (!roots.length) return null;
 
   return (
-    <section aria-labelledby="categories-title" className="border-b border-border bg-card py-4 sm:py-6">
+    <section aria-labelledby="categories-title" className="section-band">
       <Container size="xl">
-        <div className="mb-3 flex items-center justify-between gap-3 sm:mb-4">
-          <div className="flex min-w-0 items-center gap-2">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 ring-1 ring-primary/10 sm:h-9 sm:w-9">
-              <FolderTree className="h-4 w-4 text-primary" aria-hidden="true" />
+        <div className="section-head">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 ring-1 ring-primary/10">
+              <FolderTree className="h-4.5 w-4.5 text-primary" aria-hidden="true" />
             </div>
             <div className="min-w-0">
-              <h2 id="categories-title" className="text-sm font-black leading-tight text-foreground sm:text-lg">{t('sectionTitle')}</h2>
-              <p className="mt-0.5 line-clamp-1 text-[9px] text-muted-foreground sm:text-xs">{t('sectionSubtitle')}</p>
+              <h2 id="categories-title" className="section-head-title">{t('sectionTitle')}</h2>
+              <p className="section-head-sub">{t('sectionSubtitle')}</p>
             </div>
           </div>
-          <Link href="/categories" className="flex min-h-8 shrink-0 items-center gap-1 rounded-lg border border-border bg-background px-2.5 py-1 text-[9px] font-bold text-muted-foreground transition hover:border-primary/30 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-9 sm:px-3 sm:text-xs">
-            <span>{t('viewAll')}</span><ArrowLeft className="h-3 w-3 rtl:rotate-180" aria-hidden="true" />
+          <Link href="/categories" className="section-head-action">
+            <span>{t('viewAll')}</span><ArrowLeft className="h-3.5 w-3.5 rtl:rotate-180" aria-hidden="true" />
           </Link>
         </div>
 
-        <div className="grid auto-cols-[74px] grid-flow-col grid-rows-2 gap-x-2 gap-y-2 overflow-x-auto pb-1 no-scrollbar snap-x snap-mandatory sm:auto-cols-[84px] sm:gap-x-2.5 sm:gap-y-2.5 lg:grid-flow-row lg:grid-cols-10 lg:grid-rows-1 lg:overflow-visible">
+        <div className="grid auto-cols-[92px] grid-flow-col grid-rows-2 gap-3 overflow-x-auto pb-1 no-scrollbar snap-x snap-mandatory sm:auto-cols-[104px] lg:grid-flow-row lg:grid-cols-10 lg:grid-rows-1 lg:overflow-visible">
           {roots.map((item) => <CategoryCard key={item.id} item={item} />)}
         </div>
       </Container>

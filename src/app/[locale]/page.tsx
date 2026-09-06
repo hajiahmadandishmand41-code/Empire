@@ -27,7 +27,16 @@ type ProductSectionProps = { section: 'featured' | 'bestSelling' | 'newest'; loc
 
 function SectionSkeleton() { return <div className="mx-auto my-4 h-44 max-w-screen-xl animate-pulse rounded-2xl bg-muted/40 sm:my-6" aria-hidden />; }
 function HeroSkeleton() { return <section className="mx-auto max-w-screen-xl px-3 pt-3 sm:px-6 sm:pt-5" aria-hidden><div className="relative h-[250px] overflow-hidden rounded-[24px] border border-border bg-muted/40 sm:h-[330px] lg:h-[350px]"><div className="absolute inset-x-5 bottom-5 max-w-xl space-y-3 sm:inset-x-8 sm:bottom-8"><div className="h-7 w-24 animate-pulse rounded-full bg-background/60" /><div className="h-10 w-4/5 animate-pulse rounded-xl bg-background/50" /><div className="h-10 w-48 animate-pulse rounded-xl bg-background/50" /></div></div></section>; }
-function DataUnavailable({ title }: { title: string }) { return <section role="status" className="border-y border-amber-500/20 bg-amber-500/5 py-3"><div className="mx-auto max-w-screen-xl px-3 text-center text-xs font-semibold text-amber-800 dark:text-amber-200">{title}</div></section>; }
+function DataUnavailable({ title }: { title: string }) {
+  return (
+    <section role="status" className="section-shell py-2">
+      <div className="flex items-center justify-center gap-2 rounded-2xl border border-amber-500/25 bg-amber-500/[0.07] px-4 py-3 text-center text-xs font-semibold text-amber-800 dark:text-amber-200">
+        <span aria-hidden="true" className="inline-block h-2 w-2 shrink-0 rounded-full bg-amber-500" />
+        {title}
+      </div>
+    </section>
+  );
+}
 
 async function loadHomeHero() {
   try {

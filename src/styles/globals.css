@@ -212,9 +212,11 @@
   .shop-results-list > article[data-shop-compact] > div:last-child { padding: 6px !important; }
 }
 
+/* The hero used to be shrunk to 190px on phones by a brittle selector that
+   matched its exact utility classes. The carousel now sets its own responsive
+   height, so only the corner radius is tuned here. */
 @media (max-width: 639px) {
-  .group.relative.isolate > .relative.h-\[250px\] { height: 190px !important; }
-  .group.relative.isolate { border-radius: 18px; }
+  .group.relative.isolate { border-radius: 20px; }
 }
 
 @media print { .no-print { display: none !important; } body { background: #fff; color: #000; } }

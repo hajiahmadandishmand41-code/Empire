@@ -9,6 +9,17 @@ import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { HeaderSearchBar } from './header-search-bar';
 import { AnnouncementBar } from './announcement-bar';
 
+// One class per nav variant. These were previously five copies of a long
+// utility string that had quietly drifted apart (different paddings, font
+// weights and hover colours), which is why the header row looked ragged.
+const navLinkBase =
+  'inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl px-3 text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+const navLinkPrimary = `${navLinkBase} bg-primary text-primary-foreground shadow-sm shadow-primary/20 hover:bg-primary/90`;
+const navLinkQuiet = `${navLinkBase} border border-border bg-card text-foreground hover:border-primary/40 hover:bg-primary/5 hover:text-primary`;
+const navLinkAccent = `${navLinkBase} border border-primary/25 bg-primary/5 font-black text-primary hover:border-primary/45 hover:bg-primary/10`;
+const iconButton =
+  'flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+
 export async function SiteHeader() {
   const locale = await getLocale();
   const t = await getTranslations('siteHeader');
@@ -32,19 +43,19 @@ export async function SiteHeader() {
             </Link>
 
             <nav aria-label={discoverLabel} className="hidden min-w-0 max-w-[48vw] shrink lg:flex lg:overflow-x-auto lg:no-scrollbar xl:max-w-none">
-              <div className="flex shrink-0 items-center gap-1">
-                <Link href="/discover" className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-primary px-2.5 py-1.5 text-[10px] font-black text-primary-foreground shadow-sm shadow-primary/15 transition hover:-translate-y-0.5 hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-10 sm:rounded-xl sm:px-3 sm:text-xs"><Compass className="h-3.5 w-3.5" aria-hidden="true" />{discoverLabel}</Link>
-                <Link href="/stores" className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1.5 text-[10px] font-bold text-foreground transition hover:border-primary/30 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-10 sm:rounded-xl sm:px-3 sm:text-xs"><Store className="h-3.5 w-3.5" aria-hidden="true" />{storesLabel}</Link>
-                <Link href="/discounts" className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1.5 text-[10px] font-bold text-foreground transition hover:border-primary/30 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-10 sm:rounded-xl sm:px-3 sm:text-xs"><Tags className="h-3.5 w-3.5" aria-hidden="true" />{discountsLabel}</Link>
-                <Link href="/brands" className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1.5 text-[10px] font-bold text-foreground transition hover:border-primary/30 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-10 sm:rounded-xl sm:px-3 sm:text-xs"><Sparkles className="h-3.5 w-3.5" aria-hidden="true" />{brandsLabel}</Link>
-                <Link href="/traditional" className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-primary/20 bg-primary/5 px-2.5 py-1.5 text-[10px] font-black text-primary transition hover:border-primary/35 hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-10 sm:rounded-xl sm:px-3 sm:text-xs"><Sparkles className="h-3.5 w-3.5" aria-hidden="true" />{traditionalLabel}</Link>
+              <div className="flex shrink-0 items-center gap-1.5">
+                <Link href="/discover" className={navLinkPrimary}><Compass className="h-4 w-4" aria-hidden="true" />{discoverLabel}</Link>
+                <Link href="/stores" className={navLinkQuiet}><Store className="h-4 w-4" aria-hidden="true" />{storesLabel}</Link>
+                <Link href="/discounts" className={navLinkQuiet}><Tags className="h-4 w-4" aria-hidden="true" />{discountsLabel}</Link>
+                <Link href="/brands" className={navLinkQuiet}><Sparkles className="h-4 w-4" aria-hidden="true" />{brandsLabel}</Link>
+                <Link href="/traditional" className={navLinkAccent}><Sparkles className="h-4 w-4" aria-hidden="true" />{traditionalLabel}</Link>
               </div>
             </nav>
 
             <div className="flex min-w-0 flex-1 items-center"><HeaderSearchBar locale={locale} /></div>
 
             <div className="flex shrink-0 items-center gap-0.5 sm:gap-1.5">
-              <Link href="/wishlist" aria-label={wishlistLabel} title={wishlistLabel} className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-background text-muted-foreground transition-colors hover:border-primary/30 hover:bg-primary/5 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-10 sm:w-10"><Heart className="h-4 w-4" aria-hidden="true" /></Link>
+              <Link href="/wishlist" aria-label={wishlistLabel} title={wishlistLabel} className={iconButton}><Heart className="h-4 w-4" aria-hidden="true" /></Link>
               <LanguageSwitcher />
               <ThemeToggle variant="icon" lang={locale} />
               <div className="hidden md:flex"><HeaderAuthActions /></div>
