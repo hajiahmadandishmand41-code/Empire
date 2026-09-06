@@ -132,11 +132,20 @@ async function PopularCategoryRanking({ locale }: { locale: Locale }) {
   return <section className="border-b border-border bg-card py-4 sm:py-6" aria-label={title}><div className="mx-auto max-w-screen-xl px-2.5 sm:px-6"><div className="mb-3 flex items-center gap-2 sm:mb-4"><span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-sm font-black text-primary"><Star className="h-4 w-4" aria-hidden="true" /></span><h2 className="text-sm font-black sm:text-lg">{title}</h2></div><div className="grid grid-cols-2 gap-2 sm:gap-3">{top.map((category, index) => <Link key={category.id} href={`/category/${category.slug}` as never} className="relative flex min-h-20 items-center gap-2 overflow-hidden rounded-2xl border border-border bg-background p-2.5 transition hover:border-primary/30 hover:shadow-sm sm:min-h-24 sm:p-3"><span className="absolute start-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-[11px] font-black text-primary-foreground">{index + 1}</span><span className="relative ms-8 h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-muted sm:h-16 sm:w-16">{category.imageUrl ? <Image src={category.imageUrl} alt={category.name} fill sizes="64px" loading="lazy" className="object-cover" /> : <span className="flex h-full w-full items-center justify-center text-sm font-black text-muted-foreground">{index + 1}</span>}</span><span className="min-w-0"><strong className="block truncate text-xs font-black sm:text-sm">{category.name}</strong><span className="mt-1 block text-[10px] text-muted-foreground sm:text-[10px]">{Number(category.productCount ?? 0).toLocaleString(numberLocale)} {productLabel}</span></span></Link>)}</div></div></section>;
 }
 
+const EMPTY_CATALOG = { newest: [], bestSelling: [], mostViewed: [], popular: [], featured: [] };
+
 export default async function HomePage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale: rawLocale } = await params;
   const locale = (['fa', 'ps', 'en'].includes(rawLocale) ? rawLocale : 'fa') as Locale;
   setRequestLocale(locale);
-  const [user, catalog] = await Promise.all([getCurrentUser(), getHomepageData()]);
+
+  let user: Awaited<ReturnType<typeof getCurrentUser>> = null;
+  let catalog: Awaited<ReturnType<typeof getHomepageData>> = EMPTY_CATALOG;
+  try {
+    [user, catalog] = await Promise.all([getCurrentUser(), getHomepageData()]);
+  } catch (err) {
+    console.error('[home] failed to load homepage data:', err);
+  }
 
   return <div className="min-h-dvh bg-background"><SiteHeader /><main id="main" className="min-h-dvh pb-16 md:pb-0">
     <HomeDiscoveryStrip locale={locale} />
