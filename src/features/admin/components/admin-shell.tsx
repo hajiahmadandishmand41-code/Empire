@@ -1,8 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Link } from '@/i18n/routing';
-import { usePathname } from 'next/navigation';
+import { Link, usePathname } from '@/i18n/routing';
 import { useTranslations } from 'next-intl';
 import { LayoutDashboard, Package, FolderTree, ShoppingBag, Users, Store, CreditCard, BarChart3, Wallet, Truck, Menu, LogOut, Bell, Home, X, ChevronRight, Shield, Sparkles, Megaphone, Images, Star, Search, UserCog, ClipboardList, PanelLeftClose, PanelLeftOpen, Command, ReceiptText, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -41,7 +40,7 @@ export function AdminShell({ locale, userName, children }: AdminShellProps) {
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const [collapsed, setCollapsed] = React.useState(false);
   const [commandOpen, setCommandOpen] = React.useState(false);
-  const base = `/${locale}/admin`;
+  const base = '/admin';
   const groups = React.useMemo<Group[]>(() => {
     const items: NavItem[] = [
       { href: base, label: t('nav.overview'), icon: LayoutDashboard, group: 'overview', keywords: 'dashboard overview' },

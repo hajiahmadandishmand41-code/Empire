@@ -1,8 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Link } from '@/i18n/routing';
-import { usePathname, useRouter } from 'next/navigation';
+import { Link, usePathname, useRouter } from '@/i18n/routing';
 import { LayoutDashboard, Package, ShoppingBag, BarChart3, Wallet, Settings, Menu, LogOut, Bell, Home, Plus, X, ChevronRight, Briefcase, Users, TicketPercent, Star, Boxes, Store, Search, Tags } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { EshopLogo } from '@/components/eshop-logo';
@@ -129,7 +128,7 @@ function SidebarContent({ items, isActive, userName, storeName, locale, onNaviga
 export function SellerShell({ locale, userName, storeName, children }: SellerShellProps) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = React.useState(false);
-  const base = `/${locale}/seller`;
+  const base = '/seller';
 
   const items: NavItem[] = [
     { href: base, label: 'داشبورد', icon: LayoutDashboard },
