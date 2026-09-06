@@ -3,6 +3,7 @@ import { ArrowLeft, BadgeCheck, Tags } from 'lucide-react';
 import { Link } from '@/i18n/routing';
 import { getSellerRepository } from '@/server/infrastructure/registry';
 import { isDatabaseConfigured } from '@/lib/db';
+import type { PublicSellerListItem } from '@/server/repositories/seller.repository';
 
 type Locale = 'fa' | 'ps' | 'en';
 
@@ -14,7 +15,13 @@ const copy = {
 
 export async function BrandsSection({ locale }: { locale: Locale }) {
   if (!isDatabaseConfigured()) return null;
-  const result = await getSellerRepository().findPublicMany({ q: '', page: 1, pageSize: 10 });
+  let result: { items: PublicSellerListItem[] } = { items: [] };
+  try {
+    result = await getSellerRepository().findPublicMany({ q: '', page: 1, pageSize: 10 });
+  } catch (err) {
+    console.error('[home/brands] DB error:', err);
+    return null;
+  }
   if (!result.items.length) return null;
   const t = copy[locale];
 

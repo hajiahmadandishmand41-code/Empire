@@ -16,7 +16,13 @@ function toCampaignBanner(banner: BannerRow): CampaignBanner {
 }
 
 export async function DynamicBannerStrip({ locale, placement = 'hero' }: { locale: string; placement?: string }) {
-  const banners = await listActiveBanners(placement, 6);
+  let banners: BannerRow[];
+  try {
+    banners = await listActiveBanners(placement, 6);
+  } catch (err) {
+    console.error(`[home/dynamic-banner/${placement}] DB error:`, err);
+    return null;
+  }
   if (banners.length === 0) return null;
   return <HomepageHeroCarousel banners={banners.map(toCampaignBanner)} locale={locale} useFallbackSlides={false} />;
 }
