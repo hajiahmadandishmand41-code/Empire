@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { Link } from '@/i18n/routing';
 
 export default function LocaleError({
   error,
@@ -32,12 +33,12 @@ export default function LocaleError({
           >
             تلاش مجدد
           </button>
-          <a
+          <Link
             href="/"
             className="inline-flex items-center gap-2 rounded-xl border border-border px-5 py-2.5 text-sm font-semibold text-foreground transition hover:bg-muted"
           >
             صفحه اصلی
-          </a>
+          </Link>
         </div>
       </div>
     </div>

@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { routing, localeDirection } from '@/i18n/routing';
 
 /**
@@ -36,7 +37,7 @@ export default function NotFound() {
             <span className="crown" role="img" aria-label="Empire Shop">👑</span>
             <h1>۴۰۴ — صفحه پیدا نشد</h1>
             <p>صفحه‌ای که دنبالش می‌گردید وجود ندارد یا جابجا شده است.</p>
-            <a href="/">بازگشت به Empire Shop</a>
+            <Link href="/">بازگشت به Empire Shop</Link>
           </div>
         </main>
       </body>
