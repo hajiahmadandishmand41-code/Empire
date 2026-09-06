@@ -168,7 +168,7 @@ export function SettingsView({ locale = 'fa' }: Props) {
             { href: '/profile/security', label: 'تنظیمات امنیتی', sub: 'رمز عبور و امنیت حساب', icon: Lock },
             { href: '/profile/addresses', label: 'آدرس‌های من', sub: 'مدیریت آدرس‌های ارسال', icon: Globe },
           ].map(({ href, label, sub, icon: Icon }) => (
-            <Link key={href} href={href as any} className="flex items-center justify-between px-4 py-4 transition-colors hover:bg-muted/40">
+            <Link key={href} href={href} className="flex items-center justify-between px-4 py-4 transition-colors hover:bg-muted/40">
               <div className="flex items-center gap-3"><div className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted text-muted-foreground"><Icon className="h-4 w-4" aria-hidden /></div><div><p className="text-sm font-semibold text-foreground">{label}</p><p className="mt-0.5 text-[10px] text-muted-foreground">{sub}</p></div></div>
               <ChevronLeft className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
             </Link>
