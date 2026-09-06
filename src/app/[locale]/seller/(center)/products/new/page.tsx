@@ -13,7 +13,7 @@ interface Props {
 export default async function NewSellerProductPage({ params }: Props) {
   const { locale } = await params;
   const { items: categories } = await listSellerCategories();
-  const backHref = `/${locale}/seller/products`;
+  const backHref = '/seller/products';
 
   return (
     <div className="space-y-4">
