@@ -25,6 +25,11 @@ const config: Config = {
       },
     },
     extend: {
+      screens: {
+        // Small-phone breakpoint. Afghan traffic skews to narrow devices, and
+        // product rails/grids need one step below Tailwind's 640px `sm`.
+        xs: '420px',
+      },
       colors: {
         /* ---- Rose-Pink: primary brand — modern luxury ---- */
         rose: {

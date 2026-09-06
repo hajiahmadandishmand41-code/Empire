@@ -54,16 +54,56 @@ const globalForPrisma = globalThis as unknown as {
   prisma?: PrismaClient;
 };
 
-export const prisma: PrismaClient =
-  globalForPrisma.prisma ??
-  new PrismaClient({
+/**
+ * Create (once) the shared Prisma client.
+ *
+ * This is intentionally NOT executed at module-evaluation time. Instantiating
+ * `new PrismaClient()` while the module graph is being evaluated turns every
+ * recoverable database problem into a fatal, uncatchable render failure:
+ * `@prisma/client` throws synchronously when its query engine has not been
+ * generated, and that error escapes the `try/catch` + `isDatabaseConfigured()`
+ * guards the pages rely on, so the whole route returns a 500 instead of the
+ * intended "data temporarily unavailable" fallback.
+ *
+ * Keeping the client lazy also keeps one client per warm serverless runtime,
+ * which matters on Vercel because extra clients multiply database connections
+ * and trigger P2024 pool timeouts.
+ */
+function createPrismaClient(): PrismaClient {
+  return new PrismaClient({
     log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
   });
+}
 
-// Keep one Prisma client per warm serverless runtime in every environment.
-// This is critical on Vercel because creating multiple clients in production
-// can multiply database connections and trigger P2024 pool timeouts.
-globalForPrisma.prisma = prisma;
+export function getPrismaClient(): PrismaClient {
+  if (!globalForPrisma.prisma) {
+    globalForPrisma.prisma = createPrismaClient();
+  }
+  return globalForPrisma.prisma;
+}
+
+/**
+ * Lazy proxy around the singleton client. Behaves exactly like a `PrismaClient`
+ * for callers (`prisma.product.findMany(...)`), but the underlying client is
+ * only constructed on first real property access — inside a request handler,
+ * where errors are catchable.
+ */
+export const prisma: PrismaClient = new Proxy({} as PrismaClient, {
+  get(_target, property, receiver) {
+    const client = getPrismaClient();
+    const value = Reflect.get(client as object, property, receiver);
+    return typeof value === 'function' ? value.bind(client) : value;
+  },
+  set(_target, property, value) {
+    return Reflect.set(getPrismaClient() as object, property, value);
+  },
+  has(_target, property) {
+    return Reflect.has(getPrismaClient() as object, property);
+  },
+  getPrototypeOf() {
+    return Reflect.getPrototypeOf(getPrismaClient() as object);
+  },
+});
 
 export function isDatabaseConfigured(): boolean {
   return Boolean(resolveDatabaseUrl());

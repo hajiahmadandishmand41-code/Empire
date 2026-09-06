@@ -39,7 +39,12 @@ function mapRow(row: RawCategory, withCount = true): CategoryRow {
   return { id: row.id, key: row.key, name: row.name, slug: row.slug, productCount: withCount ? Number(row.productCount ?? 0) : undefined, parentId: row.parentId, parentKey: row.parentKey, imageUrl: row.imageUrl, isActive: row.isActive !== false, sortOrder: Number(row.sortOrder ?? 0) };
 }
 
-const CATEGORY_IMAGE_SQL = Prisma.sql`COALESCE(
+// Built lazily: evaluating `Prisma.sql` at module scope crashes the whole
+// module graph (and therefore the page) when the Prisma client has not been
+// generated yet, instead of failing inside a catchable request handler.
+let categoryImageSqlCache: ReturnType<typeof Prisma.sql> | null = null;
+function categoryImageSql() {
+  categoryImageSqlCache ??= Prisma.sql`COALESCE(
   m."imageUrl",
   (
     SELECT CASE
@@ -55,12 +60,14 @@ const CATEGORY_IMAGE_SQL = Prisma.sql`COALESCE(
     LIMIT 1
   )
 )`;
+  return categoryImageSqlCache;
+}
 
 export class PrismaCategoryRepository implements ICategoryRepository {
   constructor(private readonly prisma: PrismaClient) {}
   private async queryOne(where: Prisma.Sql, withCount = true): Promise<CategoryRow | null> {
     const rows = await this.prisma.$queryRaw<RawCategory[]>(Prisma.sql`
-      SELECT c."id", c."key", c."name", c."slug", m."parentId", p."key" AS "parentKey", ${CATEGORY_IMAGE_SQL} AS "imageUrl",
+      SELECT c."id", c."key", c."name", c."slug", m."parentId", p."key" AS "parentKey", ${categoryImageSql()} AS "imageUrl",
         COALESCE(m."isActive", true) AS "isActive", COALESCE(m."sortOrder", 0) AS "sortOrder",
         ${withCount ? Prisma.sql`(SELECT COUNT(*)::int FROM "Product" pr WHERE pr."categoryId" = c."id" AND pr."isActive" = true)` : Prisma.sql`0`} AS "productCount"
       FROM "Category" c LEFT JOIN "CategoryMeta" m ON m."categoryId" = c."id" LEFT JOIN "Category" p ON p."id" = m."parentId"
@@ -70,7 +77,7 @@ export class PrismaCategoryRepository implements ICategoryRepository {
   }
   async findAll(withCount = true, activeOnly = false): Promise<CategoryRow[]> {
     const rows = await this.prisma.$queryRaw<RawCategory[]>(Prisma.sql`
-      SELECT c."id", c."key", c."name", c."slug", m."parentId", p."key" AS "parentKey", ${CATEGORY_IMAGE_SQL} AS "imageUrl",
+      SELECT c."id", c."key", c."name", c."slug", m."parentId", p."key" AS "parentKey", ${categoryImageSql()} AS "imageUrl",
         COALESCE(m."isActive", true) AS "isActive", COALESCE(m."sortOrder", 0) AS "sortOrder",
         ${withCount ? Prisma.sql`(SELECT COUNT(*)::int FROM "Product" pr WHERE pr."categoryId" = c."id" AND pr."isActive" = true)` : Prisma.sql`0`} AS "productCount"
       FROM "Category" c LEFT JOIN "CategoryMeta" m ON m."categoryId" = c."id" LEFT JOIN "Category" p ON p."id" = m."parentId"

@@ -15,10 +15,20 @@ export interface SliderProduct {
 }
 
 interface ProductSliderSectionProps { title: string; subtitle?: string; viewAllHref?: string; accentColor?: string; products: SliderProduct[]; locale?: string; currency?: string; skeleton?: boolean }
-const mobileCardWidth = 'calc((100vw - 2.75rem) / 3)';
+
+/**
+ * Rail card sizing.
+ *
+ * Previously every breakpoint was locked to three cards across
+ * (`calc((100vw - 2.75rem) / 3)`), which squeezed product names and prices
+ * into an unreadable column on phones and left huge dead space on desktop.
+ * `rail-card` scales the peek: ~2.3 cards on phones (the partial card is the
+ * affordance that tells users the row scrolls), rising to 6 on large screens.
+ */
+const railCardClass = 'snap-start flex-none w-[42vw] xs:w-[38vw] sm:w-[30vw] md:w-[23vw] lg:w-[19vw] xl:w-[15.5rem]';
 
 export function SkeletonCard() {
-  return <div className="w-[calc((100vw-2.75rem)/3)] max-w-none flex-none overflow-hidden rounded-2xl border border-border/65 bg-card shadow-sm" aria-hidden="true"><div className="aspect-square animate-pulse bg-muted" /><div className="space-y-1.5 p-2"><div className="h-2 w-14 animate-pulse rounded bg-muted" /><div className="h-2.5 w-full animate-pulse rounded bg-muted" /><div className="h-2.5 w-3/4 animate-pulse rounded bg-muted" /><div className="h-7 w-full animate-pulse rounded-lg bg-muted" /></div></div>;
+  return <div className={`${railCardClass} overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm`} aria-hidden="true"><div className="aspect-square animate-pulse bg-muted" /><div className="space-y-2 p-3"><div className="h-2.5 w-14 animate-pulse rounded bg-muted" /><div className="h-3 w-full animate-pulse rounded bg-muted" /><div className="h-3 w-3/4 animate-pulse rounded bg-muted" /><div className="h-8 w-full animate-pulse rounded-lg bg-muted" /></div></div>;
 }
 
 function toProductSummary(product: SliderProduct): ProductSummary {
@@ -36,10 +46,45 @@ export function ProductSliderSection({ title, subtitle, viewAllHref, accentColor
   const scroll = (dir: 1 | -1) => trackRef.current?.scrollBy({ left: dir * 360, behavior: 'smooth' });
   const allLabel = locale === 'en' ? 'View all' : locale === 'ps' ? 'ټول' : 'همه';
   if (products.length === 0 && !skeleton) return null;
-  return <section className="border-y border-border/50 bg-gradient-to-b from-card to-card/80 py-3 sm:py-5" aria-label={title || undefined}>
-    <div className="mx-auto max-w-screen-xl px-3 sm:px-6">
-      <div className="mb-2.5 flex items-center justify-between gap-2 sm:mb-3"><div className="flex min-w-0 items-center gap-2 sm:gap-2.5">{title && <span className={cn('h-8 w-1.5 rounded-full sm:h-9', accentColor)} />}<div className="min-w-0">{title && <h2 className="truncate text-sm font-black tracking-tight sm:text-base">{title}</h2>}{subtitle && <p className="mt-0.5 line-clamp-1 text-[9px] text-muted-foreground sm:text-[11px]">{subtitle}</p>}</div></div><div className="flex shrink-0 items-center gap-1.5"><button type="button" onClick={() => scroll(-1)} aria-label={locale === 'en' ? 'Previous products' : locale === 'ps' ? 'مخکني محصولات' : 'محصولات قبلی'} className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm transition-all duration-200 hover:border-primary/30 hover:text-foreground hover:shadow-md"><ChevronRight className="h-4 w-4 rtl:rotate-180" /></button><button type="button" onClick={() => scroll(1)} aria-label={locale === 'en' ? 'Next products' : locale === 'ps' ? 'راتلونکي محصولات' : 'محصولات بعدی'} className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm transition-all duration-200 hover:border-primary/30 hover:text-foreground hover:shadow-md"><ChevronLeft className="h-4 w-4 rtl:rotate-180" /></button>{viewAllHref && <Link href={viewAllHref as never} className="rounded-full border border-border bg-background px-3 py-2 text-[10px] font-extrabold shadow-sm transition-all duration-200 hover:border-primary/30 hover:text-primary hover:shadow-md sm:text-[11px]">{allLabel}</Link>}</div></div>
-      <div ref={trackRef} className="flex snap-x snap-mandatory gap-1.5 overflow-x-auto pb-1 no-scrollbar sm:gap-2.5" dir={locale === 'en' ? 'ltr' : 'rtl'}>{skeleton ? Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />) : products.map((product) => <div key={product.id} className="snap-start flex-none" style={{ width: mobileCardWidth }}><MarketplaceProductCard product={toProductSummary(product)} locale={locale} currency={currency} view="rail" /></div>)}</div>
-    </div>
-  </section>;
+  const prevLabel = locale === 'en' ? 'Previous products' : locale === 'ps' ? 'مخکني محصولات' : 'محصولات قبلی';
+  const nextLabel = locale === 'en' ? 'Next products' : locale === 'ps' ? 'راتلونکي محصولات' : 'محصولات بعدی';
+
+  return (
+    <section className="section-band" aria-label={title || undefined}>
+      <div className="section-shell">
+        <div className="section-head">
+          <div className="flex min-w-0 items-center gap-2.5">
+            {title && <span className={cn('section-accent-bar', accentColor && accentColor !== 'bg-rose-600' ? accentColor : undefined)} />}
+            <div className="min-w-0">
+              {title && <h2 className="section-head-title">{title}</h2>}
+              {subtitle && <p className="section-head-sub">{subtitle}</p>}
+            </div>
+          </div>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <button type="button" onClick={() => scroll(-1)} aria-label={prevLabel} className="rail-btn hidden sm:flex">
+              <ChevronRight className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
+            </button>
+            <button type="button" onClick={() => scroll(1)} aria-label={nextLabel} className="rail-btn hidden sm:flex">
+              <ChevronLeft className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
+            </button>
+            {viewAllHref && (
+              <Link href={viewAllHref as never} className="section-head-action">
+                {allLabel}
+                <ChevronLeft className="h-3.5 w-3.5 rtl:rotate-180" aria-hidden="true" />
+              </Link>
+            )}
+          </div>
+        </div>
+        <div ref={trackRef} className="rail" dir={locale === 'en' ? 'ltr' : 'rtl'}>
+          {skeleton
+            ? Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)
+            : products.map((product) => (
+                <div key={product.id} className={railCardClass}>
+                  <MarketplaceProductCard product={toProductSummary(product)} locale={locale} currency={currency} view="rail" />
+                </div>
+              ))}
+        </div>
+      </div>
+    </section>
+  );
 }
