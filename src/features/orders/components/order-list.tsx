@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { Link } from '@/i18n/routing';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/feedback';
 import { OrderStatusBadge, formatDate, formatMoney } from './status-badge';

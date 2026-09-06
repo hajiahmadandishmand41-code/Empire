@@ -4,6 +4,7 @@ import * as React from 'react';
 import { toast } from 'sonner';
 import { formatMoney } from '@/features/admin/lib/format';
 import { Building2, Wallet2, Landmark, Info, CheckCircle2 } from 'lucide-react';
+import { Link } from '@/i18n/routing';
 
 interface PaymentAccount {
   sellerBankAccountNumber?: string | null;
@@ -148,7 +149,7 @@ export function PayoutRequestForm({ balance, currency }: Props) {
           <Info className="h-4 w-4 mt-0.5 shrink-0 text-amber-600" />
           <p className="text-xs text-amber-800 dark:text-amber-300">
             برای سهولت در برداشت‌های آینده، اطلاعات حساب بانکی یا ATOMA Pay را در{' '}
-            <a href="seller/settings" className="font-semibold underline">تنظیمات فروشگاه</a>{' '}
+            <Link href="/seller/settings" className="font-semibold underline">تنظیمات فروشگاه</Link>{' '}
             ذخیره کنید.
           </p>
         </div>

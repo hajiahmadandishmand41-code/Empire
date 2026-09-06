@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { Link } from '@/i18n/routing';
 import { getTranslations } from 'next-intl/server';
 import { Card } from '@/components/ui/card';
 import { DataTable, type Column } from '@/features/admin/components/data-table';
@@ -23,7 +23,7 @@ export default async function AdminPaymentsPage({ params, searchParams }: Props)
   const buildHref = (nextStatus = status, nextMethod = method) => { const params = new URLSearchParams(); if (nextStatus) params.set('status', nextStatus); if (nextMethod) params.set('method', nextMethod); return `/${locale}/admin/payments${params.toString() ? `?${params.toString()}` : ''}`; };
   const columns: Column<AdminTransactionRow>[] = [
     { key: 'ref', header: t('transaction'), cell: (row) => <div><div className="font-mono text-sm font-medium">{row.reference}</div><div className="text-xs text-muted-foreground">{row.provider}</div></div> },
-    { key: 'order', header: t('order'), cell: (row) => <Link href={`/${locale}/admin/orders/${row.orderId}`} className="font-mono text-sm text-primary hover:underline">{row.orderReference}</Link> },
+    { key: 'order', header: t('order'), cell: (row) => <Link href="/admin/orders/${row.orderId}" className="font-mono text-sm text-primary hover:underline">{row.orderReference}</Link> },
     { key: 'method', header: t('method'), cell: (row) => <span className="text-xs text-muted-foreground">{methodLabel(row.method)}</span> },
     { key: 'amount', header: t('amount'), cell: (row) => <span className="font-bold">{formatMoney(row.amount, row.currency)}</span> },
     { key: 'status', header: t('status'), cell: (row) => <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${STATUS_TONE[row.status] ?? 'bg-muted text-muted-foreground'}`}>{t.has(row.status) ? t(row.status) : row.status}</span> },

@@ -4,7 +4,7 @@ import * as React from 'react';
 import { useState, useEffect } from 'react';
 import { Sun, Moon, Monitor, Bell, BellOff, Globe, Lock, User, ChevronLeft, Check, Smartphone, LogOut, Info, Volume2, VolumeX, Settings } from 'lucide-react';
 import { useTheme, type ThemeMode } from '@/components/providers/theme-provider';
-import { usePathname, useRouter } from '@/i18n/routing';
+import { usePathname, useRouter, Link } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -168,10 +168,10 @@ export function SettingsView({ locale = 'fa' }: Props) {
             { href: '/profile/security', label: 'تنظیمات امنیتی', sub: 'رمز عبور و امنیت حساب', icon: Lock },
             { href: '/profile/addresses', label: 'آدرس‌های من', sub: 'مدیریت آدرس‌های ارسال', icon: Globe },
           ].map(({ href, label, sub, icon: Icon }) => (
-            <a key={href} href={`/${locale}${href}`} className="flex items-center justify-between px-4 py-4 transition-colors hover:bg-muted/40">
+            <Link key={href} href={href as any} className="flex items-center justify-between px-4 py-4 transition-colors hover:bg-muted/40">
               <div className="flex items-center gap-3"><div className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted text-muted-foreground"><Icon className="h-4 w-4" aria-hidden /></div><div><p className="text-sm font-semibold text-foreground">{label}</p><p className="mt-0.5 text-[10px] text-muted-foreground">{sub}</p></div></div>
               <ChevronLeft className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-            </a>
+            </Link>
           ))}
         </div>
       </section>
@@ -182,17 +182,17 @@ export function SettingsView({ locale = 'fa' }: Props) {
           <p className="text-sm font-bold text-foreground">Empire Shop</p>
           <div className="mt-1 flex items-center justify-center gap-1.5 text-muted-foreground"><Info className="h-3 w-3" aria-hidden /><span className="text-xs">نسخه ۱.۰</span></div>
           <div className="flex flex-wrap justify-center gap-4 pt-3 text-[11px]">
-            <a href={`/${locale}/terms`} className="text-muted-foreground transition-colors hover:text-foreground">حریم خصوصی</a>
+            <Link href="/terms" className="text-muted-foreground transition-colors hover:text-foreground">حریم خصوصی</Link>
             <span className="text-muted-foreground/30">•</span>
-            <a href={`/${locale}/terms`} className="text-muted-foreground transition-colors hover:text-foreground">شرایط استفاده</a>
+            <Link href="/terms" className="text-muted-foreground transition-colors hover:text-foreground">شرایط استفاده</Link>
             <span className="text-muted-foreground/30">•</span>
-            <a href={`/${locale}/contact`} className="text-muted-foreground transition-colors hover:text-foreground">تماس با ما</a>
+            <Link href="/contact" className="text-muted-foreground transition-colors hover:text-foreground">تماس با ما</Link>
           </div>
         </div>
       </section>
 
       <section>
-        <button type="button" onClick={async () => { try { await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' }); } finally { window.location.href = `/${locale}`; } }} className="flex w-full items-center justify-center gap-2.5 rounded-2xl border border-red-200 bg-red-50 px-4 py-4 text-sm font-semibold text-red-600 transition-colors hover:bg-red-100 dark:border-red-800/50 dark:bg-red-950/20 dark:text-red-400 dark:hover:bg-red-950/40"><LogOut className="h-4 w-4" aria-hidden />خروج از حساب</button>
+        <button type="button" onClick={async () => { try { await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' }); } finally { router.push('/'); } }} className="flex w-full items-center justify-center gap-2.5 rounded-2xl border border-red-200 bg-red-50 px-4 py-4 text-sm font-semibold text-red-600 transition-colors hover:bg-red-100 dark:border-red-800/50 dark:bg-red-950/20 dark:text-red-400 dark:hover:bg-red-950/40"><LogOut className="h-4 w-4" aria-hidden />خروج از حساب</button>
       </section>
     </div>
   );

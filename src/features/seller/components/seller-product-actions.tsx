@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import { Link } from '@/i18n/routing';
 import { Pencil } from 'lucide-react';
 import { DeleteIconButton } from '@/features/admin/components/action-buttons';
 

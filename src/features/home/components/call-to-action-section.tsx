@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { Link } from '@/i18n/routing';
 import { Container } from '@/components/layout/container';
 import { ArrowLeft, Store, Users, TrendingUp, CheckCircle } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';

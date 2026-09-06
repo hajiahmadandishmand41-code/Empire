@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AlertCircle, Loader2, CheckCircle2, Mail, ArrowLeft, ShieldCheck } from 'lucide-react';
-import Link from 'next/link';
+import { Link } from '@/i18n/routing';
 import { useLocale, useTranslations } from 'next-intl';
 import { EmpireLogo } from '@/components/empire-logo';
 
@@ -48,13 +48,13 @@ export default function ForgotPasswordPage() {
     <div className="min-h-screen bg-background flex flex-col">
       <header className="bg-card border-b border-border px-4 py-3">
         <div className="mx-auto max-w-screen-xl flex items-center justify-between">
-          <Link href={`/${locale}`} className="flex items-center gap-2.5">
+          <Link href="/" className="flex items-center gap-2.5">
             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-rose-600">
               <EmpireLogo size={24} variant="color" />
             </div>
             <span className="font-display text-sm font-extrabold text-foreground">EmpireShop</span>
           </Link>
-          <Link href={`/${locale}/auth/login`} className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-rose-600 transition-colors">
+          <Link href="/auth/login" className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-rose-600 transition-colors">
             <ArrowLeft className="h-3.5 w-3.5 rtl:rotate-180" />
             {tAuth('backToLogin')}
           </Link>
@@ -82,7 +82,7 @@ export default function ForgotPasswordPage() {
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground">{t('sent.spamNote')}</p>
-                <Link href={`/${locale}/auth/login`} className="block text-sm font-bold text-rose-600 hover:text-rose-700 dark:hover:text-rose-400">
+                <Link href="/auth/login" className="block text-sm font-bold text-rose-600 hover:text-rose-700 dark:hover:text-rose-400">
                   {tAuth('backToLogin')}
                 </Link>
               </div>
@@ -107,7 +107,7 @@ export default function ForgotPasswordPage() {
                 </Button>
 
                 <div className="text-center">
-                  <Link href={`/${locale}/auth/login`} className="text-xs text-muted-foreground hover:text-rose-600">
+                  <Link href="/auth/login" className="text-xs text-muted-foreground hover:text-rose-600">
                     {tAuth('backToLogin')}
                   </Link>
                 </div>

@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { Link } from '@/i18n/routing';
 import { notFound } from 'next/navigation';
 import { ArrowRight } from 'lucide-react';
 import { Container } from '@/components/layout/container';
@@ -24,7 +24,7 @@ export default async function CustomerOrderDetailPage({ params }: Props) {
   return (
     <Container size="lg" className="py-10">
       <Link
-        href={`/${locale}/orders`}
+        href="/orders"
         className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowRight className="h-4 w-4 rtl:rotate-180" />

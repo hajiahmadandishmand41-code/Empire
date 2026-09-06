@@ -1,4 +1,4 @@
-import { redirect } from 'next/navigation';
+import { redirect } from '@/i18n/routing';
 import { getLocale } from 'next-intl/server';
 
 /**
@@ -7,5 +7,5 @@ import { getLocale } from 'next-intl/server';
  */
 export default async function LoginRedirectPage() {
   const locale = await getLocale();
-  redirect(`/${locale}/auth/login`);
+  redirect({ href: '/auth/login', locale });
 }

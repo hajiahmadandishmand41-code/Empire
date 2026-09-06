@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import Link from 'next/link';
+import { Link } from '@/i18n/routing';
 import { usePathname, useRouter } from 'next/navigation';
 import { LayoutDashboard, Package, ShoppingBag, BarChart3, Wallet, Settings, Menu, LogOut, Bell, Home, Plus, X, ChevronRight, Briefcase, Users, TicketPercent, Star, Boxes, Store, Search, Tags } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -56,7 +56,7 @@ function LogoutButton({ locale, onNavigate }: { locale: string; onNavigate?: () 
       const res = await fetch('/api/auth/logout', { method: 'POST', credentials: 'include', headers: { Accept: 'application/json' } });
       if (!res.ok) throw new Error('logout_failed');
       onNavigate?.();
-      router.replace(`/${locale}/login`);
+      router.replace('/login');
       router.refresh();
     } catch { setBusy(false); }
   }
@@ -74,7 +74,7 @@ function SidebarContent({ items, isActive, userName, storeName, locale, onNaviga
     <div className="flex h-full flex-col border-e border-border bg-card">
       {/* Brand */}
       <div className="flex items-center gap-3 border-b border-border/60 px-4 py-4">
-        <Link href={`/${locale}`} onClick={onNavigate} className="group flex items-center gap-2.5">
+        <Link href="/" onClick={onNavigate} className="group flex items-center gap-2.5">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl gradient-brand shadow-md shadow-primary/20 transition-transform group-hover:scale-105">
             <EshopLogo size={26} variant="color" />
           </div>
@@ -103,7 +103,7 @@ function SidebarContent({ items, isActive, userName, storeName, locale, onNaviga
 
       {/* Quick action */}
       <div className="border-b border-border/60 px-3 py-3">
-        <Link href={`/${locale}/seller/products/new`} onClick={onNavigate} className="btn-empire flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-xs">
+        <Link href="/seller/products/new" onClick={onNavigate} className="btn-empire flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-xs">
           <Plus className="h-3.5 w-3.5" />ثبت محصول جدید
         </Link>
       </div>
@@ -115,7 +115,7 @@ function SidebarContent({ items, isActive, userName, storeName, locale, onNaviga
 
       {/* Footer */}
       <div className="space-y-0.5 border-t border-border/60 px-3 py-3">
-        <Link href={`/${locale}`} onClick={onNavigate} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground">
+        <Link href="/" onClick={onNavigate} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground">
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-muted/60"><Home className="h-3.5 w-3.5" /></div>
           بازگشت به سایت
         </Link>

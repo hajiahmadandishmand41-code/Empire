@@ -1,5 +1,5 @@
 import { getTranslations } from 'next-intl/server';
-import Link from 'next/link';
+import { Link } from '@/i18n/routing';
 import { Container } from '@/components/layout/container';
 import {
   Smartphone, Monitor, Headphones, Watch, Camera, Shirt,

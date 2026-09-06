@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import { Link } from '@/i18n/routing';
 import { useSearchParams, useParams } from 'next/navigation';
 import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -62,7 +62,7 @@ export default function VerifyEmailPage() {
             <h2 className="text-xl font-semibold text-foreground">تأیید موفق!</h2>
             <p className="mt-2 text-sm text-muted-foreground">{message}</p>
             <Button asChild className="mt-6">
-              <Link href={`/${locale}`}>بازگشت به خانه</Link>
+              <Link href="/">بازگشت به خانه</Link>
             </Button>
           </>
         )}
@@ -76,7 +76,7 @@ export default function VerifyEmailPage() {
             <p className="mt-2 text-sm text-muted-foreground">{message}</p>
             <div className="mt-6 flex flex-wrap justify-center gap-3">
               <Button asChild variant="outline">
-                <Link href={`/${locale}/auth/login`}>بازگشت به ورود</Link>
+                <Link href="/auth/login">بازگشت به ورود</Link>
               </Button>
             </div>
           </>

@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { Link } from '@/i18n/routing';
 import { getTranslations } from 'next-intl/server';
 import { Store, UserCheck, UserX, Clock3, MapPin, Phone, FileText } from 'lucide-react';
 import { Card } from '@/components/ui/card';
@@ -41,7 +41,7 @@ export default async function AdminSellersPage({ params, searchParams }: Props) 
       header: t('seller'),
       cell: (r) => (
         <div className="min-w-0">
-          <Link href={`/${locale}/admin/sellers/${r.id}`} className="block truncate font-semibold text-foreground hover:text-primary hover:underline">
+          <Link href="/admin/sellers/${r.id}" className="block truncate font-semibold text-foreground hover:text-primary hover:underline">
             {r.shopName ?? r.fullName}
           </Link>
           <div className="truncate text-xs text-muted-foreground">{r.fullName} · {r.email ?? r.phone ?? '—'}</div>

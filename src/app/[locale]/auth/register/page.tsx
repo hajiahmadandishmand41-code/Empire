@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import { Link } from '@/i18n/routing';
 import { ArrowRight, ShieldCheck, Sparkles, UserRoundPlus } from 'lucide-react';
 import { useLocale } from 'next-intl';
 import { AuthForm } from '@/features/auth';
@@ -24,10 +24,10 @@ export default function RegisterPage() {
           <div className="mt-8 space-y-3">{copy.benefits.map((item) => <div key={item} className="flex items-center gap-3 rounded-2xl border border-border bg-background/70 p-4 text-sm font-bold"><ShieldCheck className="h-5 w-5 text-emerald-500" />{item}</div>)}</div>
         </section>
         <section className="relative rounded-[2.5rem] border border-border bg-card p-6 shadow-xl shadow-primary/5 sm:p-8" aria-labelledby="register-title">
-          <Link href={`/${locale}`} className="mb-6 inline-flex items-center gap-2 text-xs font-bold text-muted-foreground hover:text-primary"><ArrowRight className="h-4 w-4 rtl:rotate-180" />{copy.back}</Link>
+          <Link href="/" className="mb-6 inline-flex items-center gap-2 text-xs font-bold text-muted-foreground hover:text-primary"><ArrowRight className="h-4 w-4 rtl:rotate-180" />{copy.back}</Link>
           <div className="mb-7 text-center"><div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary"><UserRoundPlus className="h-7 w-7" /></div><h1 id="register-title" className="text-2xl font-black tracking-tight sm:text-3xl">{copy.title}</h1><p className="mt-2 text-sm leading-6 text-muted-foreground">{copy.subtitle}</p></div>
           <AuthForm mode="register" />
-          <p className="mt-5 text-center text-xs text-muted-foreground"><Link href={`/${locale}/auth/login`} className="font-bold text-primary hover:underline">{copy.login}</Link></p>
+          <p className="mt-5 text-center text-xs text-muted-foreground"><Link href="/auth/login" className="font-bold text-primary hover:underline">{copy.login}</Link></p>
         </section>
       </div>
     </main>

@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { Link } from '@/i18n/routing';
 import { Package, ShoppingBag, CheckCircle2, XCircle, DollarSign, Clock, BarChart3, TrendingUp, AlertTriangle, ArrowRight } from 'lucide-react';
 import { StatCard } from '@/features/admin/components/stat-card';
 import { Button } from '@/components/ui/button';
@@ -67,7 +67,7 @@ export default async function SellerDashboardPage({ params }: Props) {
           <h2 className="mt-1 font-display text-2xl font-black tracking-tight text-foreground">نمای کلی فروشنده</h2>
           <p className="mt-1 text-sm text-muted-foreground">وضعیت واقعی محصولات، سفارش‌ها، موجودی و درآمد شما</p>
         </div>
-        <Link href={`/${locale}/seller/products/new`}>
+        <Link href="/seller/products/new">
           <Button className="btn-empire gap-2"><Package className="h-4 w-4" />ثبت محصول</Button>
         </Link>
       </header>
@@ -117,7 +117,7 @@ export default async function SellerDashboardPage({ params }: Props) {
                 </li>
               ))}
             </ul>
-            <Link href={`/${locale}/seller/reports`} className="mt-4 block">
+            <Link href="/seller/reports" className="mt-4 block">
               <Button variant="outline" size="sm" className="w-full gap-2"><BarChart3 className="h-4 w-4" />گزارش کامل</Button>
             </Link>
           </div>
@@ -147,7 +147,7 @@ export default async function SellerDashboardPage({ params }: Props) {
         <div className="card-luxury rounded-2xl border border-border/60 bg-card p-5 shadow-sm">
           <div className="mb-3 flex items-center justify-between">
             <h3 className="font-display text-base font-bold text-foreground">آخرین سفارش‌ها</h3>
-            <Link href={`/${locale}/seller/orders`}>
+            <Link href="/seller/orders">
               <Button variant="outline" size="sm" className="gap-2"><ArrowRight className="h-4 w-4 rtl:rotate-180" />همه سفارش‌ها</Button>
             </Link>
           </div>
@@ -168,7 +168,7 @@ export default async function SellerDashboardPage({ params }: Props) {
                   return (
                     <tr key={item.order.id} className="transition-colors hover:bg-muted/20">
                       <td className="px-4 py-2.5 font-mono text-xs text-muted-foreground">
-                        <Link href={`/${locale}/seller/orders/${item.order.id}`} className="hover:text-primary hover:underline">#{item.order.reference}</Link>
+                        <Link href="/seller/orders/${item.order.id}" className="hover:text-primary hover:underline">#{item.order.reference}</Link>
                       </td>
                       <td className="max-w-[160px] truncate px-4 py-2.5">{item.name}</td>
                       <td className="px-4 py-2.5 font-bold">{formatMoney(item.price.toNumber() * item.quantity, item.order.currency)}</td>
@@ -198,7 +198,7 @@ export default async function SellerDashboardPage({ params }: Props) {
                   <span className={`font-bold ${p.stockQuantity === 0 ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400'}`}>
                     {p.stockQuantity === 0 ? 'ناموجود' : `${p.stockQuantity} عدد`}
                   </span>
-                  <Link href={`/${locale}/seller/products/${p.id}/edit`}>
+                  <Link href="/seller/products/${p.id}/edit">
                     <Button variant="outline" size="sm" className="h-7 border-amber-300 text-xs text-amber-700 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-300 dark:hover:bg-amber-900/30">ویرایش</Button>
                   </Link>
                 </div>

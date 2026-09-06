@@ -7,7 +7,7 @@ import {
   ArrowLeft, Sparkles, TrendingUp, Users, Package,
   Smartphone, Shirt, Home, Leaf, Play,
 } from 'lucide-react';
-import Link from 'next/link';
+import { Link } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
 import { useTheme } from '@/components/providers/theme-provider';
 import { useLocale } from 'next-intl';

@@ -3,7 +3,7 @@ import { requireSeller } from '@/lib/auth/roles';
 import { prisma } from '@/lib/db';
 import { Container } from '@/components/layout/container';
 import { formatPrice } from '@/lib/utils';
-import Link from 'next/link';
+import { Link } from '@/i18n/routing';
 
 export const dynamic = 'force-dynamic';
 
@@ -83,7 +83,7 @@ export default async function SellerInventoryPage({ params, searchParams }: Prop
           <h1 className="mt-1 font-display text-2xl font-black tracking-tight text-foreground">مدیریت موجودی</h1>
           <p className="mt-1 text-sm text-muted-foreground">موجودی را سریع پیدا کنید و از همان‌جا وارد ویرایش محصول شوید.</p>
         </div>
-        <Link href={`/${locale}/seller/products`} className="text-sm font-bold text-primary hover:underline">مدیریت محصولات ←</Link>
+        <Link href="/seller/products" className="text-sm font-bold text-primary hover:underline">مدیریت محصولات ←</Link>
       </header>
 
       <div className="grid gap-3 sm:grid-cols-3">
@@ -118,7 +118,7 @@ export default async function SellerInventoryPage({ params, searchParams }: Prop
           <div className="p-10 text-center text-sm text-muted-foreground">محصولی با این فیلتر پیدا نشد.</div>
         ) : products.map((product) => (
           <div key={product.id} className="grid grid-cols-[1fr_130px_110px_110px] items-center gap-3 border-b border-border/70 px-4 py-3 last:border-b-0 sm:grid-cols-[1fr_150px_110px_120px_120px]">
-            <div className="min-w-0"><Link href={`/${locale}/seller/products/${product.id}/edit`} className="block truncate text-sm font-semibold hover:text-primary">{product.name}</Link><span className="block truncate text-[11px] text-muted-foreground">{product.slug}</span></div>
+            <div className="min-w-0"><Link href="/seller/products/${product.id}/edit" className="block truncate text-sm font-semibold hover:text-primary">{product.name}</Link><span className="block truncate text-[11px] text-muted-foreground">{product.slug}</span></div>
             <span className="hidden truncate text-xs text-muted-foreground sm:block">{product.category.name}</span>
             <span className="inline-flex items-center gap-1 text-sm font-bold">{product.stockQuantity <= 0 ? <span className="text-red-600">ناموجود</span> : <><PackageCheck className="h-4 w-4 text-emerald-500" />{product.stockQuantity.toLocaleString()}</>}</span>
             <span className={product.isActive && product.stockQuantity > 0 ? 'text-xs font-semibold text-emerald-600' : 'text-xs font-semibold text-muted-foreground'}>{product.isActive && product.stockQuantity > 0 ? 'فعال' : 'نیازمند بررسی'}</span>

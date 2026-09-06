@@ -1,5 +1,6 @@
 import { requireSeller } from '@/lib/auth/roles';
 import { getSellerOrderSummary, listSellerOrders, OrderList } from '@/features/orders';
+import { Link } from '@/i18n/routing';
 
 export const dynamic = 'force-dynamic';
 
@@ -77,9 +78,9 @@ export default async function SellerOrdersPage({ params: routeParams, searchPara
             const active = (sp.status ?? '') === filter.key;
             const count = filter.key ? summary[filter.key as keyof typeof summary] : summary.total;
             return (
-              <a
+              <Link
                 key={filter.key || 'all'}
-                href={`${base}?${href.toString()}`}
+                href={{ pathname: base, query: Object.fromEntries(href) }}
                 className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition ${
                   active
                     ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300'
@@ -88,7 +89,7 @@ export default async function SellerOrdersPage({ params: routeParams, searchPara
               >
                 {filter.label}
                 <span className="rounded-full bg-background/70 px-1.5 py-0.5 text-[10px]">{Number(count).toLocaleString('fa-IR')}</span>
-              </a>
+              </Link>
             );
           })}
         </div>
@@ -122,7 +123,7 @@ function orderQueryString(sp: { q?: string; status?: string }, page: number) {
 }
 
 function PagerLink({ href, label }: { href: string; label: string }) {
-  return <a href={href} className="rounded-xl border border-border bg-card px-3 py-2 font-semibold text-foreground hover:bg-muted">{label}</a>;
+  return <Link href={href} className="rounded-xl border border-border bg-card px-3 py-2 font-semibold text-foreground hover:bg-muted">{label}</Link>;
 }
 
 function SummaryCard({ label, value, tone }: { label: string; value: number; tone: 'neutral' | 'warning' | 'info' | 'success' }) {

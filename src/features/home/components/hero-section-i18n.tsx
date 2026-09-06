@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, ChevronLeft, ChevronRight, Home, Leaf, Percent, Shirt, ShoppingBag, Smartphone, Sparkles, Store } from 'lucide-react';
-import Link from 'next/link';
+import { Link } from '@/i18n/routing';
 import { useLocale, useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { useTheme } from '@/components/providers/theme-provider';

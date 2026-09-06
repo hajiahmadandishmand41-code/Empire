@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { Link } from '@/i18n/routing';
 import { ArrowLeft } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { ProductForm } from '@/features/seller/components/product-form';

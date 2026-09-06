@@ -4,7 +4,7 @@
  * Server component. Fetches the current user's recent orders directly
  * from the DB (via `listUserOrders`) and links to the detail page.
  */
-import Link from 'next/link';
+import { Link } from '@/i18n/routing';
 import { Card } from '@/components/ui/card';
 import { getCurrentUser } from '@/lib/auth/current-user';
 import { listUserOrders, OrderStatusBadge, formatDate, formatMoney } from '@/features/orders';
@@ -28,7 +28,7 @@ export async function MyOrders({ locale }: Props) {
       <div className="mb-4 flex items-center justify-between">
         <h2 className="font-display text-xl font-bold text-navy-800">سفارش‌های اخیر</h2>
         <Link
-          href={`/${locale}/orders`}
+          href="/orders"
           className="text-xs font-medium text-primary hover:underline"
         >
           مشاهده همه
@@ -62,7 +62,7 @@ export async function MyOrders({ locale }: Props) {
                   </td>
                   <td className="py-3 text-end">
                     <Link
-                      href={`/${locale}/orders/${o.reference}`}
+                      href="/orders/${o.reference}"
                       className="text-xs font-medium text-primary hover:underline"
                     >
                       جزئیات

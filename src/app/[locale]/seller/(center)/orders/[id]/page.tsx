@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { Link } from '@/i18n/routing';
 import { notFound } from 'next/navigation';
 import { ArrowRight } from 'lucide-react';
 import { requireSeller } from '@/lib/auth/roles';
@@ -21,7 +21,7 @@ export default async function SellerOrderDetailPage({ params }: Props) {
   return (
     <div className="space-y-4">
       <Link
-        href={`/${locale}/seller/orders`}
+        href="/seller/orders"
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowRight className="h-4 w-4 rtl:rotate-180" />

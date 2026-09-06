@@ -1,5 +1,4 @@
-import { routing } from '@/i18n/routing';
-import { localeDirection } from '@/i18n/routing';
+import { routing, localeDirection } from '@/i18n/routing';
 
 /**
  * Global not-found — Stage 5: semantic HTML, proper accessibility, no inline style.
@@ -37,7 +36,7 @@ export default function NotFound() {
             <span className="crown" role="img" aria-label="Empire Shop">👑</span>
             <h1>۴۰۴ — صفحه پیدا نشد</h1>
             <p>صفحه‌ای که دنبالش می‌گردید وجود ندارد یا جابجا شده است.</p>
-            <a href={`/${locale}`}>بازگشت به Empire Shop</a>
+            <a href="/">بازگشت به Empire Shop</a>
           </div>
         </main>
       </body>

@@ -1,5 +1,5 @@
 import { Wallet, TrendingUp, ArrowDownToLine, Percent, CreditCard } from 'lucide-react';
-import Link from 'next/link';
+import { Link } from '@/i18n/routing';
 import { StatCard } from '@/features/admin/components/stat-card';
 import { EmptyState } from '@/features/admin/components/empty-state';
 import { formatMoney, formatDate } from '@/features/admin/lib/format';
@@ -140,7 +140,7 @@ export default async function SellerWalletPage({ params }: Props) {
             </div>
           </div>
           <Link
-            href={`/${locale}/seller/settings`}
+            href="/seller/settings"
             className="text-xs font-medium text-emerald-700 dark:text-emerald-300 underline hover:no-underline"
           >
             ویرایش
@@ -156,7 +156,7 @@ export default async function SellerWalletPage({ params }: Props) {
             </p>
           </div>
           <Link
-            href={`/${locale}/seller/settings`}
+            href="/seller/settings"
             className="shrink-0 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700 transition-colors"
           >
             ثبت حساب

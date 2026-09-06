@@ -1,4 +1,4 @@
-import { redirect } from 'next/navigation';
+import { redirect } from '@/i18n/routing';
 import { getLocale } from 'next-intl/server';
 import { Container } from '@/components/layout/container';
 import { SiteHeader } from '@/features/home/components/site-header';
@@ -14,18 +14,17 @@ export default async function SellerApplyPage() {
   const user = await getCurrentUser();
 
   if (!user) {
-    // `AuthForm` uses the localized router, so the redirect target must be
-    // an unlocalized application path to avoid a `/fa/fa/...` style URL.
-    redirect(`/${locale}/auth/login?redirect=${encodeURIComponent('/seller/apply')}`);
+    redirect({ href: `/auth/login?redirect=${encodeURIComponent('/seller/apply')}`, locale });
   }
-  if (user.role === 'seller') redirect(`/${locale}/seller`);
+  const currentUser = user!;
+  if (currentUser.role === 'seller') redirect({ href: '/seller', locale });
 
   const pending = isDatabaseConfigured()
-    ? await prisma.sellerApplication.findFirst({ where: { userId: user.id, status: 'pending' }, orderBy: { createdAt: 'desc' } })
+    ? await prisma.sellerApplication.findFirst({ where: { userId: currentUser.id, status: 'pending' }, orderBy: { createdAt: 'desc' } })
     : null;
 
-  const approved = user.sellerStatus === 'approved';
-  const rejected = user.sellerStatus === 'rejected';
+  const approved = currentUser.sellerStatus === 'approved';
+  const rejected = currentUser.sellerStatus === 'rejected';
   const copy = locale === 'en'
     ? { title: 'Sell on Eshop', pending: 'Your application is under review.', approved: 'Your seller access is already approved.', rejected: 'Your previous application was rejected. You can submit a new application.', intro: 'Create one shop profile and our team will review it before seller access is enabled.' }
     : locale === 'ps'

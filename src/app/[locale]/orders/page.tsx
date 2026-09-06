@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { Link } from '@/i18n/routing';
 import { Container } from '@/components/layout/container';
 import { requireAuth } from '@/lib/auth/roles';
 import { listUserOrders, OrderList } from '@/features/orders';
@@ -33,7 +33,7 @@ export default async function OrdersPage({ params, searchParams }: Props) {
           </p>
         </div>
         <Link
-          href={`/${locale}/shop`}
+          href="/shop"
           className="text-sm font-medium text-primary hover:underline"
         >
           ادامه خرید
