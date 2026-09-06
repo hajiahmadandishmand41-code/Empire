@@ -136,11 +136,10 @@ jobs:
           exit 0
       - name: Persist E2E result
         if: always()
+        shell: bash --noprofile --norc -eo pipefail {0}
         run: |
-          # GitHub Actions runs bash with -e; counteract it so individual
-          # non-fatal commands (git push, grep) don't kill the script.
+          # Override the default -e so non-fatal commands don't kill the script.
           set +e
-          set -uo pipefail
           branch="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
           report="qa-results/seller-e2e-${GITHUB_SHA}.md"
           auth_status="$(cat "$RUNNER_TEMP/authenticated-ui.exit" 2>/dev/null || echo 1)"
