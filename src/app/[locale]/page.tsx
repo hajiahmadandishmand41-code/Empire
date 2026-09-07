@@ -21,7 +21,6 @@ import { isDatabaseConfigured } from '@/lib/db';
 import type { ProductSummary } from '@/types';
 
 type Locale = 'fa' | 'ps' | 'en';
-
 type ProductLike = ProductSummary;
 
 function SectionSkeleton() {
@@ -90,10 +89,8 @@ async function HomeCatalogSections({ locale }: { locale: Locale }) {
   let bestSelling: ProductSummary[] = [];
   let newest: ProductSummary[] = [];
   try {
-    [bestSelling, newest] = await Promise.all([
-      getHomepageSection('bestSelling', 4),
-      getHomepageSection('newest', 4),
-    ]);
+    bestSelling = await getHomepageSection('bestSelling', 4);
+    newest = await getHomepageSection('newest', 4);
   } catch (err) {
     console.error('[home/catalog] failed to load displayed catalog:', err);
   }
