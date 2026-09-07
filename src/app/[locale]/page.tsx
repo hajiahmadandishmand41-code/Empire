@@ -8,31 +8,39 @@ import { HomepageHeroCarousel } from '@/features/home/components/homepage-hero-c
 import { HomeDiscoveryStrip } from '@/features/home/components/home-discovery-strip';
 import { BrandsSection } from '@/features/home/components/brands-section';
 import { DynamicBannerStrip } from '@/features/home/components/dynamic-banner-strip';
-import { TraditionalProductsBanner } from '@/features/home/components/traditional-products-banner';
 import { CategoriesSection } from '@/features/home/components/categories-section';
 import { ProductSliderSection } from '@/features/home/components/product-slider-section';
-import { PersonalizedProductsSection, RecentlyViewedSection } from '@/features/home/components/personalized-products-section';
-import { HomeCatalogGrid } from '@/features/home/components/home-catalog-grid';
 import { TrustSection } from '@/features/home/components/trust-section';
 import { SiteHeader } from '@/features/home/components/site-header';
 import { SiteFooter } from '@/features/home/components/site-footer';
 import { BottomNavigation } from '@/features/home/components/bottom-navigation';
 import { getCategoryRepository, getSellerRepository } from '@/server/infrastructure/registry';
-import { getHomepageData, getHomepageSection, toSliderProduct } from '@/features/home/lib/homepage-data';
+import { getHomepageData, toSliderProduct } from '@/features/home/lib/homepage-data';
 import { listActiveBanners } from '@/server/services/banner.service';
-import { getCurrentUser } from '@/lib/auth/current-user';
 import { isDatabaseConfigured } from '@/lib/db';
 
 type Locale = 'fa' | 'ps' | 'en';
-type ProductSectionProps = { section: 'featured' | 'bestSelling' | 'newest'; locale: Locale; title: Record<Locale, string>; subtitle?: Record<Locale, string>; href: string; badge: string; accentColor?: string; catalog: Awaited<ReturnType<typeof getHomepageData>> };
+type ProductLike = Awaited<ReturnType<typeof getHomepageData>>[keyof Awaited<ReturnType<typeof getHomepageData>>][number];
 
-function SectionSkeleton() { return <div className="mx-auto my-4 h-44 max-w-screen-xl animate-pulse rounded-2xl bg-muted/40 sm:my-6" aria-hidden />; }
-function HeroSkeleton() { return <section className="mx-auto max-w-screen-xl px-3 pt-3 sm:px-6 sm:pt-5" aria-hidden><div className="relative h-[250px] overflow-hidden rounded-[24px] border border-border bg-muted/40 sm:h-[330px] lg:h-[350px]"><div className="absolute inset-x-5 bottom-5 max-w-xl space-y-3 sm:inset-x-8 sm:bottom-8"><div className="h-7 w-24 animate-pulse rounded-full bg-background/60" /><div className="h-10 w-4/5 animate-pulse rounded-xl bg-background/50" /><div className="h-10 w-48 animate-pulse rounded-xl bg-background/50" /></div></div></section>; }
-function DataUnavailable({ title }: { title: string }) { return <section role="status" className="border-y border-amber-500/20 bg-amber-500/5 py-3"><div className="mx-auto max-w-screen-xl px-3 text-center text-xs font-semibold text-amber-800 dark:text-amber-200">{title}</div></section>; }
+function SectionSkeleton() {
+  return <div className="mx-auto my-4 h-44 max-w-screen-xl animate-pulse rounded-2xl bg-muted/40 sm:my-6" aria-hidden />;
+}
+
+function HeroSkeleton() {
+  return <section className="mx-auto max-w-screen-xl px-3 pt-3 sm:px-6 sm:pt-5" aria-hidden><div className="relative h-[250px] overflow-hidden rounded-[24px] border border-border bg-muted/40 sm:h-[330px] lg:h-[350px]"><div className="absolute inset-x-5 bottom-5 max-w-xl space-y-3 sm:inset-x-8 sm:bottom-8"><div className="h-7 w-24 animate-pulse rounded-full bg-background/60" /><div className="h-10 w-4/5 animate-pulse rounded-xl bg-background/50" /><div className="h-10 w-48 animate-pulse rounded-xl bg-background/50" /></div></div></section>;
+}
+
+function DataUnavailable({ title }: { title: string }) {
+  return <section role="status" className="border-y border-amber-500/20 bg-amber-500/5 py-3"><div className="mx-auto max-w-screen-xl px-3 text-center text-xs font-semibold text-amber-800 dark:text-amber-200">{title}</div></section>;
+}
 
 async function loadHomeHero() {
-  try { return await listActiveBanners('HOME_HERO', 6); }
-  catch (err) { console.error('[home/hero] DB error:', err); return null; }
+  try {
+    return await listActiveBanners('HOME_HERO', 6);
+  } catch (err) {
+    console.error('[home/hero] DB error:', err);
+    return null;
+  }
 }
 
 async function HomeHeroSection({ locale }: { locale: Locale }) {
@@ -44,19 +52,74 @@ async function HomeHeroSection({ locale }: { locale: Locale }) {
   return <HomepageHeroCarousel banners={banners} locale={locale} />;
 }
 
-function HomeProductSection({ section, locale, title, subtitle, href, badge, accentColor, catalog }: ProductSectionProps) {
-  const products = catalog[section];
-  if (!products.length) return null;
-  return <ProductSliderSection title={title[locale]} subtitle={subtitle?.[locale]} viewAllHref={href} products={products.map((product) => toSliderProduct(product, badge))} locale={locale} accentColor={accentColor} />;
+function uniqueProducts(primary: ProductLike[], secondary: ProductLike[], limit: number, excludedIds = new Set<string>()) {
+  const seen = new Set<string>(excludedIds);
+  const output: ProductLike[] = [];
+  for (const product of [...primary, ...secondary]) {
+    if (seen.has(product.id)) continue;
+    seen.add(product.id);
+    output.push(product);
+    if (output.length >= limit) break;
+  }
+  return output;
 }
 
-async function LowerRecommendationSections({ locale, userId, catalog }: { locale: Locale; userId?: string | null; catalog: Awaited<ReturnType<typeof getHomepageData>> }) {
-  const personalizedPopular = userId ? await getHomepageSection('popular', 24, userId) : [];
-  const seen = new Set<string>();
-  const uniquePool = [...personalizedPopular, ...catalog.featured, ...catalog.bestSelling, ...catalog.popular, ...catalog.newest]
-    .filter((product) => !seen.has(product.id) && seen.add(product.id)).slice(0, 24);
-  if (!uniquePool.length) return null;
-  return <><PersonalizedProductsSection products={uniquePool.map((product) => toSliderProduct(product))} locale={locale} /><RecentlyViewedSection products={uniquePool.map((product) => toSliderProduct(product))} locale={locale} /><HomeCatalogGrid products={uniquePool} locale={locale} /></>;
+function CompactProductSection({ locale, products, title, subtitle, href, badge, accentColor }: {
+  locale: Locale;
+  products: ProductLike[];
+  title: Record<Locale, string>;
+  subtitle: Record<Locale, string>;
+  href: string;
+  badge: string;
+  accentColor: string;
+}) {
+  if (!products.length) return null;
+  return <ProductSliderSection
+    title={title[locale]}
+    subtitle={subtitle[locale]}
+    viewAllHref={href}
+    products={products.map((product) => toSliderProduct(product, badge))}
+    locale={locale}
+    accentColor={accentColor}
+  />;
+}
+
+async function HomeCatalogSections({ locale }: { locale: Locale }) {
+  let catalog: Awaited<ReturnType<typeof getHomepageData>> = { newest: [], bestSelling: [], mostViewed: [], popular: [], featured: [] };
+  try {
+    catalog = await getHomepageData();
+  } catch (err) {
+    console.error('[home/catalog] failed to load catalog:', err);
+  }
+
+  const selected = uniqueProducts(
+    catalog.featured,
+    [...catalog.bestSelling, ...catalog.popular],
+    6,
+  );
+  const selectedIds = new Set(selected.map((product) => product.id));
+  const newest = uniqueProducts(catalog.newest, catalog.mostViewed, 6, selectedIds);
+
+  return <div className="space-y-1">
+    <CompactProductSection
+      locale={locale}
+      products={selected}
+      title={{ en: 'Today’s picks', ps: 'د نن غوره انتخابونه', fa: 'انتخاب‌های امروز' }}
+      subtitle={{ en: 'A small selection of products worth seeing', ps: 'د پام وړ غوره محصولات', fa: 'منتخبی کوتاه از محصولات ارزشمند' }}
+      href="/shop?sort=popular"
+      badge="featured"
+      accentColor="bg-rose-500"
+    />
+    <CompactProductSection
+      locale={locale}
+      products={newest}
+      title={{ en: 'Fresh arrivals', ps: 'تازه راغلي محصولات', fa: 'تازه‌واردها' }}
+      subtitle={{ en: 'New products without repeating the previous section', ps: 'نوي محصولات پرته له تکراره', fa: 'محصولات تازه بدون تکرار بخش قبلی' }}
+      href="/shop?sort=newest"
+      badge="new"
+      accentColor="bg-sky-500"
+    />
+  </div>;
 }
 
 const getCachedPopularStores = unstable_cache(
@@ -66,8 +129,12 @@ const getCachedPopularStores = unstable_cache(
 );
 
 async function loadPopularStores() {
-  try { return await getCachedPopularStores(); }
-  catch (err) { console.error('[home/stores] DB error:', err); return null; }
+  try {
+    return await getCachedPopularStores();
+  } catch (err) {
+    console.error('[home/stores] DB error:', err);
+    return null;
+  }
 }
 
 async function HomePopularStores({ locale }: { locale: Locale }) {
@@ -93,8 +160,12 @@ const getCachedPopularCategories = unstable_cache(
 );
 
 async function loadPopularCategories() {
-  try { return await getCachedPopularCategories(); }
-  catch (err) { console.error('[home/popular-categories] DB error:', err); return null; }
+  try {
+    return await getCachedPopularCategories();
+  } catch (err) {
+    console.error('[home/popular-categories] DB error:', err);
+    return null;
+  }
 }
 
 async function PopularCategoryRanking({ locale }: { locale: Locale }) {
@@ -112,26 +183,6 @@ async function PopularCategoryRanking({ locale }: { locale: Locale }) {
   return <section className="border-b border-border bg-card py-4 sm:py-6" aria-label={title}><div className="mx-auto max-w-screen-xl px-2.5 sm:px-6"><div className="mb-3 flex items-center gap-2 sm:mb-4"><span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-sm font-black text-primary"><Star className="h-4 w-4" aria-hidden="true" /></span><h2 className="text-sm font-black sm:text-lg">{title}</h2></div><div className="grid grid-cols-2 gap-2 sm:gap-3">{top.map((category, index) => <Link key={category.id} href={`/category/${category.slug}` as never} className="relative flex min-h-20 items-center gap-2 overflow-hidden rounded-2xl border border-border bg-background p-2.5 transition hover:border-primary/30 hover:shadow-sm sm:min-h-24 sm:p-3"><span className="absolute start-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-[11px] font-black text-primary-foreground">{index + 1}</span><span className="relative ms-8 h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-muted sm:h-16 sm:w-16">{category.imageUrl ? <Image src={category.imageUrl} alt={category.name} fill sizes="64px" loading="lazy" className="object-cover" /> : <span className="flex h-full w-full items-center justify-center text-sm font-black text-muted-foreground">{index + 1}</span>}</span><span className="min-w-0"><strong className="block truncate text-xs font-black sm:text-sm">{category.name}</strong><span className="mt-1 block text-[10px] text-muted-foreground sm:text-[10px]">{Number(category.productCount ?? 0).toLocaleString(numberLocale)} {productLabel}</span></span></Link>)}</div></div></section>;
 }
 
-const EMPTY_CATALOG = { newest: [], bestSelling: [], mostViewed: [], popular: [], featured: [] };
-
-async function HomeCatalogSections({ locale }: { locale: Locale }) {
-  let user: Awaited<ReturnType<typeof getCurrentUser>> = null;
-  let catalog: Awaited<ReturnType<typeof getHomepageData>> = EMPTY_CATALOG;
-  try {
-    [user, catalog] = await Promise.all([getCurrentUser(), getHomepageData()]);
-  } catch (err) {
-    console.error('[home/catalog] failed to load catalog:', err);
-  }
-
-  return <>
-    <Suspense fallback={<SectionSkeleton />}><HomeProductSection section="featured" locale={locale} catalog={catalog} title={{ en: 'Today’s picks', ps: 'د نن غوره انتخابونه', fa: 'انتخاب‌های امروز' }} subtitle={{ en: 'A focused set of products worth your attention', ps: 'د پام وړ او غوره محصولات', fa: 'انتخابی از محصولات ارزشمند' }} href="/shop?sort=popular" badge="featured" accentColor="bg-rose-500" /></Suspense>
-    <Suspense fallback={<SectionSkeleton />}><HomeProductSection section="bestSelling" locale={locale} catalog={catalog} title={{ en: 'Best sellers', ps: 'تر ټولو ډېر پلورل شوي', fa: 'پرفروش‌ترین‌ها' }} subtitle={{ en: 'Products customers keep choosing', ps: 'هغه محصولات چې پیرودونکي یې بیا غوره کوي', fa: 'محصولاتی که مشتریان بیشتر انتخاب می‌کنند' }} href="/shop?sort=bestSelling" badge="best" accentColor="bg-amber-500" /></Suspense>
-    <Suspense fallback={<SectionSkeleton />}><HomeProductSection section="newest" locale={locale} catalog={catalog} title={{ en: 'Fresh arrivals', ps: 'تازه راغلي محصولات', fa: 'تازه‌واردها' }} subtitle={{ en: 'New products to discover before everyone else', ps: 'نوي محصولات چې لومړی یې تاسو ومومئ', fa: 'محصولات تازه برای کشف زودتر از دیگران' }} href="/shop?sort=newest" badge="new" accentColor="bg-sky-500" /></Suspense>
-    <DynamicBannerStrip locale={locale} placement="HOME_MID" />
-    <Suspense fallback={<SectionSkeleton />}><LowerRecommendationSections locale={locale} userId={user?.id} catalog={catalog} /></Suspense>
-  </>;
-}
-
 export default async function HomePage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale: rawLocale } = await params;
   const locale = (['fa', 'ps', 'en'].includes(rawLocale) ? rawLocale : 'fa') as Locale;
@@ -143,9 +194,8 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
     <Suspense fallback={<div className="h-48 animate-pulse bg-muted/30" />}><CategoriesSection /></Suspense>
     <Suspense fallback={<div className="h-56 animate-pulse bg-muted/20" />}><HomePopularStores locale={locale} /></Suspense>
     <DynamicBannerStrip locale={locale} placement="HOME_PROMO_1" />
-    <Suspense fallback={<SectionSkeleton />}><TraditionalProductsBanner locale={locale} /></Suspense>
     <Suspense fallback={<SectionSkeleton />}><HomeCatalogSections locale={locale} /></Suspense>
-    <Suspense fallback={<SectionSkeleton />}><PopularCategoryRanking locale={locale} /></Suspense>
+    <Suspense fallback={<div className="h-44 animate-pulse bg-muted/30" />}><PopularCategoryRanking locale={locale} /></Suspense>
     <Suspense fallback={<div className="h-44 animate-pulse bg-muted/30" />}><TrustSection /></Suspense>
     <Suspense fallback={<div className="h-40 animate-pulse bg-muted/20" />}><BrandsSection locale={locale} /></Suspense>
   </main><SiteFooter /><BottomNavigation /></div>;
