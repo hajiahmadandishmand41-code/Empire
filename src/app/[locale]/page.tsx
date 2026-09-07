@@ -15,12 +15,14 @@ import { SiteHeader } from '@/features/home/components/site-header';
 import { SiteFooter } from '@/features/home/components/site-footer';
 import { BottomNavigation } from '@/features/home/components/bottom-navigation';
 import { getCategoryRepository, getSellerRepository } from '@/server/infrastructure/registry';
-import { getHomepageData, toSliderProduct } from '@/features/home/lib/homepage-data';
+import { getHomepageSection, toSliderProduct } from '@/features/home/lib/homepage-data';
 import { listActiveBanners } from '@/server/services/banner.service';
 import { isDatabaseConfigured } from '@/lib/db';
+import type { ProductSummary } from '@/types';
 
 type Locale = 'fa' | 'ps' | 'en';
-type ProductLike = Awaited<ReturnType<typeof getHomepageData>>[keyof Awaited<ReturnType<typeof getHomepageData>>][number];
+
+type ProductLike = ProductSummary;
 
 function SectionSkeleton() {
   return <div className="mx-auto my-4 h-44 max-w-screen-xl animate-pulse rounded-2xl bg-muted/40 sm:my-6" aria-hidden />;
@@ -52,10 +54,10 @@ async function HomeHeroSection({ locale }: { locale: Locale }) {
   return <HomepageHeroCarousel banners={banners} locale={locale} />;
 }
 
-function uniqueProducts(primary: ProductLike[], secondary: ProductLike[], limit: number, excludedIds = new Set<string>()) {
+function uniqueProducts(products: ProductLike[], limit: number, excludedIds = new Set<string>()) {
   const seen = new Set<string>(excludedIds);
   const output: ProductLike[] = [];
-  for (const product of [...primary, ...secondary]) {
+  for (const product of products) {
     if (seen.has(product.id)) continue;
     seen.add(product.id);
     output.push(product);
@@ -85,20 +87,18 @@ function CompactProductSection({ locale, products, title, subtitle, href, badge,
 }
 
 async function HomeCatalogSections({ locale }: { locale: Locale }) {
-  let catalog: Awaited<ReturnType<typeof getHomepageData>> = { newest: [], bestSelling: [], mostViewed: [], popular: [], featured: [] };
+  let bestSelling: ProductSummary[] = [];
+  let newest: ProductSummary[] = [];
   try {
-    catalog = await getHomepageData();
+    bestSelling = await getHomepageSection('bestSelling', 6);
+    newest = await getHomepageSection('newest', 6);
   } catch (err) {
-    console.error('[home/catalog] failed to load catalog:', err);
+    console.error('[home/catalog] failed to load displayed catalog:', err);
   }
 
-  const selected = uniqueProducts(
-    catalog.featured,
-    [...catalog.bestSelling, ...catalog.popular],
-    6,
-  );
+  const selected = uniqueProducts(bestSelling, 6);
   const selectedIds = new Set(selected.map((product) => product.id));
-  const newest = uniqueProducts(catalog.newest, catalog.mostViewed, 6, selectedIds);
+  const fresh = uniqueProducts(newest, 6, selectedIds);
 
   return <div className="space-y-1">
     <CompactProductSection
@@ -106,13 +106,13 @@ async function HomeCatalogSections({ locale }: { locale: Locale }) {
       products={selected}
       title={{ en: 'Today’s picks', ps: 'د نن غوره انتخابونه', fa: 'انتخاب‌های امروز' }}
       subtitle={{ en: 'A small selection of products worth seeing', ps: 'د پام وړ غوره محصولات', fa: 'منتخبی کوتاه از محصولات ارزشمند' }}
-      href="/shop?sort=popular"
-      badge="featured"
-      accentColor="bg-rose-500"
+      href="/shop?sort=bestSelling"
+      badge="best"
+      accentColor="bg-amber-500"
     />
     <CompactProductSection
       locale={locale}
-      products={newest}
+      products={fresh}
       title={{ en: 'Fresh arrivals', ps: 'تازه راغلي محصولات', fa: 'تازه‌واردها' }}
       subtitle={{ en: 'New products without repeating the previous section', ps: 'نوي محصولات پرته له تکراره', fa: 'محصولات تازه بدون تکرار بخش قبلی' }}
       href="/shop?sort=newest"
