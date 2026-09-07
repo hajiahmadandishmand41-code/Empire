@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   seller-smoke:
@@ -134,48 +134,34 @@ jobs:
           status=${PIPESTATUS[0]}
           echo "$status" > "$RUNNER_TEMP/store-settings-e2e.exit"
           exit 0
-      - name: Persist E2E result
+      - name: Publish E2E result
         if: always()
-        # Use Node.js to persist the report — avoids all bash -e / pipefail issues.
         run: |
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
           import { execSync } from 'node:child_process';
           const tmp = process.env.RUNNER_TEMP;
           const sha = process.env.GITHUB_SHA;
-          const event = process.env.GITHUB_EVENT_NAME || '';
-          const branch = process.env.GITHUB_HEAD_REF || process.env.GITHUB_REF_NAME;
           const read = (f) => { try { return fs.readFileSync(`${tmp}/${f}`, 'utf8').trim(); } catch { return '1'; } };
           const auth = read('authenticated-ui.exit');
           const deep = read('deep-e2e.exit');
           const store = read('store-settings-e2e.exit');
           const overall = [auth, deep, store].some((s) => s !== '0') ? 1 : 0;
-          const report = `# Seller E2E result\n\n- Commit: ${sha}\n- Authenticated UI smoke exit: ${auth}\n- Deep seller-center E2E exit: ${deep}\n- Store settings E2E exit: ${store}\n- Overall: ${overall === 0 ? 'PASS' : 'FAIL'}\n\n## Authenticated UI smoke\n${read('authenticated-ui.log')}\n\n## Deep seller-center E2E\n${read('deep-e2e.log')}\n\n## Store settings E2E\n${read('store-settings-e2e.log')}\n\n## Server log tail\n${(() => { try { return execSync(`tail -200 ${tmp}/empire-seller.log`, { encoding: 'utf8' }); } catch { return ''; } })()}\n`;
+          const tail = (name, command) => { try { return `\n### ${name}\n\n${execSync(command, { encoding: 'utf8' })}`; } catch { return ''; } };
+          const report = `# Seller E2E result\n\n- Commit: ${sha}\n- Authenticated UI smoke exit: ${auth}\n- Deep seller-center E2E exit: ${deep}\n- Store settings E2E exit: ${store}\n- Overall: ${overall === 0 ? 'PASS' : 'FAIL'}\n\n## Authenticated UI smoke\n${read('authenticated-ui.log')}\n\n## Deep seller-center E2E\n${read('deep-e2e.log')}\n\n## Store settings E2E\n${read('store-settings-e2e.log')}\n${tail('Server log tail', `tail -200 ${tmp}/empire-seller.log`)}\n`;
           fs.writeFileSync(`${tmp}/seller-e2e-result.md`, report);
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, report.slice(0, 12000) + '\n');
           console.log(`Overall: ${overall === 0 ? 'PASS' : 'FAIL'}`);
-          if (event !== 'pull_request') {
-            const dest = `qa-results/seller-e2e-${sha}.md`;
-            fs.mkdirSync('qa-results', { recursive: true });
-            fs.copyFileSync(`${tmp}/seller-e2e-result.md`, dest);
-            try {
-              execSync(`git config user.name 'github-actions[bot]'`, { stdio: 'inherit' });
-              execSync(`git config user.email '41898282+github-actions[bot]@users.noreply.github.com'`, { stdio: 'inherit' });
-              execSync(`git add "${dest}"`, { stdio: 'inherit' });
-              execSync(`git commit -m "[skip ci] qa: persist seller e2e result"`, { stdio: 'inherit' });
-              try {
-                execSync(`git push origin "HEAD:${branch}"`, { stdio: 'inherit' });
-              } catch {
-                console.log('::warning::Persist E2E result: git push failed (branch likely moved ahead). Report is in workflow logs.');
-              }
-            } catch {
-              console.log('No E2E report changes to commit.');
-            }
-          }
           NODE
-      - name: Upload app log on failure
-        if: failure()
+      - name: Upload E2E artifacts
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: seller-e2e-log
-          path: ${{ runner.temp }}/empire-seller.log
+          name: seller-e2e-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/seller-e2e-result.md
+            ${{ runner.temp }}/authenticated-ui.log
+            ${{ runner.temp }}/deep-e2e.log
+            ${{ runner.temp }}/store-settings-e2e.log
+            ${{ runner.temp }}/empire-seller.log
           if-no-files-found: ignore
