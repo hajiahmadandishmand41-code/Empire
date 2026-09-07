@@ -1,4 +1,5 @@
 import { getTranslations, getLocale } from 'next-intl/server';
+import { unstable_cache } from 'next/cache';
 import { ArrowLeft, FolderTree } from 'lucide-react';
 import { Container } from '@/components/layout/container';
 import { Link } from '@/i18n/routing';
@@ -6,13 +7,19 @@ import { CategoryCard } from './category-card';
 import { getCategoryRepository } from '@/server/infrastructure/registry';
 import { isDatabaseConfigured } from '@/lib/db';
 
+const getCachedHomeCategories = unstable_cache(
+  async () => getCategoryRepository().findAll(true, true),
+  ['home-categories-v2'],
+  { revalidate: 30, tags: ['home-categories'] },
+);
+
 export async function CategoriesSection() {
   const [t, locale] = await Promise.all([
     getTranslations('home.categories'),
     getLocale(),
   ]);
   if (!isDatabaseConfigured()) return null;
-  const categories = await getCategoryRepository().findAll(true, true).catch(() => []);
+  const categories = await getCachedHomeCategories().catch(() => []);
   const roots = categories.filter((category) => !category.parentId).slice(0, 10);
   if (!roots.length) return null;
 
