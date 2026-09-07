@@ -30,12 +30,8 @@ function HeroSkeleton() { return <section className="mx-auto max-w-screen-xl px-
 function DataUnavailable({ title }: { title: string }) { return <section role="status" className="border-y border-amber-500/20 bg-amber-500/5 py-3"><div className="mx-auto max-w-screen-xl px-3 text-center text-xs font-semibold text-amber-800 dark:text-amber-200">{title}</div></section>; }
 
 async function loadHomeHero() {
-  try {
-    return await listActiveBanners('HOME_HERO', 6);
-  } catch (err) {
-    console.error('[home/hero] DB error:', err);
-    return null;
-  }
+  try { return await listActiveBanners('HOME_HERO', 6); }
+  catch (err) { console.error('[home/hero] DB error:', err); return null; }
 }
 
 async function HomeHeroSection({ locale }: { locale: Locale }) {
@@ -57,19 +53,14 @@ async function LowerRecommendationSections({ locale, userId, catalog }: { locale
   const personalizedPopular = userId ? await getHomepageSection('popular', 24, userId) : [];
   const seen = new Set<string>();
   const uniquePool = [...personalizedPopular, ...catalog.featured, ...catalog.bestSelling, ...catalog.popular, ...catalog.newest]
-    .filter((product) => !seen.has(product.id) && seen.add(product.id))
-    .slice(0, 24);
+    .filter((product) => !seen.has(product.id) && seen.add(product.id)).slice(0, 24);
   if (!uniquePool.length) return null;
   return <><PersonalizedProductsSection products={uniquePool.map((product) => toSliderProduct(product))} locale={locale} /><RecentlyViewedSection products={uniquePool.map((product) => toSliderProduct(product))} locale={locale} /><HomeCatalogGrid products={uniquePool} locale={locale} /></>;
 }
 
 async function loadPopularStores() {
-  try {
-    return await getSellerRepository().findPublicMany({ q: '', page: 1, pageSize: 10, sort: 'popular' });
-  } catch (err) {
-    console.error('[home/stores] DB error:', err);
-    return null;
-  }
+  try { return await getSellerRepository().findPublicMany({ q: '', page: 1, pageSize: 10, sort: 'popular' }); }
+  catch (err) { console.error('[home/stores] DB error:', err); return null; }
 }
 
 async function HomePopularStores({ locale }: { locale: Locale }) {
@@ -85,36 +76,12 @@ async function HomePopularStores({ locale }: { locale: Locale }) {
     : locale === 'ps'
       ? { title: 'مشهور ای‌شاپونه', subtitle: 'هغه پلورنځي ومومئ چې پیرودونکي یې ډېر غوره کوي', all: 'ټول پلورنځي' }
       : { title: 'ای‌شاپ‌های محبوب', subtitle: 'فروشگاه‌هایی که مشتریان بیشتر انتخاب می‌کنند', all: 'مشاهده همه فروشگاه‌ها' };
-  return <section className="border-y border-border bg-card py-4 sm:py-6" aria-label={copy.title}>
-    <div className="mx-auto max-w-screen-xl px-2.5 sm:px-6">
-      <div className="mb-3 flex items-center justify-between gap-2 sm:mb-4">
-        <div className="flex min-w-0 items-center gap-2">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-violet-500/10 text-violet-600 dark:text-violet-400"><Store className="h-4 w-4" aria-hidden="true" /></span>
-          <div className="min-w-0"><h2 className="truncate text-sm font-black sm:text-lg">{copy.title}</h2><p className="mt-0.5 truncate text-[10px] text-muted-foreground sm:text-xs">{copy.subtitle}</p></div>
-        </div>
-        <Link href="/stores" className="min-h-8 shrink-0 rounded-full border border-border bg-background px-2.5 py-1.5 text-[10px] font-bold sm:px-3 sm:text-xs">{copy.all}</Link>
-      </div>
-      <div className="flex snap-x snap-mandatory gap-2 overflow-x-auto pb-1 [scrollbar-width:none] sm:gap-3 [&::-webkit-scrollbar]:hidden">
-        {result.items.slice(0, 10).map((store) => <Link key={store.id} href={`/store/${store.id}` as never} aria-label={store.shopName} className="group relative flex w-[180px] shrink-0 snap-start items-center gap-2 rounded-2xl border border-border bg-background p-2.5 transition hover:border-primary/30 hover:shadow-sm sm:w-[220px] sm:p-3">
-          <span className="pointer-events-none absolute end-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-background/90 text-rose-500 shadow-sm ring-1 ring-border/70" aria-hidden="true"><Heart className="h-3.5 w-3.5 fill-current" /></span>
-          <span className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-muted sm:h-14 sm:w-14">
-            {store.logoUrl ? <Image src={store.logoUrl} alt="" fill sizes="56px" /> : <span className="text-sm font-black text-primary">{store.shopName.charAt(0)}</span>}
-            <span className="absolute -end-0.5 -top-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full border border-background bg-emerald-500 text-white"><ShieldCheck className="h-2 w-2" aria-hidden="true" /></span>
-          </span>
-          <span className="min-w-0 pe-7"><strong className="block truncate text-[11px] font-black sm:text-xs">{store.shopName}</strong><span className="mt-0.5 block truncate text-[9px] text-muted-foreground sm:text-[10px]">{store.productCount} {locale === 'en' ? 'products' : locale === 'ps' ? 'محصولات' : 'محصول'}</span></span>
-        </Link>)}
-      </div>
-    </div>
-  </section>;
+  return <section className="border-y border-border bg-card py-4 sm:py-6" aria-label={copy.title}><div className="mx-auto max-w-screen-xl px-2.5 sm:px-6"><div className="mb-3 flex items-center justify-between gap-2 sm:mb-4"><div className="flex min-w-0 items-center gap-2"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-violet-500/10 text-violet-600 dark:text-violet-400"><Store className="h-4 w-4" aria-hidden="true" /></span><div className="min-w-0"><h2 className="truncate text-sm font-black sm:text-lg">{copy.title}</h2><p className="mt-0.5 truncate text-[10px] text-muted-foreground sm:text-xs">{copy.subtitle}</p></div></div><Link href="/stores" className="min-h-8 shrink-0 rounded-full border border-border bg-background px-2.5 py-1.5 text-[10px] font-bold sm:px-3 sm:text-xs">{copy.all}</Link></div><div className="flex snap-x snap-mandatory gap-2 overflow-x-auto pb-1 [scrollbar-width:none] sm:gap-3 [&::-webkit-scrollbar]:hidden">{result.items.slice(0, 10).map((store) => <Link key={store.id} href={`/store/${store.id}` as never} aria-label={store.shopName} className="group relative flex w-[180px] shrink-0 snap-start items-center gap-2 rounded-2xl border border-border bg-background p-2.5 transition hover:border-primary/30 hover:shadow-sm sm:w-[220px] sm:p-3"><span className="pointer-events-none absolute end-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-background/90 text-rose-500 shadow-sm ring-1 ring-border/70" aria-hidden="true"><Heart className="h-3.5 w-3.5 fill-current" /></span><span className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-muted sm:h-14 sm:w-14">{store.logoUrl ? <Image src={store.logoUrl} alt="" fill sizes="56px" /> : <span className="text-sm font-black text-primary">{store.shopName.charAt(0)}</span>}<span className="absolute -end-0.5 -top-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full border border-background bg-emerald-500 text-white"><ShieldCheck className="h-2 w-2" aria-hidden="true" /></span></span><span className="min-w-0 pe-7"><strong className="block truncate text-[11px] font-black sm:text-xs">{store.shopName}</strong><span className="mt-0.5 block truncate text-[9px] text-muted-foreground sm:text-[10px]">{store.productCount} {locale === 'en' ? 'products' : locale === 'ps' ? 'محصولات' : 'محصول'}</span></span></Link>)}</div></div></section>;
 }
 
 async function loadPopularCategories() {
-  try {
-    return await getCategoryRepository().findAll(true, true);
-  } catch (err) {
-    console.error('[home/popular-categories] DB error:', err);
-    return null;
-  }
+  try { return await getCategoryRepository().findAll(true, true); }
+  catch (err) { console.error('[home/popular-categories] DB error:', err); return null; }
 }
 
 async function PopularCategoryRanking({ locale }: { locale: Locale }) {
@@ -134,18 +101,28 @@ async function PopularCategoryRanking({ locale }: { locale: Locale }) {
 
 const EMPTY_CATALOG = { newest: [], bestSelling: [], mostViewed: [], popular: [], featured: [] };
 
-export default async function HomePage({ params }: { params: Promise<{ locale: string }> }) {
-  const { locale: rawLocale } = await params;
-  const locale = (['fa', 'ps', 'en'].includes(rawLocale) ? rawLocale : 'fa') as Locale;
-  setRequestLocale(locale);
-
+async function HomeCatalogSections({ locale }: { locale: Locale }) {
   let user: Awaited<ReturnType<typeof getCurrentUser>> = null;
   let catalog: Awaited<ReturnType<typeof getHomepageData>> = EMPTY_CATALOG;
   try {
     [user, catalog] = await Promise.all([getCurrentUser(), getHomepageData()]);
   } catch (err) {
-    console.error('[home] failed to load homepage data:', err);
+    console.error('[home/catalog] failed to load catalog:', err);
   }
+
+  return <>
+    <Suspense fallback={<SectionSkeleton />}><HomeProductSection section="featured" locale={locale} catalog={catalog} title={{ en: 'Today’s picks', ps: 'د نن غوره انتخابونه', fa: 'انتخاب‌های امروز' }} subtitle={{ en: 'A focused set of products worth your attention', ps: 'د پام وړ او غوره محصولات', fa: 'انتخابی از محصولات ارزشمند' }} href="/shop?sort=popular" badge="featured" accentColor="bg-rose-500" /></Suspense>
+    <Suspense fallback={<SectionSkeleton />}><HomeProductSection section="bestSelling" locale={locale} catalog={catalog} title={{ en: 'Best sellers', ps: 'تر ټولو ډېر پلورل شوي', fa: 'پرفروش‌ترین‌ها' }} subtitle={{ en: 'Products customers keep choosing', ps: 'هغه محصولات چې پیرودونکي یې بیا غوره کوي', fa: 'محصولاتی که مشتریان بیشتر انتخاب می‌کنند' }} href="/shop?sort=bestSelling" badge="best" accentColor="bg-amber-500" /></Suspense>
+    <Suspense fallback={<SectionSkeleton />}><HomeProductSection section="newest" locale={locale} catalog={catalog} title={{ en: 'Fresh arrivals', ps: 'تازه راغلي محصولات', fa: 'تازه‌واردها' }} subtitle={{ en: 'New products to discover before everyone else', ps: 'نوي محصولات چې لومړی یې تاسو ومومئ', fa: 'محصولات تازه برای کشف زودتر از دیگران' }} href="/shop?sort=newest" badge="new" accentColor="bg-sky-500" /></Suspense>
+    <DynamicBannerStrip locale={locale} placement="HOME_MID" />
+    <Suspense fallback={<SectionSkeleton />}><LowerRecommendationSections locale={locale} userId={user?.id} catalog={catalog} /></Suspense>
+  </>;
+}
+
+export default async function HomePage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale: rawLocale } = await params;
+  const locale = (['fa', 'ps', 'en'].includes(rawLocale) ? rawLocale : 'fa') as Locale;
+  setRequestLocale(locale);
 
   return <div className="min-h-dvh bg-background"><SiteHeader /><main id="main" className="min-h-dvh pb-16 md:pb-0">
     <HomeDiscoveryStrip locale={locale} />
@@ -154,11 +131,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
     <Suspense fallback={<div className="h-56 animate-pulse bg-muted/20" />}><HomePopularStores locale={locale} /></Suspense>
     <DynamicBannerStrip locale={locale} placement="HOME_PROMO_1" />
     <Suspense fallback={<SectionSkeleton />}><TraditionalProductsBanner locale={locale} /></Suspense>
-    <Suspense fallback={<SectionSkeleton />}><HomeProductSection section="featured" locale={locale} catalog={catalog} title={{ en: 'Today’s picks', ps: 'د نن غوره انتخابونه', fa: 'انتخاب‌های امروز' }} subtitle={{ en: 'A focused set of products worth your attention', ps: 'د پام وړ او غوره محصولات', fa: 'انتخابی از محصولات ارزشمند' }} href="/shop?sort=popular" badge="featured" accentColor="bg-rose-500" /></Suspense>
-    <Suspense fallback={<SectionSkeleton />}><HomeProductSection section="bestSelling" locale={locale} catalog={catalog} title={{ en: 'Best sellers', ps: 'تر ټولو ډېر پلورل شوي', fa: 'پرفروش‌ترین‌ها' }} subtitle={{ en: 'Products customers keep choosing', ps: 'هغه محصولات چې پیرودونکي یې بیا غوره کوي', fa: 'محصولاتی که مشتریان بیشتر انتخاب می‌کنند' }} href="/shop?sort=bestSelling" badge="best" accentColor="bg-amber-500" /></Suspense>
-    <Suspense fallback={<SectionSkeleton />}><HomeProductSection section="newest" locale={locale} catalog={catalog} title={{ en: 'Fresh arrivals', ps: 'تازه راغلي محصولات', fa: 'تازه‌واردها' }} subtitle={{ en: 'New products to discover before everyone else', ps: 'نوي محصولات چې لومړی یې تاسو ومومئ', fa: 'محصولات تازه برای کشف زودتر از دیگران' }} href="/shop?sort=newest" badge="new" accentColor="bg-sky-500" /></Suspense>
-    <DynamicBannerStrip locale={locale} placement="HOME_MID" />
-    <Suspense fallback={<SectionSkeleton />}><LowerRecommendationSections locale={locale} userId={user?.id} catalog={catalog} /></Suspense>
+    <Suspense fallback={<SectionSkeleton />}><HomeCatalogSections locale={locale} /></Suspense>
     <Suspense fallback={<SectionSkeleton />}><PopularCategoryRanking locale={locale} /></Suspense>
     <Suspense fallback={<div className="h-44 animate-pulse bg-muted/30" />}><TrustSection /></Suspense>
     <Suspense fallback={<div className="h-40 animate-pulse bg-muted/20" />}><BrandsSection locale={locale} /></Suspense>
