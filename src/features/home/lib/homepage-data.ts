@@ -1,4 +1,5 @@
 import { cache } from 'react';
+import { unstable_cache } from 'next/cache';
 import { getProductService } from '@/server/infrastructure/registry';
 import { rankProductsForUser } from './personalized-ranking';
 import { getCurrentUser } from '@/lib/auth/current-user';
@@ -13,10 +14,17 @@ export type HomepageSectionState = { status: 'ok'; products: ProductSummary[] } 
 
 const EMPTY_HOME_DATA: HomepageData = { newest: [], bestSelling: [], mostViewed: [], popular: [], featured: [] };
 const HOME_SECTION_SIZE = 8;
+const HOMEPAGE_CACHE_SECONDS = 30;
+
+const getCachedHomepageData = unstable_cache(
+  async (): Promise<HomepageData> => getProductService().getHomepageSections(HOME_SECTION_SIZE),
+  ['homepage-catalog-v2'],
+  { revalidate: HOMEPAGE_CACHE_SECONDS, tags: ['homepage-catalog'] },
+);
 
 export const getHomepageDataState = cache(async (): Promise<HomepageState> => {
   if (!isDatabaseConfigured()) return { status: 'unavailable', data: EMPTY_HOME_DATA };
-  try { return { status: 'ok', data: await getProductService().getHomepageSections(HOME_SECTION_SIZE) }; }
+  try { return { status: 'ok', data: await getCachedHomepageData() }; }
   catch { return { status: 'unavailable', data: EMPTY_HOME_DATA }; }
 });
 
@@ -38,7 +46,8 @@ export const getHomepageSectionState = cache(async (section: HomeSection, size =
     const result = await service.listProducts({ isActive: true, page: 1, pageSize: candidateSize, sort: section === 'featured' ? 'featured' : section, ...(section === 'featured' ? { featured: true } : {}) });
     const products = usePersonalization ? await rankProductsForUser(result.products, effectiveUserId!, section) : result.products;
     return { status: 'ok', products: products.slice(0, size) };
-  } catch { return { status: 'unavailable', products: [] }; }
+  } catch { return { status: 'unavailable', products: [] };
+  }
 });
 
 /** @deprecated Prefer getHomepageSectionState so callers can distinguish empty from unavailable. */
