@@ -1,3 +1,4 @@
+import { unstable_cache } from 'next/cache';
 import { prisma, isDatabaseConfigured } from '@/lib/db';
 
 export const HOME_BANNER_PLACEMENTS = { HERO: 'HOME_HERO', PROMO_1: 'HOME_PROMO_1', PROMO_2: 'HOME_PROMO_2', MID: 'HOME_MID', CATEGORY: 'HOME_CATEGORY', SELLER: 'HOME_SELLER' } as const;
@@ -20,7 +21,7 @@ const placementAliases: Record<string, string[]> = {
 function nowWindowSql() { return `("startAt" IS NULL OR "startAt" <= NOW()) AND ("endAt" IS NULL OR "endAt" >= NOW())`; }
 export function normalizeBannerPlacement(placement: string): BannerPlacement | string { return placementAliases[placement]?.[0] ?? placement; }
 
-export async function listActiveBanners(placement: string, limit = 12): Promise<BannerRow[]> {
+async function queryActiveBanners(placement: string, limit: number): Promise<BannerRow[]> {
   if (!isDatabaseConfigured()) return [];
   const aliases = placementAliases[placement] ?? [placement];
   const placeholders = aliases.map((_, index) => `$${index + 1}`).join(', ');
@@ -28,8 +29,18 @@ export async function listActiveBanners(placement: string, limit = 12): Promise<
   return prisma.$queryRawUnsafe<BannerRow[]>(
     `SELECT "id","key","placement","title","subtitle","ctaLabel","href","desktopImageUrl","mobileImageUrl","startAt","endAt","sortOrder","autoSlide","durationMs","isActive" FROM "Banner" WHERE "placement" IN (${placeholders}) AND "isActive" = true AND ${nowWindowSql()} ORDER BY "sortOrder" ASC, "createdAt" DESC LIMIT ${limitParam}`,
     ...aliases,
-    Math.min(Math.max(limit, 1), 50),
+    limit,
   );
+}
+
+export async function listActiveBanners(placement: string, limit = 12): Promise<BannerRow[]> {
+  const normalizedLimit = Math.min(Math.max(limit, 1), 50);
+  const getCached = unstable_cache(
+    async () => queryActiveBanners(placement, normalizedLimit),
+    ['active-banners-v2', placement, String(normalizedLimit)],
+    { revalidate: 20, tags: [`active-banners:${placement}`] },
+  );
+  return getCached();
 }
 
 export async function listAllBanners(): Promise<BannerRow[]> {
