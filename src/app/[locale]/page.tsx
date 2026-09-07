@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import Image from 'next/image';
-import { Heart, ShieldCheck, Star, Store } from 'lucide-react';
+import { Heart, ShieldCheck, Store } from 'lucide-react';
 import { unstable_cache } from 'next/cache';
 import { setRequestLocale } from 'next-intl/server';
 import { Link } from '@/i18n/routing';
@@ -14,7 +14,7 @@ import { TrustSection } from '@/features/home/components/trust-section';
 import { SiteHeader } from '@/features/home/components/site-header';
 import { SiteFooter } from '@/features/home/components/site-footer';
 import { BottomNavigation } from '@/features/home/components/bottom-navigation';
-import { getCategoryRepository, getSellerRepository } from '@/server/infrastructure/registry';
+import { getSellerRepository } from '@/server/infrastructure/registry';
 import { getHomepageSection, toSliderProduct } from '@/features/home/lib/homepage-data';
 import { listActiveBanners } from '@/server/services/banner.service';
 import { isDatabaseConfigured } from '@/lib/db';
@@ -90,22 +90,24 @@ async function HomeCatalogSections({ locale }: { locale: Locale }) {
   let bestSelling: ProductSummary[] = [];
   let newest: ProductSummary[] = [];
   try {
-    bestSelling = await getHomepageSection('bestSelling', 6);
-    newest = await getHomepageSection('newest', 6);
+    [bestSelling, newest] = await Promise.all([
+      getHomepageSection('bestSelling', 4),
+      getHomepageSection('newest', 4),
+    ]);
   } catch (err) {
     console.error('[home/catalog] failed to load displayed catalog:', err);
   }
 
-  const selected = uniqueProducts(bestSelling, 6);
+  const selected = uniqueProducts(bestSelling, 4);
   const selectedIds = new Set(selected.map((product) => product.id));
-  const fresh = uniqueProducts(newest, 6, selectedIds);
+  const fresh = uniqueProducts(newest, 4, selectedIds);
 
   return <div className="space-y-1">
     <CompactProductSection
       locale={locale}
       products={selected}
       title={{ en: 'Today’s picks', ps: 'د نن غوره انتخابونه', fa: 'انتخاب‌های امروز' }}
-      subtitle={{ en: 'A small selection of products worth seeing', ps: 'د پام وړ غوره محصولات', fa: 'منتخبی کوتاه از محصولات ارزشمند' }}
+      subtitle={{ en: 'A short selection of popular products', ps: 'د مشهورو محصولاتو لنډ انتخاب', fa: 'گزیده‌ای کوتاه از محصولات محبوب' }}
       href="/shop?sort=bestSelling"
       badge="best"
       accentColor="bg-amber-500"
@@ -114,7 +116,7 @@ async function HomeCatalogSections({ locale }: { locale: Locale }) {
       locale={locale}
       products={fresh}
       title={{ en: 'Fresh arrivals', ps: 'تازه راغلي محصولات', fa: 'تازه‌واردها' }}
-      subtitle={{ en: 'New products without repeating the previous section', ps: 'نوي محصولات پرته له تکراره', fa: 'محصولات تازه بدون تکرار بخش قبلی' }}
+      subtitle={{ en: 'New products, without repeating the first section', ps: 'نوي محصولات، پرته له تکرار', fa: 'محصولات تازه، بدون تکرار بخش اول' }}
       href="/shop?sort=newest"
       badge="new"
       accentColor="bg-sky-500"
@@ -153,36 +155,6 @@ async function HomePopularStores({ locale }: { locale: Locale }) {
   return <section className="border-y border-border bg-card py-4 sm:py-6" aria-label={copy.title}><div className="mx-auto max-w-screen-xl px-2.5 sm:px-6"><div className="mb-3 flex items-center justify-between gap-2 sm:mb-4"><div className="flex min-w-0 items-center gap-2"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-violet-500/10 text-violet-600 dark:text-violet-400"><Store className="h-4 w-4" aria-hidden="true" /></span><div className="min-w-0"><h2 className="truncate text-sm font-black sm:text-lg">{copy.title}</h2><p className="mt-0.5 truncate text-[10px] text-muted-foreground sm:text-xs">{copy.subtitle}</p></div></div><Link href="/stores" className="min-h-8 shrink-0 rounded-full border border-border bg-background px-2.5 py-1.5 text-[10px] font-bold sm:px-3 sm:text-xs">{copy.all}</Link></div><div className="flex snap-x snap-mandatory gap-2 overflow-x-auto pb-1 [scrollbar-width:none] sm:gap-3 [&::-webkit-scrollbar]:hidden">{result.items.slice(0, 10).map((store) => <Link key={store.id} href={`/store/${store.id}` as never} aria-label={store.shopName} className="group relative flex w-[180px] shrink-0 snap-start items-center gap-2 rounded-2xl border border-border bg-background p-2.5 transition hover:border-primary/30 hover:shadow-sm sm:w-[220px] sm:p-3"><span className="pointer-events-none absolute end-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-background/90 text-rose-500 shadow-sm ring-1 ring-border/70" aria-hidden="true"><Heart className="h-3.5 w-3.5 fill-current" /></span><span className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-muted sm:h-14 sm:w-14">{store.logoUrl ? <Image src={store.logoUrl} alt="" fill sizes="56px" /> : <span className="text-sm font-black text-primary">{store.shopName.charAt(0)}</span>}<span className="absolute -end-0.5 -top-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full border border-background bg-emerald-500 text-white"><ShieldCheck className="h-2 w-2" aria-hidden="true" /></span></span><span className="min-w-0 pe-7"><strong className="block truncate text-[11px] font-black sm:text-xs">{store.shopName}</strong><span className="mt-0.5 block truncate text-[9px] text-muted-foreground sm:text-[10px]">{store.productCount} {locale === 'en' ? 'products' : locale === 'ps' ? 'محصولات' : 'محصول'}</span></span></Link>)}</div></div></section>;
 }
 
-const getCachedPopularCategories = unstable_cache(
-  async () => getCategoryRepository().findAll(true, true),
-  ['home-popular-categories-v2'],
-  { revalidate: 30, tags: ['home-popular-categories'] },
-);
-
-async function loadPopularCategories() {
-  try {
-    return await getCachedPopularCategories();
-  } catch (err) {
-    console.error('[home/popular-categories] DB error:', err);
-    return null;
-  }
-}
-
-async function PopularCategoryRanking({ locale }: { locale: Locale }) {
-  if (!isDatabaseConfigured()) return null;
-  const categories = await loadPopularCategories();
-  if (!categories) {
-    const title = locale === 'en' ? 'Popular categories are temporarily unavailable.' : locale === 'ps' ? 'مشهورې کټګورۍ اوس مهال د لاسرسي وړ نه دي.' : 'دسته‌های محبوب موقتاً در دسترس نیستند.';
-    return <DataUnavailable title={title} />;
-  }
-  const top = categories.filter((category) => !category.parentId).sort((a, b) => Number(b.productCount ?? 0) - Number(a.productCount ?? 0)).slice(0, 2);
-  if (!top.length) return null;
-  const title = locale === 'en' ? 'Popular categories' : locale === 'ps' ? 'مشهورې کټګورۍ' : 'دسته‌های محبوب';
-  const productLabel = locale === 'en' ? 'products' : locale === 'ps' ? 'محصولات' : 'محصول';
-  const numberLocale = locale === 'en' ? 'en-US' : locale === 'ps' ? 'ps-AF' : 'fa-IR';
-  return <section className="border-b border-border bg-card py-4 sm:py-6" aria-label={title}><div className="mx-auto max-w-screen-xl px-2.5 sm:px-6"><div className="mb-3 flex items-center gap-2 sm:mb-4"><span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-sm font-black text-primary"><Star className="h-4 w-4" aria-hidden="true" /></span><h2 className="text-sm font-black sm:text-lg">{title}</h2></div><div className="grid grid-cols-2 gap-2 sm:gap-3">{top.map((category, index) => <Link key={category.id} href={`/category/${category.slug}` as never} className="relative flex min-h-20 items-center gap-2 overflow-hidden rounded-2xl border border-border bg-background p-2.5 transition hover:border-primary/30 hover:shadow-sm sm:min-h-24 sm:p-3"><span className="absolute start-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-[11px] font-black text-primary-foreground">{index + 1}</span><span className="relative ms-8 h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-muted sm:h-16 sm:w-16">{category.imageUrl ? <Image src={category.imageUrl} alt={category.name} fill sizes="64px" loading="lazy" className="object-cover" /> : <span className="flex h-full w-full items-center justify-center text-sm font-black text-muted-foreground">{index + 1}</span>}</span><span className="min-w-0"><strong className="block truncate text-xs font-black sm:text-sm">{category.name}</strong><span className="mt-1 block text-[10px] text-muted-foreground sm:text-[10px]">{Number(category.productCount ?? 0).toLocaleString(numberLocale)} {productLabel}</span></span></Link>)}</div></div></section>;
-}
-
 export default async function HomePage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale: rawLocale } = await params;
   const locale = (['fa', 'ps', 'en'].includes(rawLocale) ? rawLocale : 'fa') as Locale;
@@ -195,7 +167,6 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
     <Suspense fallback={<div className="h-56 animate-pulse bg-muted/20" />}><HomePopularStores locale={locale} /></Suspense>
     <DynamicBannerStrip locale={locale} placement="HOME_PROMO_1" />
     <Suspense fallback={<SectionSkeleton />}><HomeCatalogSections locale={locale} /></Suspense>
-    <Suspense fallback={<div className="h-44 animate-pulse bg-muted/30" />}><PopularCategoryRanking locale={locale} /></Suspense>
     <Suspense fallback={<div className="h-44 animate-pulse bg-muted/30" />}><TrustSection /></Suspense>
     <Suspense fallback={<div className="h-40 animate-pulse bg-muted/20" />}><BrandsSection locale={locale} /></Suspense>
   </main><SiteFooter /><BottomNavigation /></div>;
