@@ -34,8 +34,25 @@ function normalizeServerlessUrl(raw: string | undefined): string | undefined {
   if (!raw) return undefined;
   try {
     const url = new URL(raw);
-    if (!url.searchParams.has('connection_limit')) url.searchParams.set('connection_limit', '2');
-    if (!url.searchParams.has('pool_timeout')) url.searchParams.set('pool_timeout', '20');
+
+    // Do not force a connection_limit here. Marketplace-managed pooled URLs
+    // already carry provider-appropriate limits, while forcing `2` caused
+    // production P2024 pool exhaustion on the homepage. An explicit
+    // PRISMA_CONNECTION_LIMIT can still be supplied when the database owner
+    // has a known hard connection budget.
+    const configuredLimit = Number.parseInt(process.env.PRISMA_CONNECTION_LIMIT ?? '', 10);
+    if (!url.searchParams.has('connection_limit') && Number.isInteger(configuredLimit) && configuredLimit > 0) {
+      url.searchParams.set('connection_limit', String(configuredLimit));
+    }
+
+    // Keep the timeout configurable; 20s is the provider-safe default when
+    // nothing is specified. A shorter value may be useful in production, but
+    // should be an operational choice rather than a code-imposed value.
+    const configuredPoolTimeout = Number.parseInt(process.env.PRISMA_POOL_TIMEOUT ?? '', 10);
+    if (!url.searchParams.has('pool_timeout') && Number.isInteger(configuredPoolTimeout) && configuredPoolTimeout > 0) {
+      url.searchParams.set('pool_timeout', String(configuredPoolTimeout));
+    }
+
     return url.toString();
   } catch {
     return raw;
@@ -44,7 +61,7 @@ function normalizeServerlessUrl(raw: string | undefined): string | undefined {
 
 // Prisma's datasource is intentionally defined as env("DATABASE_URL").
 // Normalize the preferred Marketplace-managed URL into the canonical variable
-// and apply conservative serverless pool defaults when they are absent.
+// without overriding provider-managed pool settings.
 const resolvedDatabaseUrl = normalizeServerlessUrl(resolveDatabaseUrl());
 if (resolvedDatabaseUrl) {
   process.env.DATABASE_URL = resolvedDatabaseUrl;
