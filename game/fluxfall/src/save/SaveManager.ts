@@ -1,4 +1,4 @@
-import type { SaveData } from './types';
+import type { SaveData } from '../core/types';
 
 const KEY = 'fluxfall.save.v1';
 
@@ -27,8 +27,8 @@ function sanitize(value: unknown): SaveData {
     totalRuns: Number.isFinite(input.totalRuns) && input.totalRuns! >= 0 ? Math.floor(input.totalRuns!) : 0,
     totalKills: Number.isFinite(input.totalKills) && input.totalKills! >= 0 ? Math.floor(input.totalKills!) : 0,
     longestCombo: Number.isFinite(input.longestCombo) && input.longestCombo! >= 0 ? Math.floor(input.longestCombo!) : 0,
-    unlockedModules: Array.isArray(input.unlockedModules) ? input.unlockedModules.filter((v): v is string => typeof v === 'string').slice(0, 20) : [],
-    achievements: Array.isArray(input.achievements) ? input.achievements.filter((v): v is string => typeof v === 'string').slice(0, 50) : [],
+    unlockedModules: Array.isArray(input.unlockedModules) ? input.unlockedModules.filter((v: unknown): v is string => typeof v === 'string').slice(0, 20) : [],
+    achievements: Array.isArray(input.achievements) ? input.achievements.filter((v: unknown): v is string => typeof v === 'string').slice(0, 50) : [],
     settings: { sound: settings.sound !== false, haptics: settings.haptics !== false },
     daily: {
       date: typeof daily.date === 'string' ? daily.date.slice(0, 10) : '',
