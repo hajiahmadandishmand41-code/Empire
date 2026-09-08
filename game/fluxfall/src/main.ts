@@ -9,10 +9,6 @@ if (!app) throw new Error('Fluxfall mount node is missing.');
 let game: Game;
 let ui: UIManager;
 
-const pressAction = (key: string): void => {
-  window.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
-};
-
 const callbacks = {
   start: (mode: GameMode) => {
     ui.showGameplay();
@@ -20,8 +16,8 @@ const callbacks = {
     (window as unknown as { __fluxfallSave: ReturnType<Game['getSave']> }).__fluxfallSave = game.getSave();
   },
   pause: () => game.togglePause(),
-  dash: () => pressAction(' '),
-  ability: () => pressAction('e'),
+  dash: () => game.triggerDash(),
+  ability: () => game.triggerAbility(),
   buy: (id: string) => {
     if (game.buyModule(id)) ui.mountUpgrades(game.getSave());
     else ui.toastMessage('NOT ENOUGH CREDIT', 'Complete runs to earn more Flux Credits.');
