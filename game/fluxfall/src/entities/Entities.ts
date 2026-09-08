@@ -108,7 +108,7 @@ export function resetEnemy(enemy: Enemy, kind: EnemyKind, x: number, y: number, 
   enemy.y = y;
   enemy.vx = 0;
   enemy.vy = 0;
-  enemy.phase = Math.random() * Math.PI * 2;
+  enemy.phase = 0;
   enemy.shootCd = kind === 'shooter' ? 1.2 : 0;
   if (kind === 'boss') {
     enemy.radius = 54;
