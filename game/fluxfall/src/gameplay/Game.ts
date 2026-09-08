@@ -1,6 +1,6 @@
 import type { Enemy, Particle, Pickup, Shot } from '../entities/Entities';
 import { resetEnemy, steerEnemy, Player } from '../entities/Entities';
-import { clamp, dateKey, distSq, hashSeed, seededRandom, type GameMode, type GameSnapshot, type RunSummary, type SaveData, type Vec2 } from '../core/types';
+import { clamp, dateKey, distSq, hashSeed, seededRandom, type GameMode, type GameSnapshot, type RunSummary, type SaveData } from '../core/types';
 import { InputManager } from '../input/InputManager';
 import { AudioEngine } from '../audio/AudioEngine';
 import { SaveManager } from '../save/SaveManager';
@@ -49,7 +49,7 @@ export class Game {
   private spawnTimer = 0;
   private waveTimer = 0;
   private bossId: Enemy | null = null;
-  private rng = Math.random;
+  private gameplayRng = Math.random;
   private shake = 0;
   private hitFlash = 0;
   private stars = Array.from({ length: 90 }, (_, i) => ({ x: (i * 83) % WIDTH, y: (i * 47) % HEIGHT, speed: 8 + (i % 7) * 4 }));
@@ -81,6 +81,8 @@ export class Game {
   }
 
   getSave(): SaveData { return this.save; }
+  triggerDash(): void { this.input.triggerDash(); }
+  triggerAbility(): void { this.input.triggerAbility(); }
 
   start(mode: GameMode = 'normal'): void {
     this.mode = mode;
@@ -96,7 +98,7 @@ export class Game {
     this.spawnTimer = 0.2;
     this.waveTimer = 0;
     this.bossId = null;
-    this.rng = mode === 'daily' ? seededRandom(hashSeed(`fluxfall:${dateKey()}`)) : Math.random;
+    this.gameplayRng = mode === 'daily' ? seededRandom(hashSeed(`fluxfall:${dateKey()}`)) : Math.random;
     this.player.reset(100 + (this.save.unlockedModules.includes('vanguard') ? 25 : 0));
     this.clearPool(this.enemies);
     this.clearPool(this.shots);
@@ -219,10 +221,7 @@ export class Game {
           this.audio.hit();
           this.callbacks.onHaptic(35);
           this.emitBurst(this.player.position.x, this.player.position.y, 20, 7, 1.1);
-          if (this.player.hp <= 0) {
-            this.endRun(false);
-            return;
-          }
+          if (this.player.hp <= 0) { this.endRun(false); return; }
         }
       }
     }
@@ -271,9 +270,7 @@ export class Game {
     for (const enemy of this.enemies) {
       if (!enemy.active) continue;
       const d2 = distSq(enemy, this.player.position);
-      if (d2 < 0) continue;
-      // Dash contact is offensive: passing through enemies awards score.
-      if (this.player.dashTimer > 0 && d2 < (enemy.radius + 34) ** 2) {
+      if (d2 > 0 && this.player.dashTimer > 0 && d2 < (enemy.radius + 34) ** 2) {
         this.damageEnemy(enemy, 70 + this.wave * 7, true);
       }
     }
@@ -290,10 +287,10 @@ export class Game {
     const alive = this.enemies.reduce((count, enemy) => count + (enemy.active ? 1 : 0), 0);
     const cap = Math.min(55, 8 + this.wave * 2);
     if (alive >= cap) return;
-    const edge = Math.floor(this.rng() * 4);
-    const x = edge === 1 ? WIDTH + 40 : edge === 3 ? -40 : this.rng() * WIDTH;
-    const y = edge === 0 ? -40 : edge === 2 ? HEIGHT + 40 : this.rng() * HEIGHT;
-    const r = this.rng();
+    const edge = Math.floor(this.gameplayRng() * 4);
+    const x = edge === 1 ? WIDTH + 40 : edge === 3 ? -40 : this.gameplayRng() * WIDTH;
+    const y = edge === 0 ? -40 : edge === 2 ? HEIGHT + 40 : this.gameplayRng() * HEIGHT;
+    const r = this.gameplayRng();
     const kind = this.wave >= 7 && r < 0.18 ? 'splitter' : r < 0.28 ? 'shooter' : 'chaser';
     const enemy = this.enemies.find(item => !item.active);
     if (!enemy) return;
@@ -318,11 +315,9 @@ export class Game {
     const dy = this.player.position.y - enemy.y;
     const len = Math.hypot(dx, dy) || 1;
     const speed = enemy.kind === 'boss' ? 220 : 190;
-    shot.active = true;
-    shot.x = enemy.x; shot.y = enemy.y;
+    shot.active = true; shot.x = enemy.x; shot.y = enemy.y;
     shot.vx = dx / len * speed; shot.vy = dy / len * speed;
-    shot.radius = enemy.kind === 'boss' ? 7 : 5;
-    shot.life = 5;
+    shot.radius = enemy.kind === 'boss' ? 7 : 5; shot.life = 5;
     if (enemy.kind === 'boss') {
       for (let i = 0; i < 3; i += 1) {
         const a = Math.atan2(dy, dx) + (i - 1) * 0.2;
@@ -338,14 +333,19 @@ export class Game {
     enemy.hp -= amount;
     this.emitBurst(enemy.x, enemy.y, dashHit ? 5 : 3, enemy.kind === 'boss' ? 42 : 190, dashHit ? 1.1 : 0.6);
     if (enemy.hp > 0) return;
+    const wasBoss = this.bossId === enemy;
     enemy.active = false;
-    if (this.bossId === enemy) {
+    if (wasBoss) {
       this.bossId = null;
       this.score += 4000 + this.wave * 650;
       this.player.flux = this.player.maxFlux;
       this.emitBurst(enemy.x, enemy.y, 120, 44, 3.0);
       this.audio.win();
       this.callbacks.onMessage('WARDEN DOWN', 'Core breach stabilized. The next storm is already forming.');
+      if (this.wave >= 15) {
+        this.endRun(true);
+        return;
+      }
     }
     this.kills += 1;
     this.combo = clamp(this.combo + 1, 0, 60);
@@ -354,9 +354,6 @@ export class Game {
     this.spawnPickup(enemy.x, enemy.y, reward);
     this.player.flux = clamp(this.player.flux + 4, 0, this.player.maxFlux);
     this.score += (dashHit ? 140 : 90) * Math.max(1, 1 + Math.floor(this.combo / 5));
-    if (enemy.kind === 'splitter') {
-      for (let i = 0; i < 2; i += 1) this.spawnPickup(enemy.x + (i ? 14 : -14), enemy.y, 4);
-    }
     this.emitBurst(enemy.x, enemy.y, 18, enemy.kind === 'boss' ? 45 : 175, 1.4);
   }
 
@@ -370,6 +367,7 @@ export class Game {
       if (!enemy.active || distSq(enemy, this.player.position) > radius ** 2) continue;
       this.damageEnemy(enemy, power, false);
       removed += 1;
+      if (this.ended) return;
     }
     this.score += 250 + removed * 90;
     this.audio.ability();
@@ -389,10 +387,10 @@ export class Game {
     let created = 0;
     for (const p of this.particles) {
       if (p.active) continue;
-      const angle = this.rng() * Math.PI * 2;
-      const speed = 35 + this.rng() * 170;
+      const angle = this.gameplayRng() * Math.PI * 2;
+      const speed = 35 + this.gameplayRng() * 170;
       p.active = true; p.x = x; p.y = y; p.vx = Math.cos(angle) * speed; p.vy = Math.sin(angle) * speed;
-      p.maxLife = p.life = life * (0.55 + this.rng() * 0.7); p.size = 1.5 + this.rng() * 4; p.hue = hue + this.rng() * 28;
+      p.maxLife = p.life = life * (0.55 + this.gameplayRng() * 0.7); p.size = 1.5 + this.gameplayRng() * 4; p.hue = hue + this.gameplayRng() * 28;
       created += 1;
       if (created >= count) break;
     }
@@ -437,40 +435,29 @@ export class Game {
   private render(): void {
     const ctx = this.ctx;
     ctx.save();
-    ctx.fillStyle = '#06101c';
-    ctx.fillRect(0, 0, WIDTH, HEIGHT);
+    ctx.fillStyle = '#06101c'; ctx.fillRect(0, 0, WIDTH, HEIGHT);
     const grad = ctx.createRadialGradient(WIDTH / 2, HEIGHT / 2, 40, WIDTH / 2, HEIGHT / 2, 560);
     grad.addColorStop(0, '#11283b'); grad.addColorStop(1, '#06101c');
     ctx.fillStyle = grad; ctx.fillRect(0, 0, WIDTH, HEIGHT);
-
     for (const star of this.stars) {
       star.y = (star.y + star.speed / 60) % HEIGHT;
       ctx.fillStyle = `rgba(150,210,255,${0.22 + (star.speed - 8) / 35})`;
       ctx.fillRect(star.x, star.y, 1, 1);
     }
-    ctx.strokeStyle = 'rgba(92,177,255,0.07)';
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(92,177,255,0.07)'; ctx.lineWidth = 1;
     for (let x = 0; x <= WIDTH; x += 50) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, HEIGHT); ctx.stroke(); }
     for (let y = 0; y <= HEIGHT; y += 50) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(WIDTH, y); ctx.stroke(); }
-
-    const sx = (this.rng() - 0.5) * this.shake * 30;
-    const sy = (this.rng() - 0.5) * this.shake * 30;
+    const sx = (Math.random() - 0.5) * this.shake * 30; const sy = (Math.random() - 0.5) * this.shake * 30;
     ctx.translate(sx, sy);
     this.renderPickups(); this.renderShots(); this.renderEnemies(); this.renderPlayer(); this.renderParticles();
     ctx.restore();
-    if (this.hitFlash > 0) {
-      ctx.fillStyle = `rgba(255,60,95,${this.hitFlash * 0.75})`;
-      ctx.fillRect(0, 0, WIDTH, HEIGHT);
-    }
+    if (this.hitFlash > 0) { ctx.fillStyle = `rgba(255,60,95,${this.hitFlash * 0.75})`; ctx.fillRect(0, 0, WIDTH, HEIGHT); }
   }
 
   private renderPlayer(): void {
-    const ctx = this.ctx;
-    const p = this.player.position;
-    ctx.save();
-    ctx.translate(p.x, p.y); ctx.rotate(this.player.angle);
-    ctx.shadowBlur = 22; ctx.shadowColor = '#42e8ff';
-    ctx.fillStyle = '#b9f8ff';
+    const ctx = this.ctx; const p = this.player.position;
+    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(this.player.angle);
+    ctx.shadowBlur = 22; ctx.shadowColor = '#42e8ff'; ctx.fillStyle = '#b9f8ff';
     ctx.beginPath(); ctx.moveTo(20, 0); ctx.lineTo(-12, -11); ctx.lineTo(-6, 0); ctx.lineTo(-12, 11); ctx.closePath(); ctx.fill();
     ctx.fillStyle = '#33bde0'; ctx.beginPath(); ctx.arc(2, 0, 6, 0, Math.PI * 2); ctx.fill();
     if (this.player.invulnerable > 0) { ctx.strokeStyle = '#fff'; ctx.globalAlpha = 0.8; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(0, 0, 24 + Math.sin(this.elapsed * 40) * 3, 0, Math.PI * 2); ctx.stroke(); }
@@ -483,56 +470,36 @@ export class Game {
       if (!e.active) continue;
       ctx.save(); ctx.translate(e.x, e.y);
       const hue = e.kind === 'boss' ? 44 : e.kind === 'shooter' ? 285 : e.kind === 'splitter' ? 150 : 8;
-      ctx.shadowBlur = e.kind === 'boss' ? 34 : 16; ctx.shadowColor = `hsl(${hue} 90% 62%)`;
-      ctx.fillStyle = `hsl(${hue} 85% ${e.kind === 'boss' ? 55 : 60}%)`;
+      ctx.shadowBlur = e.kind === 'boss' ? 34 : 16; ctx.shadowColor = `hsl(${hue} 90% 62%)`; ctx.fillStyle = `hsl(${hue} 85% ${e.kind === 'boss' ? 55 : 60}%)`;
       if (e.kind === 'boss') {
-        ctx.rotate(e.phase * 0.2);
-        ctx.beginPath();
+        ctx.rotate(e.phase * 0.2); ctx.beginPath();
         for (let i = 0; i < 12; i += 1) { const a = i / 12 * Math.PI * 2; const r = i % 2 ? e.radius * 0.78 : e.radius; const x = Math.cos(a) * r; const y = Math.sin(a) * r; if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); }
-        ctx.closePath(); ctx.fill();
-        ctx.fillStyle = '#07111e'; ctx.beginPath(); ctx.arc(0, 0, 16, 0, Math.PI * 2); ctx.fill();
+        ctx.closePath(); ctx.fill(); ctx.fillStyle = '#07111e'; ctx.beginPath(); ctx.arc(0, 0, 16, 0, Math.PI * 2); ctx.fill();
       } else if (e.kind === 'shooter') {
         ctx.rotate(Math.PI / 4); ctx.fillRect(-e.radius * 0.72, -e.radius * 0.72, e.radius * 1.44, e.radius * 1.44);
-      } else {
-        ctx.beginPath(); ctx.arc(0, 0, e.radius, 0, Math.PI * 2); ctx.fill();
-      }
+      } else { ctx.beginPath(); ctx.arc(0, 0, e.radius, 0, Math.PI * 2); ctx.fill(); }
       ctx.restore();
-      if (e.kind === 'boss') {
-        ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(e.x - 70, e.y - e.radius - 17, 140, 5);
-        ctx.fillStyle = '#ffd75a'; ctx.fillRect(e.x - 70, e.y - e.radius - 17, 140 * clamp(e.hp / e.maxHp, 0, 1), 5);
-      }
+      if (e.kind === 'boss') { ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(e.x - 70, e.y - e.radius - 17, 140, 5); ctx.fillStyle = '#ffd75a'; ctx.fillRect(e.x - 70, e.y - e.radius - 17, 140 * clamp(e.hp / e.maxHp, 0, 1), 5); }
     }
   }
 
   private renderShots(): void {
     const ctx = this.ctx;
-    for (const s of this.shots) {
-      if (!s.active) continue;
-      ctx.shadowBlur = 12; ctx.shadowColor = '#ff557c'; ctx.fillStyle = '#ff8da6';
-      ctx.beginPath(); ctx.arc(s.x, s.y, s.radius, 0, Math.PI * 2); ctx.fill();
-    }
+    for (const s of this.shots) { if (!s.active) continue; ctx.shadowBlur = 12; ctx.shadowColor = '#ff557c'; ctx.fillStyle = '#ff8da6'; ctx.beginPath(); ctx.arc(s.x, s.y, s.radius, 0, Math.PI * 2); ctx.fill(); }
   }
 
   private renderPickups(): void {
     const ctx = this.ctx;
     for (const p of this.pickups) {
       if (!p.active) continue;
-      ctx.save(); ctx.translate(p.x, p.y + Math.sin(p.phase) * 3); ctx.rotate(p.phase * 0.5);
-      ctx.shadowBlur = 18; ctx.shadowColor = '#45f6db'; ctx.fillStyle = '#65ffe8';
-      ctx.beginPath(); ctx.moveTo(0, -8); ctx.lineTo(8, 0); ctx.lineTo(0, 8); ctx.lineTo(-8, 0); ctx.closePath(); ctx.fill();
-      ctx.restore();
+      ctx.save(); ctx.translate(p.x, p.y + Math.sin(p.phase) * 3); ctx.rotate(p.phase * 0.5); ctx.shadowBlur = 18; ctx.shadowColor = '#45f6db'; ctx.fillStyle = '#65ffe8';
+      ctx.beginPath(); ctx.moveTo(0, -8); ctx.lineTo(8, 0); ctx.lineTo(0, 8); ctx.lineTo(-8, 0); ctx.closePath(); ctx.fill(); ctx.restore();
     }
   }
 
   private renderParticles(): void {
     const ctx = this.ctx;
-    for (const p of this.particles) {
-      if (!p.active) continue;
-      const alpha = clamp(p.life / p.maxLife, 0, 1);
-      ctx.globalAlpha = alpha;
-      ctx.fillStyle = `hsl(${p.hue} 90% 68%)`;
-      ctx.beginPath(); ctx.arc(p.x, p.y, p.size * alpha, 0, Math.PI * 2); ctx.fill();
-    }
+    for (const p of this.particles) { if (!p.active) continue; const alpha = clamp(p.life / p.maxLife, 0, 1); ctx.globalAlpha = alpha; ctx.fillStyle = `hsl(${p.hue} 90% 68%)`; ctx.beginPath(); ctx.arc(p.x, p.y, p.size * alpha, 0, Math.PI * 2); ctx.fill(); }
     ctx.globalAlpha = 1;
   }
 
