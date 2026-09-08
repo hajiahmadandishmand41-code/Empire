@@ -1,6 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
-
-:root{font-family:'Outfit',system-ui,sans-serif;color:#eefaff;background:#050b13;font-synthesis:none;text-rendering:optimizeLegibility;}
+:root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#eefaff;background:#050b13;font-synthesis:none;text-rendering:optimizeLegibility}
 *{box-sizing:border-box}html,body,#app{width:100%;height:100%;margin:0}body{overflow:hidden;background:#050b13}
 button{font:inherit;color:inherit;border:0;cursor:pointer;-webkit-tap-highlight-color:transparent}.fluxfall-app{width:100%;height:100%;background:radial-gradient(circle at 50% 20%,#13283c 0,#07111d 42%,#040811 100%)}
 .shell{position:relative;width:100%;height:100%;overflow:hidden}.game-layer,.game-canvas{position:absolute;inset:0;width:100%;height:100%;display:block}.screen{position:absolute;inset:0;display:grid;place-items:center;padding:24px;pointer-events:none}.screen>*{pointer-events:auto}
