@@ -1,0 +1,31 @@
+name: Fluxfall CI
+
+on:
+  push:
+    branches: [main, 'game/**']
+    paths:
+      - 'game/fluxfall/**'
+      - '.github/workflows/fluxfall-ci.yml'
+  pull_request:
+    paths:
+      - 'game/fluxfall/**'
+      - '.github/workflows/fluxfall-ci.yml'
+
+jobs:
+  test-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: game/fluxfall
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: game/fluxfall/package.json
+      - run: npm install
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
