@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { Player } from '../src/entities/Entities';
 import { clamp, distSq, hashSeed, normalize, seededRandom } from '../src/core/types';
 
 describe('core math', () => {
@@ -22,5 +23,27 @@ describe('core math', () => {
     const a = seededRandom(hashSeed('daily'));
     const b = seededRandom(hashSeed('daily'));
     expect([a(), a(), a()]).toEqual([b(), b(), b()]);
+  });
+});
+
+describe('player combat core', () => {
+  it('moves within arena bounds and exposes dash invulnerability', () => {
+    const player = new Player();
+    player.reset(100);
+    player.update(1, { x: 1, y: 0 }, 1000, 600);
+    expect(player.position.x).toBe(972);
+    expect(player.dash({ x: 1, y: 0 })).toBe(true);
+    expect(player.invulnerable).toBeGreaterThan(0);
+  });
+
+  it('blocks damage while invulnerable and applies damage otherwise', () => {
+    const player = new Player();
+    player.reset(100);
+    player.invulnerable = 1;
+    expect(player.takeDamage(40)).toBe(false);
+    expect(player.hp).toBe(100);
+    player.invulnerable = 0;
+    expect(player.takeDamage(40)).toBe(true);
+    expect(player.hp).toBe(60);
   });
 });
