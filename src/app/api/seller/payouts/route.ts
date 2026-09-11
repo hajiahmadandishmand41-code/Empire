@@ -1,6 +1,5 @@
 /** Seller payout API. */
 import type { NextRequest } from 'next/server';
-import crypto from 'node:crypto';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { jsonError, jsonOk, jsonPreflight } from '@/lib/api/response';
@@ -34,10 +33,17 @@ export async function POST(req: NextRequest) {
   try { body = await req.json(); } catch { return jsonError('invalid_json', 'Invalid JSON', { status: 400 }); }
   const parsed = payoutSchema.safeParse(body);
   if (!parsed.success) return jsonError('invalid_body', 'اطلاعات درخواست نامعتبر است.', { status: 422, details: { issues: parsed.error.issues } });
+
   const headerKey = req.headers.get('idempotency-key')?.trim();
-  const requestKey = headerKey && headerKey.length >= 16 && headerKey.length <= 128 ? headerKey : crypto.randomUUID();
+  if (headerKey && (headerKey.length < 16 || headerKey.length > 128)) {
+    return jsonError('invalid_idempotency_key', 'Idempotency-Key must be between 16 and 128 characters.', { status: 422 });
+  }
+  if (!headerKey) {
+    return jsonError('idempotency_key_required', 'Idempotency-Key is required for payout creation.', { status: 428 });
+  }
+
   try {
-    const payout = await requestPayout(guard.user.id, { ...parsed.data, requestKey });
+    const payout = await requestPayout(guard.user.id, { ...parsed.data, requestKey: headerKey });
     return jsonOk({ payout }, { status: 201 });
   } catch (err) {
     if (err instanceof PayoutError) return jsonError(err.code, err.message, { status: 400 });
