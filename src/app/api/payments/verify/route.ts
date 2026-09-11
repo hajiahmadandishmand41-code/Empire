@@ -1,9 +1,7 @@
-/** Protected payment verification API with secure guest receipt support. */
+/** Protected read-only payment verification API with secure guest receipt support. */
 import type { NextRequest } from 'next/server';
 import { prisma, isDatabaseConfigured } from '@/lib/db';
 import { jsonError, jsonOk, jsonPreflight } from '@/lib/api/response';
-import { verifyAtomaPayStatus } from '@/lib/payments/atoma-pay';
-import { applyPaymentResult } from '@/lib/payments/apply-result';
 import { getCurrentUser } from '@/lib/auth/current-user';
 import { clientKey, rateLimitAsync, RATE_PRESETS } from '@/lib/api/rate-limit';
 import { guestReceiptCookieName, verifyGuestReceiptToken } from '@/lib/auth/guest-receipt';
@@ -40,35 +38,17 @@ export async function GET(req: NextRequest) {
     const isGuest = Boolean(!currentUser && !order.userId && verifyGuestReceiptToken(req.cookies.get(guestReceiptCookieName(order.id))?.value, order.id));
     if (!isAdmin && !isOwner && !isGuest) return jsonError('transaction_not_found', 'Transaction not found', { status: 404 });
 
-    if (txn.status === 'pending' && txn.method === 'atoma_pay' && txn.providerTxnId) {
-      try {
-        const remote = await verifyAtomaPayStatus(txn.providerTxnId);
-        if (remote.status !== 'pending') {
-          const applied = await applyPaymentResult({
-            transactionId: txn.id,
-            status: remote.status,
-            providerTxnId: remote.providerTxnId,
-            providerRaw: remote.raw,
-            failureReason: remote.failureReason,
-            paidAt: remote.paidAt ? new Date(remote.paidAt) : undefined,
-          });
-          txn = applied.transaction;
-          order = await prisma.order.findUnique({ where: { id: txn.orderId } });
-        }
-      } catch (err) {
-        logger.warn('payments.verify_live_check_failed', {}, err);
-      }
-    }
-
+    // GET is deliberately read-only. Provider status changes are ingested by
+    // the signed webhook path, which is the only mutation-capable callback.
     return jsonOk({
       transactionId: txn.id,
       reference: txn.reference,
       method: txn.method,
       status: txn.status,
-      amount: txn.amount.toNumber(),
+      amount: txn.amount.toFixed(2),
       currency: txn.currency,
       paidAt: txn.paidAt?.toISOString() ?? null,
-      order: order ? { reference: order.reference, status: order.status, paymentStatus: order.paymentStatus } : null,
+      order: { reference: order.reference, status: order.status, paymentStatus: order.paymentStatus },
     });
   } catch (err) {
     logger.error('payments.verify_failed', {}, err);
