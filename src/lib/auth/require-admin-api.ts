@@ -18,16 +18,21 @@ export async function requireAdminApi(permission?: AdminPermission): Promise<Adm
   const user = await getCurrentUser();
   if (!user) return { ok: false, response: jsonError('unauthorized', 'Authentication required', { status: 401 }) };
   if (user.role !== 'admin') return { ok: false, response: jsonError('forbidden', 'Admin access required', { status: 403 }) };
-  let accessRole: AdminAccessRole = 'admin';
-  let permissions = DEFAULT_PERMISSIONS.admin;
+
+  let accessRole: AdminAccessRole;
+  let permissions: string[];
   try {
     const access = await getAdminAccessRole(user.id);
     accessRole = access.role;
     permissions = access.permissions;
-  } catch {
-    // Existing admin installations may not have the additive RBAC table yet.
-    // Preserve the old admin behavior until the migration is deployed.
+  } catch (err) {
+    // RBAC lookup failure must fail closed. Falling back to full admin
+    // permissions during a datastore/migration outage would violate
+    // least privilege and can turn an infrastructure error into escalation.
+    console.error('[auth/require-admin-api] RBAC lookup failed', err);
+    return { ok: false, response: jsonError('authorization_unavailable', 'Authorization service is temporarily unavailable', { status: 503 }) };
   }
+
   if (permission && !permissions.includes('*') && !permissions.includes(permission)) {
     return { ok: false, response: jsonError('forbidden', 'You do not have permission for this operation', { status: 403 }) };
   }
